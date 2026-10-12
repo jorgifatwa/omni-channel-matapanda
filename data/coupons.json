@@ -1,0 +1,36 @@
+[
+  {
+    "id": "coup-influencer-10",
+    "code": "INFLUENCER10",
+    "name": "Influencer Partner Special 10%",
+    "description": "Kode voucher eksklusif influencer partner ZODIAC diskon 10%",
+    "discountType": "PERCENTAGE",
+    "discountValue": 10,
+    "minSpend": 150000,
+    "maxDiscount": 100000,
+    "usageLimit": 500,
+    "usageCount": 12,
+    "startDate": "2026-09-01T00:00:00.000Z",
+    "endDate": "2026-12-31T23:59:59.000Z",
+    "isActive": true,
+    "createdAt": "2026-09-01T00:00:00.000Z",
+    "updatedAt": "2026-09-01T00:00:00.000Z"
+  },
+  {
+    "id": "coup-tiktok-50k",
+    "code": "TIKTOK50K",
+    "name": "TikTok Live Voucher Rp 50.000",
+    "description": "Potongan langsung Rp 50.000 untuk penonton setia TikTok Live",
+    "discountType": "FIXED_AMOUNT",
+    "discountValue": 50000,
+    "minSpend": 300000,
+    "maxDiscount": null,
+    "usageLimit": 100,
+    "usageCount": 28,
+    "startDate": "2026-09-01T00:00:00.000Z",
+    "endDate": "2026-12-31T23:59:59.000Z",
+    "isActive": true,
+    "createdAt": "2026-09-01T00:00:00.000Z",
+    "updatedAt": "2026-09-01T00:00:00.000Z"
+  }
+]

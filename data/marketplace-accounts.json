@@ -1,0 +1,38 @@
+[
+  {
+    "id": "mkt-1790866622901",
+    "platform": "SHOPEE",
+    "shopId": "227530901",
+    "shopName": "Shopee Shop 227530901",
+    "accessToken": "f893896429f5d5faee41c62d:a1ee8286fbec52573a9b9bdea4e3ec57:6f061d990ccb5486633e4e417beff8e91dacef349ad757902d60dfa6cb331c93",
+    "refreshToken": "4ca566369e5701e114a8a9d3:53107231ecddc938eedaa09323009c79:97cf47a9e0e3723d8fa4de28b246760ef7fb88eb876486b5d3f96af68b9cdebd",
+    "tokenExpiresAt": "2026-10-01T18:57:00.286Z",
+    "isActive": true,
+    "connectedAt": "2026-10-01T14:57:02.901Z",
+    "connectedById": "00000000-0000-0000-0000-000000000001",
+    "connectedBy": {
+      "name": "Admin ZODIAC",
+      "email": "jorgifatwaambia@gmail.com"
+    },
+    "createdAt": "2026-10-01T14:57:02.901Z",
+    "updatedAt": "2026-10-01T14:57:02.901Z"
+  },
+  {
+    "id": "mkt-1790873715131",
+    "platform": "TIKTOK_SHOP",
+    "shopId": "2T-FRQAAAABa4hz-gYfJguUXQ8MlKuV2D_a0-fRmVvxAjbhEw3qnNg",
+    "shopName": "Nan.Basic",
+    "accessToken": "55461ad62e28901a64e31de2:165f77eefc2684bac5d21162e75efd84:8f85f6eda015b1f850341d5acb523993fec0c42028c791144bfab921ad4af4a78e03be6fdd41288c07a9b7fbd5be1f52b093a57a757fa3b89ea614b0682301f98e6d33f68518a29929c90fde0037f74b66262123a2f323055f9a9d1420759fa42faa564f9b76a8caef8b635276dfb633db6353ae4411ac09e1bf",
+    "refreshToken": "3fe9c5dd90332c708b8ef953:b4e3ffb74bbe2c83d6b89e0376e1abea:37a0fc80639902006e46b71042a47cf761bd39b6c34c909255f4f77b8ca4eb52b8e5b5f52969eb0983a140cd0d8e6093c0f4a40035de846e305daeb344150a033f9a5611107748304fadb7afebd734",
+    "tokenExpiresAt": "2026-10-08T16:55:14.000Z",
+    "isActive": true,
+    "connectedAt": "2026-10-01T16:55:15.131Z",
+    "connectedById": "00000000-0000-0000-0000-000000000001",
+    "connectedBy": {
+      "name": "Admin ZODIAC",
+      "email": "jorgifatwaambia@gmail.com"
+    },
+    "createdAt": "2026-10-01T16:55:15.131Z",
+    "updatedAt": "2026-10-01T16:55:15.131Z"
+  }
+]
