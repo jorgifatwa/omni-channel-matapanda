@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     const trimmedEmail = email.trim().toLowerCase();
     const isEmailFormat = trimmedEmail.includes("@");
     const normalizedPhone = phone ? phone.trim() : !isEmailFormat ? trimmedEmail : undefined;
-    const normalizedEmail = isEmailFormat ? trimmedEmail : `${trimmedEmail}@customer.zodiacjakarta.com`;
+    const normalizedEmail = isEmailFormat ? trimmedEmail : `${trimmedEmail}@customer.itsmatapanda.com`;
 
     const passwordHash = await bcrypt.hash(password, 10);
 

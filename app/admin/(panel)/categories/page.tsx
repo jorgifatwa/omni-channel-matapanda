@@ -188,7 +188,7 @@ export default function AdminCategoriesPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Master Category</h1>
           <p className="text-sm text-neutral-500 dark:text-neutral-400">
-            Kelola struktur kategori dan sub-kategori produk ZODIAC.
+            Kelola struktur kategori dan sub-kategori produk it&apos;s matapanda.
           </p>
         </div>
 

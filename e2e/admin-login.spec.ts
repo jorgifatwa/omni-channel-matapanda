@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Admin Authentication E2E Tests", () => {
   const TEST_ADMIN_EMAIL =
-    process.env.E2E_TEST_ADMIN_EMAIL || "e2e-test-admin@zodiac.test";
+    process.env.E2E_TEST_ADMIN_EMAIL || "e2e-test-admin@itsmatapanda.test";
   const TEST_ADMIN_PASSWORD =
     process.env.E2E_TEST_ADMIN_PASSWORD || "";
 

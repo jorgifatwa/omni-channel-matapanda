@@ -154,7 +154,7 @@ export async function fetchUnifiedTikTokShopProducts(
     console.warn("[TikTok Shop Products] Live fetch error / sandbox empty:", apiErr);
   }
 
-  // Fallback demo/catalog items matching the ZODIAC catalog for testability
+  // Fallback demo/catalog items matching the it's matapanda catalog for testability
   // (Ensures the admin mapping UI is immediately functional and testable)
   return [
     {
@@ -204,7 +204,7 @@ export async function fetchUnifiedTikTokShopProducts(
     {
       itemId: "172985102938104",
       modelId: null,
-      name: "ZODIAC Cyber Utility Crossbody Bag",
+      name: "it's matapanda Cyber Utility Crossbody Bag",
       modelName: null,
       sku: "ZD-BAG-BLK",
       stock: 15,

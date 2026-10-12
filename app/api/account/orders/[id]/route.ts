@@ -101,7 +101,7 @@ export async function GET(
                   country: order.address.country,
                 }
               : {
-                  recipient: order.user?.name || "Customer ZODIAC",
+                  recipient: order.user?.name || "Customer it's matapanda",
                   phone: order.user?.phone || "+62 812-3456-7890",
                   street: "Jl. Senopati No. 64, Kebayoran Baru",
                   city: "Jakarta Selatan",
@@ -172,7 +172,7 @@ export async function GET(
           ],
         },
         shippingAddress: {
-          recipient: "Customer ZODIAC",
+          recipient: "Customer it's matapanda",
           phone: "+62 812-3456-7890",
           street: "Jl. Senopati No. 64, Kebayoran Baru",
           city: "Jakarta Selatan",

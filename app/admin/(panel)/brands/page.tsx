@@ -210,7 +210,7 @@ export default function AdminBrandsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Master Brand</h1>
           <p className="text-sm text-neutral-500 dark:text-neutral-400">
-            Kelola data merek, logo brand, dan status aktif kolaborator ZODIAC.
+            Kelola data merek, logo brand, dan status aktif kolaborator it&apos;s matapanda.
           </p>
         </div>
 

@@ -7,7 +7,7 @@ const client_1 = require("@prisma/client");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const prisma = new client_1.PrismaClient();
 async function main() {
-    console.log("Seeding ZODIAC database with multi-year historical data (2024, 2025, 2026)...");
+    console.log("Seeding it's matapanda database with multi-year historical data (2024, 2025, 2026)...");
     const adminPasswordHash = await bcryptjs_1.default.hash(process.env.ADMIN_DEFAULT_PASSWORD || "admin123", 10);
     // 1. Admin User
     const adminEmail = (process.env.ADMIN_DEFAULT_EMAIL || "jorgifatwaambia@gmail.com").toLowerCase();
@@ -15,7 +15,7 @@ async function main() {
         where: { email: adminEmail },
         update: {},
         create: {
-            name: "Zodiac Admin",
+            name: "it's matapanda Admin",
             email: adminEmail,
             passwordHash: adminPasswordHash,
             phone: "+6281290001111",
@@ -139,12 +139,12 @@ async function main() {
             isActive: true,
         },
     });
-    const zodiacInHouse = await prisma.brand.upsert({
-        where: { slug: "zodiac-in-house" },
+    const matapandaInHouse = await prisma.brand.upsert({
+        where: { slug: "itsmatapanda-in-house" },
         update: {},
         create: {
-            name: "ZODIAC In-House",
-            slug: "zodiac-in-house",
+            name: "it's matapanda In-House",
+            slug: "itsmatapanda-in-house",
             logoUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
             isActive: true,
         },

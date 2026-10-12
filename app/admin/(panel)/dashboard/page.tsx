@@ -271,7 +271,7 @@ function DashboardContent() {
       const exportPayload: PDFExportData = {
         periodMode: mode,
         periodLabel: analyticsData.periodLabel,
-        adminName: "Admin ZODIAC",
+        adminName: "Admin it's matapanda",
         kpis: {
           totalRevenue: analyticsData.kpis.totalRevenue,
           totalOrders: analyticsData.kpis.totalOrders,
@@ -353,7 +353,7 @@ function DashboardContent() {
             )}
           </div>
           <p className="text-sm text-neutral-500 dark:text-neutral-400">
-            Ringkasan performa penjualan, analitik periode, dan laporan transaksi ZODIAC.
+            Ringkasan performa penjualan, analitik periode, dan laporan transaksi it&apos;s matapanda.
           </p>
         </div>
 

@@ -1,6 +1,6 @@
-# ZODIAC E-Commerce & Executive Admin Console
+# it's matapanda E-Commerce & Executive Admin Console
 
-Platform e-commerce fashion streetwear modern untuk brand **ZODIAC**, dibangun menggunakan **Next.js 14 (App Router)**, **TypeScript**, **PostgreSQL + Prisma ORM**, **Cloudflare R2 Object Storage**, **Midtrans Payment Gateway**, sistem pengiriman domestik (**RajaOngkir / JNE**) & internasional (**DHL Express**), serta notifikasi email transaksi otomatis via **Nodemailer (SMTP)**.
+Platform e-commerce fashion streetwear modern untuk brand **it's matapanda**, dibangun menggunakan **Next.js 14 (App Router)**, **TypeScript**, **PostgreSQL + Prisma ORM**, **Cloudflare R2 Object Storage**, **Midtrans Payment Gateway**, sistem pengiriman domestik (**RajaOngkir / JNE**) & internasional (**DHL Express**), serta notifikasi email transaksi otomatis via **Nodemailer (SMTP)**.
 
 ---
 
@@ -67,13 +67,13 @@ cp .env.example .env
 # ==========================================
 # DATABASE (PostgreSQL + Prisma)
 # ==========================================
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/zodiac_db?schema=public"
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/matapanda_db?schema=public"
 
 # ==========================================
 # NEXTAUTH CONFIGURATION
 # ==========================================
 NEXTAUTH_URL="http://localhost:3000"
-NEXTAUTH_SECRET="zodiac-super-secret-jwt-key-change-in-production-2026"
+NEXTAUTH_SECRET="matapanda-super-secret-jwt-key-change-in-production-2026"
 ADMIN_DEFAULT_EMAIL="jorgifatwaambia@gmail.com"
 ADMIN_DEFAULT_PASSWORD="admin123"
 
@@ -83,14 +83,14 @@ ADMIN_DEFAULT_PASSWORD="admin123"
 R2_ACCOUNT_ID="your-cloudflare-account-id"
 R2_ACCESS_KEY_ID="your-r2-access-key-id"
 R2_SECRET_ACCESS_KEY="your-r2-secret-access-key"
-R2_BUCKET_NAME="zodiac-images"
+R2_BUCKET_NAME="matapanda-images"
 R2_PUBLIC_URL="https://pub-your-bucket-id.r2.dev"
 
 # ==========================================
 # RAJAONGKIR (Domestic Indonesia Shipping - JNE Real-Time)
 # ==========================================
 RAJAONGKIR_API_KEY="your-rajaongkir-api-key"
-RAJAONGKIR_ORIGIN_CITY_ID="153" # 153 = Jakarta Selatan (ZODIAC Origin)
+RAJAONGKIR_ORIGIN_CITY_ID="153" # 153 = Jakarta Selatan (it's matapanda Origin)
 
 # ==========================================
 # MIDTRANS PAYMENT GATEWAY (Sandbox / Production)
@@ -104,7 +104,7 @@ NEXT_PUBLIC_MIDTRANS_CLIENT_KEY="Mid-client-xxxxxxxxxxxxxxxx"
 # SHIPPING GATEWAY (JNE & DHL)
 # ==========================================
 JNE_API_BASE_URL="https://apiv2.jne.co.id:10205"
-JNE_USERNAME="ZODIACJKT"
+JNE_USERNAME="MATAPANDAJCKT"
 JNE_API_KEY="demo-jne-key"
 JNE_ORIGIN_CODE="CGK10000"
 DHL_API_BASE_URL="https://express.api.dhl.com/mydhlapi/test"
@@ -118,23 +118,23 @@ DHL_ACCOUNT_NUMBER="123456789"
 SMTP_HOST="smtp.gmail.com"
 SMTP_PORT="465"
 SMTP_SECURE="true"
-SMTP_USER="toko.zodiac@gmail.com"
+SMTP_USER="toko.matapanda@gmail.com"
 SMTP_PASSWORD="xxxx xxxx xxxx xxxx" # 16-digit Google App Password
-SMTP_FROM="ZODIAC Jakarta <orders@zodiacjakarta.com>"
+SMTP_FROM="it's matapanda Jakarta <orders@itsmatapanda.com>"
 ```
 
 ---
 
 ## 📧 2. Panduan Setup Email Otomatis (Nodemailer + Gmail SMTP Gratis)
 
-Sistem ZODIAC menggunakan **Nodemailer** yang terhubung dengan **Gmail SMTP**. Anda tidak perlu membayar layanan pihak ketiga apa pun (100% Gratis hingga 500–2.000 email per hari).
+Sistem it's matapanda menggunakan **Nodemailer** yang terhubung dengan **Gmail SMTP**. Anda tidak perlu membayar layanan pihak ketiga apa pun (100% Gratis hingga 500–2.000 email per hari).
 
 ### Langkah Mendapatkan Google App Password (2 Menit):
 1. Buka akun Google / Gmail toko Anda di [myaccount.google.com](https://myaccount.google.com/).
 2. Masuk ke menu **Keamanan (Security)**.
 3. Pastikan **Verifikasi 2 Langkah (2-Step Verification)** sudah aktif.
 4. Pada kotak pencarian di bagian atas, ketik **"Sandi Aplikasi"** atau **"App Passwords"** (atau buka [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)).
-5. Masukkan nama aplikasi, contoh: `ZODIAC Storefront`, lalu klik **Buat (Create)**.
+5. Masukkan nama aplikasi, contoh: `it's matapanda Storefront`, lalu klik **Buat (Create)**.
 6. Google akan memberikan **16 digit kode sandi aplikasi** (contoh: `abcd efgh ijkl mnop`).
 7. Masukkan email dan 16 digit kode tersebut ke file `.env`:
    ```env
@@ -143,7 +143,7 @@ Sistem ZODIAC menggunakan **Nodemailer** yang terhubung dengan **Gmail SMTP**. A
    SMTP_SECURE="true"
    SMTP_USER="email.toko.anda@gmail.com"
    SMTP_PASSWORD="abcdefghijklmnop" # 16 karakter tanpa spasi
-   SMTP_FROM="ZODIAC Jakarta <orders@zodiacjakarta.com>"
+   SMTP_FROM="it's matapanda Jakarta <orders@itsmatapanda.com>"
    ```
 8. **Selesai!** Setiap kali customer menyelesaikan pembayaran Midtrans (Settlement), email invoice dan link tracking pesanan akan otomatis terkirim ke email pembeli.
 
@@ -156,7 +156,7 @@ Sistem ZODIAC menggunakan **Nodemailer** yang terhubung dengan **Gmail SMTP**. A
 Pastikan container PostgreSQL berjalan (contoh port 5432):
 
 ```bash
-docker run --name zodiac-postgres -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=zodiac_db -p 5432:5432 -d postgres:16-alpine
+docker run --name matapanda-postgres -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=matapanda_db -p 5432:5432 -d postgres:16-alpine
 ```
 
 Jalankan sinkronisasi skema dan seeder:
@@ -189,20 +189,20 @@ Buka browser di:
 
 ### Kredensial Akun Default:
 - **Admin**: `jorgifatwaambia@gmail.com` / `admin123`
-- **Customer Demo**: `customer@zodiacjakarta.com` / `customer123`
+- **Customer Demo**: `customer@itsmatapanda.com` / `customer123`
 
 ---
 
 ## 🚚 5. Panduan Integrasi RajaOngkir (Cek Ongkir JNE Gratis)
 
-ZODIAC menggunakan **RajaOngkir Starter API (100% Gratis)** untuk menghitung tarif pengiriman JNE ke seluruh kota & kabupaten di Indonesia secara real-time.
+it's matapanda menggunakan **RajaOngkir Starter API (100% Gratis)** untuk menghitung tarif pengiriman JNE ke seluruh kota & kabupaten di Indonesia secara real-time.
 
 1. Buka [rajaongkir.com](https://rajaongkir.com) &rarr; Daftar akun gratis (*Starter Plan*).
 2. Buka menu **Panel Pengguna > API Key**.
 3. Salin API Key Anda ke `.env`:
    ```env
    RAJAONGKIR_API_KEY="salin_api_key_rajaongkir_anda"
-   RAJAONGKIR_ORIGIN_CITY_ID="153" # 153 = Jakarta Selatan (Origin ZODIAC)
+   RAJAONGKIR_ORIGIN_CITY_ID="153" # 153 = Jakarta Selatan (Origin it's matapanda)
    ```
 
 ---
@@ -210,7 +210,7 @@ ZODIAC menggunakan **RajaOngkir Starter API (100% Gratis)** untuk menghitung tar
 ## ☁️ 6. Panduan Cloudflare R2 (Image Storage)
 
 1. Buka [Cloudflare Dashboard](https://dash.cloudflare.com) &rarr; **R2 Object Storage**.
-2. Buat bucket baru `zodiac-images`.
+2. Buat bucket baru `matapanda-images`.
 3. Aktifkan **R2.dev subdomain** atau Custom Domain, lalu masukkan ke `R2_PUBLIC_URL`.
 4. Buat **API Token** dengan izin *Object Read & Write*, salin kredensial ke `.env`.
 
@@ -286,7 +286,7 @@ web-doc/
 
 ## 🔌 8. Panduan Integrasi Marketplace (Shopee & Tokopedia / TikTok Shop)
 
-ZODIAC dilengkapi modul integrasi marketplace di halaman Admin **`/admin/integrations`**. Tahap awal ini menyiapkan **koneksi autentikasi OAuth 2.0 & manajemen token terenkripsi AES-256-GCM** sebelum masuk ke fase sinkronisasi stok dan pesanan.
+it's matapanda dilengkapi modul integrasi marketplace di halaman Admin **`/admin/integrations`**. Tahap awal ini menyiapkan **koneksi autentikasi OAuth 2.0 & manajemen token terenkripsi AES-256-GCM** sebelum masuk ke fase sinkronisasi stok dan pesanan.
 
 ---
 
@@ -345,7 +345,7 @@ Shopee menggunakan protokol **OAuth 2.0 dengan otorisasi HMAC-SHA256 signature**
 
 ---
 
-### C. Alur Kerja OAuth di Aplikasi ZODIAC
+### C. Alur Kerja OAuth di Aplikasi it's matapanda
 
 ```
 [Admin Klik "Hubungkan"]
@@ -386,7 +386,7 @@ Redirect Kembali ke /admin/integrations (Status: "Terhubung — [Nama Toko]")
    - Lindungi endpoint dengan header `Authorization: Bearer <CRON_SECRET>`:
      ```bash
      curl -X POST http://localhost:3000/api/integrations/refresh-tokens \
-       -H "Authorization: Bearer zodiac-cron-secret-dev-2026"
+       -H "Authorization: Bearer matapanda-cron-secret-dev-2026"
      ```
    - Sistem secara otomatis mencari semua akun aktif yang tokennya kedaluwarsa dalam 60 menit ke depan, melakukan refresh ke API marketplace, mengenkripsi token baru, dan memperbarui tanggal kedaluwarsa di database.
 
@@ -394,7 +394,7 @@ Redirect Kembali ke /admin/integrations (Status: "Terhubung — [Nama Toko]")
 
 ### E. Pemetaan Produk & Sinkronisasi Stok (Omnichannel)
 
-Fitur pemetaan produk dan sinkronisasi stok menghubungkan katalog website ZODIAC (Product & ProductVariant) dengan etalase Shopee (`v2.product.get_item_list`, `v2.product.get_item_base_info`, `v2.product.get_model_list`, dan `v2.product.update_stock`).
+Fitur pemetaan produk dan sinkronisasi stok menghubungkan katalog website it's matapanda (Product & ProductVariant) dengan etalase Shopee (`v2.product.get_item_list`, `v2.product.get_item_base_info`, `v2.product.get_model_list`, dan `v2.product.update_stock`).
 
 #### 1. Arsitektur Pemetaan & Penyimpanan
 - **Model Database**: `MarketplaceProductMap` di Prisma mengaitkan `productId` dan `variantId` (opsional jika memiliki variasi ukuran/warna) ke `marketplaceItemId` dan `marketplaceModelId`.
@@ -440,7 +440,7 @@ npm run test:e2e:ui
 > **Catatan:** File `playwright.config.ts` sudah dikonfigurasi dengan `webServer` bawaan (`reuseExistingServer: true`), sehingga server Next.js (`npm run dev`) akan otomatis dijalankan jika belum aktif.
 
 ### Cakupan Test Suite (`e2e/`):
-1. **`homepage.spec.ts`**: Verifikasi Announcement Bar ticker, Navbar, Hero Banner carousel, 3 Section Banner Berwarna (New In, ZODIAC Bags, Your Favourites), Community Grid ("ZODIAC ON YOU"), Newsletter block, dan Footer 4-kolom.
+1. **`homepage.spec.ts`**: Verifikasi Announcement Bar ticker, Navbar, Hero Banner carousel, 3 Section Banner Berwarna (New In, it's matapanda Bags, Your Favourites), Community Grid ("it's matapanda ON YOU"), Newsletter block, dan Footer 4-kolom.
 2. **`navigation.spec.ts`**: Verifikasi navigasi ke `/new-arrivals`, `/brands/[slug]`, `/categories/[slug]`, serta drawer menu layar penuh di perangkat mobile.
 3. **`product-card-and-quickadd.spec.ts`**: Verifikasi Add to Bag langsung untuk produk non-varian, modal Quick-Add ("Select Option") untuk produk bervarian, serta validasi tombol ukuran habis stok (*disabled / strikethrough*).
 4. **`product-detail.spec.ts`**: Verifikasi galeri foto produk, pembesar kursor (*magnifier*), swatch grup warna, pemilihan ukuran, tab Product Details & Shipping, serta section "You May Also Like" dan "Recently Viewed".
@@ -452,5 +452,5 @@ npm run test:e2e:ui
 
 ## 📜 11. Lisensi
 
-Hak Cipta &copy; 2026 ZODIAC Jakarta. Seluruh hak cipta dilindungi undang-undang.
+Hak Cipta &copy; 2026 it's matapanda Jakarta. Seluruh hak cipta dilindungi undang-undang.
 

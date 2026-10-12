@@ -370,7 +370,7 @@ model MarketplaceAccount {
   @@index([tokenExpiresAt])
 }
 
-/// Stores mapping between ZODIAC catalog (Product / ProductVariant)
+/// Stores mapping between it's matapanda catalog (Product / ProductVariant)
 /// and external Marketplace items/models (e.g. Shopee item_id & model_id).
 model MarketplaceProductMap {
   id                   String              @id @default(uuid()) @db.Uuid

@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: true,
-        message: "Pesan Anda telah berhasil dikirim ke tim ZODIAC. Kami akan merespons secepatnya!",
+        message: "Pesan Anda telah berhasil dikirim ke tim it's matapanda. Kami akan merespons secepatnya!",
         inquiryId: savedInquiryId,
         emailSent: emailResult.success,
       },
@@ -110,7 +110,7 @@ export async function GET() {
             name: "Rama Pratama",
             email: "rama.pratama@example.com",
             phone: "+62 812-9876-5432",
-            message: "Halo tim ZODIAC, apakah T-shirt Dawn Gong Sunburn 01 akan restock ukuran XL dalam waktu dekat?",
+            message: "Halo tim it's matapanda, apakah T-shirt Dawn Gong Sunburn 01 akan restock ukuran XL dalam waktu dekat?",
             isRead: false,
             createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
           },

@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     // 2. Secondary: Cloudinary REST API fallback
     const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
     const uploadPreset =
-      process.env.CLOUDINARY_UPLOAD_PRESET || "zodiac_unsigned";
+      process.env.CLOUDINARY_UPLOAD_PRESET || "matapanda_unsigned";
 
     if (cloudName && cloudName !== "demo" && cloudName !== "your-cloud-name") {
       const cloudinaryForm = new FormData();

@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import ProductCard from "@/components/ProductCard";
 import { type StorefrontProduct } from "@/lib/data-fetcher";
 
-const STORAGE_KEY = "zodiac_recently_viewed_v1";
+const STORAGE_KEY = "matapanda_recently_viewed_v1";
 
 interface RecentlyViewedProps {
   currentProduct: StorefrontProduct;

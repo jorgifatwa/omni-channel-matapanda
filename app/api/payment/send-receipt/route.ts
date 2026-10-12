@@ -55,11 +55,11 @@ export async function POST(request: Request) {
       if (dbOrder) {
         const orderData: OrderConfirmationData = {
           orderNumber: dbOrder.orderNumber,
-          customerName: dbOrder.address?.recipient || dbOrder.user?.name || customerName || "Customer ZODIAC",
+          customerName: dbOrder.address?.recipient || dbOrder.user?.name || customerName || "Customer it's matapanda",
           customerEmail: dbOrder.user?.email || targetEmail,
           customerPhone: dbOrder.address?.phone || dbOrder.user?.phone || customerPhone || "+6281234567890",
           shippingAddress: {
-            recipient: dbOrder.address?.recipient || dbOrder.user?.name || customerName || "Customer ZODIAC",
+            recipient: dbOrder.address?.recipient || dbOrder.user?.name || customerName || "Customer it's matapanda",
             street: dbOrder.address?.street || shippingAddress?.street || "Jl. Senopati No. 64",
             city: dbOrder.address?.city || shippingAddress?.city || "Jakarta Selatan",
             province: dbOrder.address?.province || shippingAddress?.province || "DKI Jakarta",
@@ -96,11 +96,11 @@ export async function POST(request: Request) {
     // Fallback: Send email using provided body data
     const fallbackData: OrderConfirmationData = {
       orderNumber: targetOrderId,
-      customerName: customerName || "Customer ZODIAC",
+      customerName: customerName || "Customer it's matapanda",
       customerEmail: targetEmail,
       customerPhone: customerPhone || "+62 812-3456-7890",
       shippingAddress: shippingAddress || {
-        recipient: customerName || "Customer ZODIAC",
+        recipient: customerName || "Customer it's matapanda",
         street: "Jl. Senopati No. 64, Kebayoran Baru",
         city: "Jakarta Selatan",
         province: "DKI Jakarta",
@@ -115,7 +115,7 @@ export async function POST(request: Request) {
       items:
         items && items.length > 0
           ? items.map((it: { productName?: string; name?: string; sku?: string; size?: string; color?: string; quantity?: number; unitPrice?: number; priceNumber?: number; subtotal?: number }) => ({
-              productName: it.productName || it.name || "ZODIAC Product",
+              productName: it.productName || it.name || "it's matapanda Product",
               sku: it.sku,
               size: it.size,
               color: it.color,

@@ -18,7 +18,7 @@ export async function middleware(request: NextRequest) {
     req: request,
     secret:
       process.env.NEXTAUTH_SECRET ||
-      "zodiac-super-secret-jwt-key-change-in-production-2026",
+      "matapanda-super-secret-jwt-key-change-in-production-2026",
   });
 
   // 1. Handle /admin routes

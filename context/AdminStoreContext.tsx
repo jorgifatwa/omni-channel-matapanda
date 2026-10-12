@@ -40,12 +40,12 @@ const AdminStoreContext = React.createContext<
 >(undefined);
 
 const KEYS = {
-  products: "zodiac_admin_products_v1",
-  brands: "zodiac_admin_brands_v1",
-  categories: "zodiac_admin_categories_v1",
-  series: "zodiac_admin_series_v1",
-  orders: "zodiac_admin_orders_v1",
-  customers: "zodiac_admin_customers_v1",
+  products: "matapanda_admin_products_v1",
+  brands: "matapanda_admin_brands_v1",
+  categories: "matapanda_admin_categories_v1",
+  series: "matapanda_admin_series_v1",
+  orders: "matapanda_admin_orders_v1",
+  customers: "matapanda_admin_customers_v1",
 };
 
 export function saveOrderLocally(order: AdminOrder): void {

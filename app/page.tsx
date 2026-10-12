@@ -20,7 +20,7 @@ export default async function HomePage() {
   // 1. Fetch real products for "New In" from database / fetcher
   const newInProducts = await getNewArrivalProducts();
 
-  // 2. Fetch real bag products for "ZODIAC Bags"
+  // 2. Fetch real bag products for "it's matapanda Bags"
   const { products: rawBagProducts } = await getProductsByCategorySlug("bags-totes");
   let bagProducts = rawBagProducts;
   if (bagProducts.length < 4) {
@@ -87,7 +87,7 @@ export default async function HomePage() {
           showNewBadge={false}
         />
 
-        {/* 5. Community Showcase ("ZODIAC ON YOU") */}
+        {/* 5. Community Showcase ("it's matapanda ON YOU") */}
         <CommunityGrid />
       </main>
 

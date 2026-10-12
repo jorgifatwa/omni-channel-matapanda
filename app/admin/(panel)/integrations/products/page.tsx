@@ -299,7 +299,7 @@ export default function ProductMappingPage() {
               Pemetaan Produk & Stok Marketplace
             </h1>
             <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
-              Hubungkan SKU produk website ZODIAC ke Shopee dan TikTok Shop (Tokopedia) secara bersamaan.
+              Hubungkan SKU produk website it&apos;s matapanda ke Shopee dan TikTok Shop (Tokopedia) secara bersamaan.
             </p>
           </div>
 
@@ -403,7 +403,7 @@ export default function ProductMappingPage() {
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 space-y-1">
-          <span className="text-[11px] font-medium text-neutral-500 dark:text-neutral-400">Varian Website ZODIAC</span>
+          <span className="text-[11px] font-medium text-neutral-500 dark:text-neutral-400">Varian Website it&apos;s matapanda</span>
           <div className="text-2xl font-bold text-neutral-900 dark:text-white">{totalWebsiteItems}</div>
           <span className="text-[10px] text-neutral-400 dark:text-neutral-500">Total item katalog aktif</span>
         </div>
@@ -539,7 +539,7 @@ export default function ProductMappingPage() {
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50/80 dark:bg-neutral-950 text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
-                <th className="py-3 px-4 w-[35%]">Produk Website ZODIAC</th>
+                <th className="py-3 px-4 w-[35%]">Produk Website it&apos;s matapanda</th>
                 <th className="py-3 px-2 text-center w-[6%]">Relasi</th>
                 <th className="py-3 px-4 w-[35%]">Produk di Toko {platformName}</th>
                 <th className="py-3 px-3 text-center w-[12%]">Status & Stok</th>

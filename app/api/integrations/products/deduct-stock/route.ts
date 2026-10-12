@@ -4,7 +4,7 @@ import { onWebsiteOrderPlaced, type OrderItemToDeduct } from "@/lib/marketplace-
 /**
  * POST /api/integrations/products/deduct-stock
  *
- * Dipanggil secara otomatis ketika pembeli checkout / menyelesaikan pembayaran di website ZODIAC.
+ * Dipanggil secara otomatis ketika pembeli checkout / menyelesaikan pembayaran di website it's matapanda.
  * Memotong stok di Shopee (dan marketplace lain yang terhubung) secara real-time.
  */
 export async function POST(request: Request) {

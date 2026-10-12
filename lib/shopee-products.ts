@@ -302,7 +302,7 @@ export async function fetchUnifiedShopeeProducts(
     console.warn("[Shopee Products] Live fetch error / sandbox empty:", apiErr);
   }
 
-  // Fallback demo/sandbox items matching the ZODIAC streetwear catalog
+  // Fallback demo/sandbox items matching the it's matapanda streetwear catalog
   // (Ensures the admin mapping UI is immediately testable even if sandbox shop has no products yet)
   return [
     {
@@ -340,7 +340,7 @@ export async function fetchUnifiedShopeeProducts(
     },
     {
       itemId: "227530903",
-      name: "ZODIAC Cyber Utility Crossbody Bag",
+      name: "it's matapanda Cyber Utility Crossbody Bag",
       sku: "ZD-BAG-BLK",
       stock: 15,
       price: 520000,

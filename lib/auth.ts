@@ -50,7 +50,7 @@ export const authOptions: NextAuthOptions = {
 
         // 1b. E2E Isolated Test Admin Fallback (from .env)
         const e2eAdminEmail = (
-          process.env.E2E_TEST_ADMIN_EMAIL || "e2e-test-admin@zodiac.test"
+          process.env.E2E_TEST_ADMIN_EMAIL || "e2e-test-admin@itsmatapanda.test"
         ).toLowerCase();
         const e2eAdminPassword = process.env.E2E_TEST_ADMIN_PASSWORD;
 
@@ -111,15 +111,15 @@ export const authOptions: NextAuthOptions = {
 
         // 3. Demo Customer Fallback (for easy instant local testing)
         if (
-          (lowerIdentifier === "customer@zodiacjakarta.com" ||
-            lowerIdentifier === "user@zodiacjakarta.com" ||
+          (lowerIdentifier === "customer@itsmatapanda.com" ||
+            lowerIdentifier === "user@itsmatapanda.com" ||
             identifier === "081234567890") &&
           (inputPassword === "customer123" || inputPassword === "password123")
         ) {
           return {
             id: "00000000-0000-4000-8000-000000000002",
-            name: "Customer ZODIAC",
-            email: "customer@zodiacjakarta.com",
+            name: "Customer it's matapanda",
+            email: "customer@itsmatapanda.com",
             role: "CUSTOMER",
           };
         }
@@ -148,5 +148,5 @@ export const authOptions: NextAuthOptions = {
   },
   secret:
     process.env.NEXTAUTH_SECRET ||
-    "zodiac-super-secret-jwt-key-change-in-production-2026",
+    "matapanda-super-secret-jwt-key-change-in-production-2026",
 };

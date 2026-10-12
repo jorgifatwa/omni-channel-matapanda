@@ -241,11 +241,11 @@ export default function CheckoutPage() {
       id: `ord-${Date.now()}`,
       orderNumber,
       customerId: `cust-${Date.now()}`,
-      customerName: `${firstName} ${lastName}`.trim() || "Customer ZODIAC",
-      customerEmail: email || "customer@zodiacjakarta.com",
+      customerName: `${firstName} ${lastName}`.trim() || "Customer it's matapanda",
+      customerEmail: email || "customer@itsmatapanda.com",
       customerPhone: phone || "+62 812-3456-7890",
       shippingAddress: {
-        recipient: `${firstName} ${lastName}`.trim() || "Customer ZODIAC",
+        recipient: `${firstName} ${lastName}`.trim() || "Customer it's matapanda",
         phone: phone || "+62 812-3456-7890",
         street: address || "Jl. Senopati No. 64",
         city: city || (isDomestic ? "Jakarta Selatan" : "Singapore"),
@@ -298,8 +298,8 @@ export default function CheckoutPage() {
           grossAmount: grandTotal,
           customerDetails: {
             firstName: firstName || "Customer",
-            lastName: lastName || "ZODIAC",
-            email: email || "customer@zodiacjakarta.com",
+            lastName: lastName || "it's matapanda",
+            email: email || "customer@itsmatapanda.com",
             phone: phone || "+6281234567890",
             shippingAddress: {
               address,

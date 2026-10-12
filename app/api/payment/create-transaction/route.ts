@@ -40,7 +40,7 @@ export async function POST(request: Request) {
           id: "DG-ITEM",
           price: amount,
           quantity: 1,
-          name: "ZODIAC Streetwear Apparel",
+          name: "it's matapanda Streetwear Apparel",
         },
       ],
       credit_card: {

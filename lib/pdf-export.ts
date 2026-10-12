@@ -60,7 +60,7 @@ export function generateDashboardPDF(data: PDFExportData): void {
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
-  doc.text("ZODIAC", margin, 12);
+  doc.text("it's matapanda", margin, 12);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
@@ -315,7 +315,7 @@ export function generateDashboardPDF(data: PDFExportData): void {
     doc.setDrawColor(220, 220, 220);
     doc.line(margin, pageHeight - 10, pageWidth - margin, pageHeight - 10);
     doc.text(
-      "Dokumen ini digenerate secara otomatis oleh ZODIAC Admin Analytics System.",
+      "Dokumen ini digenerate secara otomatis oleh it's matapanda Admin Analytics System.",
       margin,
       pageHeight - 6
     );
@@ -329,7 +329,7 @@ export function generateDashboardPDF(data: PDFExportData): void {
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "-")
     .replace(/-+/g, "-");
-  const fileName = `zodiac-sales-report-${data.periodMode}-${sanitizedPeriod}.pdf`;
+  const fileName = `itsmatapanda-sales-report-${data.periodMode}-${sanitizedPeriod}.pdf`;
 
   doc.save(fileName);
 }

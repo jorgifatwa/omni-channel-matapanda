@@ -129,7 +129,7 @@ export async function upsertMarketplaceAccount(account: {
       connectedAt: nowIso,
       connectedById: account.connectedById,
       connectedBy: {
-        name: "Admin ZODIAC",
+        name: "Admin it's matapanda",
         email: process.env.ADMIN_DEFAULT_EMAIL || "jorgifatwaambia@gmail.com",
       },
       createdAt: existingIndex >= 0 ? accounts[existingIndex].createdAt : nowIso,

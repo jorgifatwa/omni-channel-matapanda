@@ -110,11 +110,11 @@ export async function POST(request: Request) {
         if (fullOrder && fullOrder.user?.email) {
           const emailPayload: OrderConfirmationData = {
             orderNumber: fullOrder.orderNumber,
-            customerName: fullOrder.address?.recipient || fullOrder.user.name || "Customer ZODIAC",
+            customerName: fullOrder.address?.recipient || fullOrder.user.name || "Customer it's matapanda",
             customerEmail: fullOrder.user.email,
             customerPhone: fullOrder.address?.phone || fullOrder.user.phone || undefined,
             shippingAddress: {
-              recipient: fullOrder.address?.recipient || fullOrder.user.name || "Customer ZODIAC",
+              recipient: fullOrder.address?.recipient || fullOrder.user.name || "Customer it's matapanda",
               street: fullOrder.address?.street || "Alamat Pengiriman",
               city: fullOrder.address?.city || "Jakarta",
               province: fullOrder.address?.province || "DKI Jakarta",

@@ -39,7 +39,7 @@ export async function uploadToR2(
   folder: string = "products"
 ): Promise<{ url: string; key: string }> {
   const client = getR2Client();
-  const bucketName = process.env.R2_BUCKET_NAME || "zodiac-images";
+  const bucketName = process.env.R2_BUCKET_NAME || "matapanda-images";
 
   if (!client) {
     throw new Error("Cloudflare R2 credentials are not configured");

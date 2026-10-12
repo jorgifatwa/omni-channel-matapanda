@@ -90,7 +90,7 @@ export async function POST(request: Request) {
               trackingHistory: order.shipment?.trackingHistory || null,
             },
             shippingAddress: {
-              recipient: order.address?.recipient || order.user?.name || "Customer ZODIAC",
+              recipient: order.address?.recipient || order.user?.name || "Customer it's matapanda",
               city: order.address?.city || "Jakarta Selatan",
               province: order.address?.province || "DKI Jakarta",
               country: order.address?.country || "Indonesia",
@@ -180,7 +180,7 @@ export async function POST(request: Request) {
               ],
         },
         shippingAddress: {
-          recipient: "Customer ZODIAC",
+          recipient: "Customer it's matapanda",
           city: "Jakarta Selatan",
           province: "DKI Jakarta",
           country: isDhlResi ? "Singapore" : "Indonesia",

@@ -1,7 +1,7 @@
 /**
  * marketplace-stock-sync.ts
  *
- * Real-time stock propagation when an order occurs on the ZODIAC website.
+ * Real-time stock propagation when an order occurs on the it's matapanda website.
  * Whenever a customer buys on the website, this helper immediately pushes
  * the reduced stock to Shopee (and other connected marketplaces) to prevent overselling.
  */

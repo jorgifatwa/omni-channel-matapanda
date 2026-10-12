@@ -1,7 +1,7 @@
 /**
  * discount-store.ts
  *
- * Resilient JSON-backed storage for ZODIAC promotional discount campaigns.
+ * Resilient JSON-backed storage for it's matapanda promotional discount campaigns.
  * Persists to data/discounts.json.
  */
 

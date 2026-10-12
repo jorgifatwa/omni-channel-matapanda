@@ -76,7 +76,7 @@ export default function HeroGrid() {
       >
         <Image
           src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1200&q=80"
-          alt="ZODIAC Sweatshirt Editorial"
+          alt="it's matapanda Sweatshirt Editorial"
           fill
           priority
           sizes="(max-width: 768px) 100vw, 33vw"

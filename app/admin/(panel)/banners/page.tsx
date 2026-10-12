@@ -40,7 +40,7 @@ import {
   INITIAL_SECONDARY_BANNERS,
 } from "@/lib/banner-store";
 
-const LOCAL_STORAGE_KEY = "zodiac_admin_banners_v1";
+const LOCAL_STORAGE_KEY = "matapanda_admin_banners_v1";
 
 export default function AdminBannersPage() {
   const [activeTab, setActiveTab] = React.useState<BannerType>("HERO_BANNER");

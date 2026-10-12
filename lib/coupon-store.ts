@@ -1,7 +1,7 @@
 /**
  * coupon-store.ts
  *
- * Resilient JSON-backed storage for ZODIAC promotional coupons & influencer vouchers.
+ * Resilient JSON-backed storage for it's matapanda promotional coupons & influencer vouchers.
  * Persists to data/coupons.json.
  */
 

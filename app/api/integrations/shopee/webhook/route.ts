@@ -19,7 +19,7 @@ import { prisma } from "@/lib/prisma";
  *
  * 3-Way Omnichannel Sync:
  * Ketika pesanan masuk di Shopee:
- * 1. Stok di website ZODIAC otomatis dipotong secara instan.
+ * 1. Stok di website it's matapanda otomatis dipotong secara instan.
  * 2. Stok baru langsung didorong ke TikTok Shop (Tokopedia) agar tidak overselling!
  */
 interface ShopeeWebhookPayload {

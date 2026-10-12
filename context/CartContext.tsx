@@ -81,9 +81,9 @@ type CartContextType = {
 
 const CartContext = React.createContext<CartContextType | undefined>(undefined);
 
-const STORAGE_KEY = "zodiac_cart_v1";
-const CURRENCY_STORAGE_KEY = "zodiac_currency_v1";
-const COUPON_STORAGE_KEY = "zodiac_coupon_v1";
+const STORAGE_KEY = "matapanda_cart_v1";
+const CURRENCY_STORAGE_KEY = "matapanda_currency_v1";
+const COUPON_STORAGE_KEY = "matapanda_coupon_v1";
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = React.useState<CartItem[]>([]);

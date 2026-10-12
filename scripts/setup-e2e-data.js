@@ -7,7 +7,7 @@ async function main() {
   console.log("Checking and setting up E2E test data in PostgreSQL...");
 
   const testAdminEmail = (
-    process.env.E2E_TEST_ADMIN_EMAIL || "e2e-test-admin@zodiac.test"
+    process.env.E2E_TEST_ADMIN_EMAIL || "e2e-test-admin@itsmatapanda.test"
   ).toLowerCase();
   const testAdminPassword =
     process.env.E2E_TEST_ADMIN_PASSWORD || "E2E_Adm_646efddfbcee178876668dd25f89b36f";

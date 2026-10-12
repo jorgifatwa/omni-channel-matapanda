@@ -287,7 +287,7 @@ export default function AdminInquiriesPage() {
                         title="Balas via Email"
                       >
                         <a
-                          href={`mailto:${item.email}?subject=Re:%20Inquiry%20ZODIAC%20Jakarta`}
+                          href={`mailto:${item.email}?subject=Re:%20Inquiry%20it's%20matapanda%20Jakarta`}
                         >
                           <ExternalLink className="h-3.5 w-3.5" />
                         </a>
@@ -390,7 +390,7 @@ export default function AdminInquiriesPage() {
                   className="bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 gap-2 text-xs"
                 >
                   <a
-                    href={`mailto:${selectedInquiry.email}?subject=Re:%20Inquiry%20ZODIAC%20Jakarta`}
+                    href={`mailto:${selectedInquiry.email}?subject=Re:%20Inquiry%20it's%20matapanda%20Jakarta`}
                   >
                     <span>Balas Email</span>
                     <ExternalLink className="h-3 w-3" />

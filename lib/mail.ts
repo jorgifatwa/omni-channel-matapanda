@@ -219,7 +219,7 @@ export function generateOrderReceiptHtml(data: OrderConfirmationData): string {
           <!-- Footer -->
           <tr>
             <td style="background-color: #fbfbfb; border-top: 1px solid #eeeeee; padding: 20px; text-align: center; font-size: 11px; color: #a3a3a3;">
-              <p style="margin: 0 0 6px 0;">Butuh bantuan dengan pesanan Anda? Hubungi kami di <a href="mailto:support@zodiacjakarta.com" style="color: #111111; text-decoration: underline;">support@zodiacjakarta.com</a></p>
+              <p style="margin: 0 0 6px 0;">Butuh bantuan dengan pesanan Anda? Hubungi kami di <a href="mailto:support@itsmatapanda.com" style="color: #111111; text-decoration: underline;">support@itsmatapanda.com</a></p>
               <p style="margin: 0;">&copy; 2026 it&apos;smatapanda. All rights reserved.</p>
             </td>
           </tr>
@@ -340,7 +340,7 @@ export async function sendOrderConfirmationEmail(
 
     const fromAddress =
       process.env.SMTP_FROM ||
-      `"it'smatapanda" <${process.env.SMTP_USER || "no-reply@zodiacjakarta.com"}>`;
+      `"it'smatapanda" <${process.env.SMTP_USER || "no-reply@itsmatapanda.com"}>`;
 
     const htmlContent = generateOrderReceiptHtml(data);
 
@@ -387,7 +387,7 @@ export async function sendAdminInquiryNotification(
 
     const fromAddress =
       process.env.SMTP_FROM ||
-      `"it'smatapanda Contact Form" <${process.env.SMTP_USER || "no-reply@zodiacjakarta.com"}>`;
+      `"it'smatapanda Contact Form" <${process.env.SMTP_USER || "no-reply@itsmatapanda.com"}>`;
 
     const htmlContent = generateAdminInquiryHtml(data);
 

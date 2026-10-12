@@ -164,7 +164,7 @@ export default function AdminLayoutShell({
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
   React.useEffect(() => {
-    const saved = window.localStorage.getItem("zodiac_admin_theme");
+    const saved = window.localStorage.getItem("matapanda_admin_theme");
     if (saved === "dark") {
       setDarkMode(true);
       document.documentElement.classList.add("dark");
@@ -179,10 +179,10 @@ export default function AdminLayoutShell({
     setDarkMode(next);
     if (next) {
       document.documentElement.classList.add("dark");
-      window.localStorage.setItem("zodiac_admin_theme", "dark");
+      window.localStorage.setItem("matapanda_admin_theme", "dark");
     } else {
       document.documentElement.classList.remove("dark");
-      window.localStorage.setItem("zodiac_admin_theme", "light");
+      window.localStorage.setItem("matapanda_admin_theme", "light");
     }
   };
 

@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("Seeding ZODIAC database with multi-year historical data (2024, 2025, 2026)...");
+  console.log("Seeding it's matapanda database with multi-year historical data (2024, 2025, 2026)...");
 
   const adminPasswordHash = await bcrypt.hash(
     process.env.ADMIN_DEFAULT_PASSWORD || "admin123",
@@ -19,7 +19,7 @@ async function main() {
     where: { email: adminEmail },
     update: {},
     create: {
-      name: "Zodiac Admin",
+      name: "it's matapanda Admin",
       email: adminEmail,
       passwordHash: adminPasswordHash,
       phone: "+6281290001111",
