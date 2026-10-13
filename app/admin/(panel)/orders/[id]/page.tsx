@@ -12,6 +12,8 @@ import {
   CheckCircle2,
   Package,
   ExternalLink,
+  Printer,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +37,8 @@ import {
 import { useAdminStore } from "@/context/AdminStoreContext";
 import { type AdminOrder } from "@/lib/admin-data";
 import { formatIDR } from "@/lib/products";
+import { ShippingLabelModal } from "@/components/admin/ShippingLabelModal";
+import { PackingSlipModal } from "@/components/admin/PackingSlipModal";
 
 export default function AdminOrderDetailPage() {
   const params = useParams();
@@ -51,6 +55,8 @@ export default function AdminOrderDetailPage() {
     order.trackingNumber === "-" ? "" : order.trackingNumber
   );
   const [saveMessage, setSaveMessage] = React.useState(false);
+  const [isShippingLabelOpen, setIsShippingLabelOpen] = React.useState(false);
+  const [isPackingSlipOpen, setIsPackingSlipOpen] = React.useState(false);
 
   const handleUpdateStatus = (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,13 +130,32 @@ export default function AdminOrderDetailPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {saveMessage && (
-            <span className="text-xs text-emerald-600 font-medium flex items-center gap-1">
+            <span className="text-xs text-emerald-600 font-medium flex items-center gap-1 mr-2">
               <CheckCircle2 className="h-4 w-4" />
               Status berhasil diperbarui!
             </span>
           )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setIsPackingSlipOpen(true)}
+            className="gap-1.5 text-xs h-9 bg-white dark:bg-neutral-900 border-neutral-300 dark:border-neutral-700 shadow-xs"
+          >
+            <FileText className="h-3.5 w-3.5 text-neutral-600 dark:text-neutral-400" />
+            <span>Cetak Packing Slip</span>
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => setIsShippingLabelOpen(true)}
+            className="gap-1.5 text-xs h-9 bg-[#396254] hover:bg-[#2d4e44] text-white shadow-xs"
+          >
+            <Printer className="h-3.5 w-3.5" />
+            <span>Cetak Label Resi</span>
+          </Button>
         </div>
       </div>
 
@@ -237,20 +262,32 @@ export default function AdminOrderDetailPage() {
                   </code>
                 </CardDescription>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                asChild
-                className="h-8 text-xs gap-1.5"
-              >
-                <Link
-                  href={`/api/shipping/tracking?courier=${order.courier}&waybill=${order.trackingNumber}`}
-                  target="_blank"
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsShippingLabelOpen(true)}
+                  className="h-8 text-xs gap-1.5"
                 >
-                  <span>API Cek Resi</span>
-                  <ExternalLink className="h-3 w-3" />
-                </Link>
-              </Button>
+                  <Printer className="h-3 w-3 text-[#396254]" />
+                  <span>Cetak Resi</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  asChild
+                  className="h-8 text-xs gap-1.5"
+                >
+                  <Link
+                    href={`/api/shipping/tracking?courier=${order.courier}&waybill=${order.trackingNumber}`}
+                    target="_blank"
+                  >
+                    <span>API Cek Resi</span>
+                    <ExternalLink className="h-3 w-3" />
+                  </Link>
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {order.trackingHistory.length === 0 ? (
@@ -419,6 +456,18 @@ export default function AdminOrderDetailPage() {
           </Card>
         </div>
       </div>
+
+      {/* Print Modals */}
+      <ShippingLabelModal
+        order={order}
+        isOpen={isShippingLabelOpen}
+        onClose={() => setIsShippingLabelOpen(false)}
+      />
+      <PackingSlipModal
+        order={order}
+        isOpen={isPackingSlipOpen}
+        onClose={() => setIsPackingSlipOpen(false)}
+      />
     </div>
   );
 }

@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { type ColumnDef } from "@tanstack/react-table";
-import { Eye, MoreHorizontal, Truck } from "lucide-react";
+import { Eye, MoreHorizontal, Truck, Printer, FileText } from "lucide-react";
 import { DataTable } from "@/components/admin/DataTable";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,8 @@ import {
 import { useAdminStore } from "@/context/AdminStoreContext";
 import { type AdminOrder } from "@/lib/admin-data";
 import { formatIDR } from "@/lib/products";
+import { ShippingLabelModal } from "@/components/admin/ShippingLabelModal";
+import { PackingSlipModal } from "@/components/admin/PackingSlipModal";
 
 function getPaymentStatusBadge(status: string) {
   switch (status) {
@@ -48,6 +50,9 @@ function getShipmentStatusBadge(status: string) {
 
 export default function AdminOrdersPage() {
   const { orders } = useAdminStore();
+  const [selectedOrder, setSelectedOrder] = React.useState<AdminOrder | null>(null);
+  const [isShippingLabelOpen, setIsShippingLabelOpen] = React.useState(false);
+  const [isPackingSlipOpen, setIsPackingSlipOpen] = React.useState(false);
 
   const columns: ColumnDef<AdminOrder>[] = [
     {
@@ -136,7 +141,7 @@ export default function AdminOrdersPage() {
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-40 bg-white dark:bg-neutral-950">
+          <DropdownMenuContent align="end" className="w-48 bg-white dark:bg-neutral-950">
             <DropdownMenuItem asChild className="text-xs cursor-pointer">
               <Link
                 href={`/admin/orders/${row.original.id}`}
@@ -145,6 +150,26 @@ export default function AdminOrdersPage() {
                 <Eye className="h-3.5 w-3.5" />
                 <span>Detail Order</span>
               </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => {
+                setSelectedOrder(row.original);
+                setIsShippingLabelOpen(true);
+              }}
+              className="text-xs cursor-pointer flex items-center gap-2"
+            >
+              <Printer className="h-3.5 w-3.5 text-[#396254]" />
+              <span>Cetak Label Resi</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => {
+                setSelectedOrder(row.original);
+                setIsPackingSlipOpen(true);
+              }}
+              className="text-xs cursor-pointer flex items-center gap-2"
+            >
+              <FileText className="h-3.5 w-3.5 text-neutral-600 dark:text-neutral-400" />
+              <span>Cetak Packing Slip</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -188,6 +213,24 @@ export default function AdminOrdersPage() {
             ],
           },
         ]}
+      />
+
+      {/* Print Modals */}
+      <ShippingLabelModal
+        order={selectedOrder}
+        isOpen={isShippingLabelOpen}
+        onClose={() => {
+          setIsShippingLabelOpen(false);
+          setSelectedOrder(null);
+        }}
+      />
+      <PackingSlipModal
+        order={selectedOrder}
+        isOpen={isPackingSlipOpen}
+        onClose={() => {
+          setIsPackingSlipOpen(false);
+          setSelectedOrder(null);
+        }}
       />
     </div>
   );
