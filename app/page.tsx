@@ -46,14 +46,14 @@ export default async function HomePage() {
   }
 
   return (
-    <div className="min-h-dvh flex flex-col bg-[#fafaf8] dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 font-sans transition-colors duration-200">
+    <div className="min-h-dvh flex flex-col bg-[#fafaf8] dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 font-sans transition-colors duration-200 max-w-full overflow-x-clip">
       {/* Top Announcement Bar */}
       <AnnouncementBar />
 
       {/* Main Navigation */}
       <Navbar />
 
-      <main className="flex-1 w-full">
+      <main className="flex-1 w-full max-w-full overflow-x-clip">
         {/* 1. Hero Section: Full-width lifestyle carousel with dynamic/8 categories */}
         <HeroBanner banners={heroBanners} />
 

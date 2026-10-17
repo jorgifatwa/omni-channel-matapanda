@@ -89,7 +89,7 @@ export default function AnnouncementBar() {
 
   return (
     <div
-      className="w-full bg-[#2a493e] text-white overflow-hidden border-b border-[#213b32] select-none"
+      className="w-full max-w-full bg-[#2a493e] text-white overflow-hidden border-b border-[#213b32] select-none"
       role="region"
       aria-label="Announcements"
     >

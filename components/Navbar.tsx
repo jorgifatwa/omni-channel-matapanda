@@ -357,23 +357,23 @@ export default function Navbar() {
       {/* ============================================================== */}
       <header
         ref={headerRef}
-        className={`sticky top-0 z-40 w-full transition-colors duration-300 ease-in-out ${
+        className={`sticky top-0 z-40 w-full max-w-full transition-colors duration-300 ease-in-out ${
           menuOpen
             ? "bg-[#d5c6ff] text-[#396254] border-b-0"
             : "bg-white text-black border-b border-neutral-200"
         }`}
       >
-        <div className="w-full px-4 sm:px-6 lg:px-8">
+        <div className="w-full max-w-full px-3 sm:px-6 lg:px-8">
           {/* Main Top Row: Hamburger + Logo (Left) / Actions (Right) */}
-          <div className="relative flex items-center justify-between h-16 sm:h-20">
+          <div className="relative flex items-center justify-between h-16 sm:h-20 max-w-full min-w-0">
             {/* Left: Hamburger Button & Brand Logo */}
-            <div className="flex items-center gap-3 sm:gap-4 z-10">
+            <div className="flex items-center gap-2 sm:gap-4 z-10 shrink-0 min-w-0">
               <Button
                 ref={hamburgerRef}
                 variant="ghost"
                 size="icon"
                 onClick={() => setMenuOpen((prev) => !prev)}
-                className={`h-10 w-10 transition-colors ${
+                className={`h-9 w-9 sm:h-10 sm:w-10 shrink-0 transition-colors ${
                   menuOpen
                     ? "text-[#396254] hover:bg-[#396254]/10"
                     : "text-black hover:bg-neutral-100"
@@ -390,7 +390,7 @@ export default function Navbar() {
               <Link
                 href="/"
                 onClick={() => setMenuOpen(false)}
-                className="font-bold tracking-tight text-xl sm:text-2xl md:text-3xl select-none transition-opacity hover:opacity-85 focus:outline-none"
+                className="font-bold tracking-tight text-lg sm:text-2xl md:text-3xl select-none transition-opacity hover:opacity-85 focus:outline-none truncate sm:overflow-visible"
                 aria-label="it'smatapanda Home"
               >
                 it&apos;smatapanda
@@ -398,13 +398,13 @@ export default function Navbar() {
             </div>
 
             {/* Right: Search, Wishlist, Account, Cart Bag, Currency */}
-            <div className="flex items-center justify-end gap-1 sm:gap-2 z-10 ml-auto">
+            <div className="flex items-center justify-end gap-1 sm:gap-2 z-10 shrink-0">
               {/* Search Icon Button (Icon only) */}
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setSearchOpen(true)}
-                className={`h-9 w-9 transition-colors ${
+                className={`h-8 w-8 sm:h-9 sm:w-9 shrink-0 transition-colors ${
                   menuOpen
                     ? "text-[#396254] hover:bg-[#396254]/10"
                     : "text-black hover:bg-neutral-100"
@@ -412,16 +412,16 @@ export default function Navbar() {
                 aria-label="Cari produk"
                 title="Search"
               >
-                <Search className="h-5 w-5 stroke-[1.75]" />
+                <Search className="h-4.5 w-4.5 sm:h-5 sm:w-5 stroke-[1.75]" />
               </Button>
 
               {/* Wishlist Icon Button with live badge */}
-              <div className="relative">
+              <div className="relative shrink-0">
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={openWishlist}
-                  className={`h-9 w-9 relative transition-colors ${
+                  className={`h-8 w-8 sm:h-9 sm:w-9 relative transition-colors ${
                     menuOpen
                       ? "text-[#396254] hover:bg-[#396254]/10"
                       : "text-black hover:bg-neutral-100"
@@ -430,7 +430,7 @@ export default function Navbar() {
                   title="Wishlist"
                 >
                   <Heart
-                    className={`h-5 w-5 stroke-[1.75] transition-all duration-300 ${
+                    className={`h-4.5 w-4.5 sm:h-5 sm:w-5 stroke-[1.75] transition-all duration-300 ${
                       wishlistCount > 0 ? "fill-red-500 text-red-500" : ""
                     } ${wishlistBump ? "animate-heart-pop" : ""}`}
                   />
@@ -446,13 +446,13 @@ export default function Navbar() {
                 </Button>
               </div>
 
-              {/* Account Dropdown */}
+              {/* Account Dropdown (Desktop/Tablet; on mobile accessible via Hamburger Menu) */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className={`h-9 w-9 relative transition-colors ${
+                    className={`h-8 w-8 sm:h-9 sm:w-9 relative transition-colors hidden sm:inline-flex shrink-0 ${
                       menuOpen
                         ? "text-[#396254] hover:bg-[#396254]/10"
                         : "text-black hover:bg-neutral-100"
@@ -540,7 +540,7 @@ export default function Navbar() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className={`relative h-9 w-9 transition-colors ${
+                    className={`relative h-8 w-8 sm:h-9 sm:w-9 shrink-0 transition-colors ${
                       menuOpen
                         ? "text-[#396254] hover:bg-[#396254]/10"
                         : "text-black hover:bg-neutral-100"
@@ -548,7 +548,7 @@ export default function Navbar() {
                     aria-label="Keranjang Belanja"
                   >
                     <ShoppingBag
-                      className={`h-5 w-5 stroke-[1.75] transition-transform duration-300 ${
+                      className={`h-4.5 w-4.5 sm:h-5 sm:w-5 stroke-[1.75] transition-transform duration-300 ${
                         cartBump ? "scale-115 animate-playful-bounce" : "scale-100"
                       }`}
                     />
@@ -971,41 +971,43 @@ export default function Navbar() {
                 </SheetContent>
               </Sheet>
 
-              {/* Currency Selector */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={`h-9 pl-2 pr-1.5 gap-1.5 text-xs font-semibold focus-visible:ring-0 transition-colors ${
-                      menuOpen
-                        ? "text-[#396254] hover:bg-[#396254]/10"
-                        : "text-black hover:bg-neutral-100"
-                    }`}
-                  >
-                    <CurrencyFlag code={currency} />
-                    <span className="hidden sm:inline">{currency}</span>
-                    <ChevronDown className="h-3 w-3 opacity-60" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-36 p-1 bg-white text-black shadow-lg border border-neutral-200">
-                  {CURRENCIES.map((c) => (
-                    <DropdownMenuItem
-                      key={c.code}
-                      onClick={() => setCurrency(c.code)}
-                      className="cursor-pointer text-xs flex items-center justify-between py-2"
+              {/* Currency Selector (Visible on sm screens and up; on mobile, accessible via Hamburger Menu) */}
+              <div className="hidden sm:inline-flex shrink-0">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`h-9 pl-2 pr-1.5 gap-1.5 text-xs font-semibold focus-visible:ring-0 transition-colors ${
+                        menuOpen
+                          ? "text-[#396254] hover:bg-[#396254]/10"
+                          : "text-black hover:bg-neutral-100"
+                      }`}
                     >
-                      <div className="flex items-center gap-2">
-                        <CurrencyFlag code={c.code} />
-                        <span className={currency === c.code ? "font-bold text-black" : "text-neutral-700"}>
-                          {c.code}
-                        </span>
-                      </div>
-                      {currency === c.code && <Check className="h-3 w-3 text-black" />}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                      <CurrencyFlag code={currency} />
+                      <span className="hidden sm:inline">{currency}</span>
+                      <ChevronDown className="h-3 w-3 opacity-60" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-36 p-1 bg-white text-black shadow-lg border border-neutral-200">
+                    {CURRENCIES.map((c) => (
+                      <DropdownMenuItem
+                        key={c.code}
+                        onClick={() => setCurrency(c.code)}
+                        className="cursor-pointer text-xs flex items-center justify-between py-2"
+                      >
+                        <div className="flex items-center gap-2">
+                          <CurrencyFlag code={c.code} />
+                          <span className={currency === c.code ? "font-bold text-black" : "text-neutral-700"}>
+                            {c.code}
+                          </span>
+                        </div>
+                        {currency === c.code && <Check className="h-3 w-3 text-black" />}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
           </div>
         </div>
@@ -1022,8 +1024,8 @@ export default function Navbar() {
             top: `${headerHeight}px`,
             height: `calc(100vh - ${headerHeight}px)`,
           }}
-          className={`fixed left-0 z-40 w-[80vw] max-w-[380px] sm:w-[380px] bg-[#d5c6ff] text-[#396254] shadow-2xl border-0 transition-transform duration-300 ease-in-out ${
-            menuOpen ? "translate-x-0 pointer-events-auto" : "-translate-x-full pointer-events-none"
+          className={`fixed left-0 z-40 w-[80vw] max-w-[380px] sm:w-[380px] bg-[#d5c6ff] text-[#396254] shadow-2xl border-0 transition-all duration-300 ease-in-out ${
+            menuOpen ? "translate-x-0 pointer-events-auto visible opacity-100" : "-translate-x-full pointer-events-none invisible opacity-0"
           }`}
         >
           <nav
