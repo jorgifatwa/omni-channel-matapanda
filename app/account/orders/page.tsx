@@ -177,7 +177,7 @@ export default function CustomerOrdersPage() {
               Belum Ada Pesanan
             </h2>
             <p className="text-xs sm:text-sm text-neutral-500 max-w-sm mx-auto leading-relaxed font-medium">
-              Kamu belum memiliki riwayat pesanan. Yuk eksplor koleksi tas dan apparel seru kami sekarang!
+              Kamu belum memiliki riwayat pesanan. Yuk eksplor koleksi tas seru kami sekarang!
             </p>
             <div className="pt-2">
               <Link

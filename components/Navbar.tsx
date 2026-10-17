@@ -115,11 +115,35 @@ function CurrencyFlag({ code }: { code: CurrencyCode }) {
   );
 }
 
+const DEFAULT_BAG_CATEGORIES = [
+  { name: "Tote Bags", slug: "tote-bags" },
+  { name: "Sling & Crossbody", slug: "sling-crossbody" },
+  { name: "Shoulder Bags", slug: "shoulder-bags" },
+  { name: "Backpacks", slug: "backpacks" },
+  { name: "Pouches & Small Goods", slug: "pouches-small-goods" },
+];
+
+const NON_BAG_KEYWORDS = [
+  "apparel",
+  "t-shirt",
+  "tshirt",
+  "outerwear",
+  "outer",
+  "headwear",
+  "caps-hats",
+  "cap",
+  "hat",
+  "jacket",
+  "clothing",
+  "baju",
+  "kaos",
+];
+
 export default function Navbar() {
   const { data: session, status } = useSession();
   const isAuthenticated = status === "authenticated";
 
-  const [categoriesList, setCategoriesList] = React.useState<{ name: string; slug: string }[]>([]);
+  const [categoriesList, setCategoriesList] = React.useState<{ name: string; slug: string }[]>(DEFAULT_BAG_CATEGORIES);
 
   // Slide-from-Left Partial Menu Panel (Header turns royal blue & panel slides from left)
   const [menuOpen, setMenuOpen] = React.useState(false);
@@ -213,14 +237,20 @@ export default function Navbar() {
       .then((data) => {
         if (!isMounted || !data) return;
 
-        const catItems = (data.categories || []).map(
-          (c: { name: string; slug: string }) => ({
+        const catItems = (data.categories || [])
+          .filter((c: { name?: string; slug?: string }) => {
+            const s = (c.slug || "").toLowerCase();
+            const n = (c.name || "").toLowerCase();
+            return !NON_BAG_KEYWORDS.some((kw) => s.includes(kw) || n.includes(kw));
+          })
+          .map((c: { name: string; slug: string }) => ({
             name: c.name,
             slug: c.slug,
-          })
-        );
+          }));
 
-        setCategoriesList(catItems);
+        if (catItems.length > 0) {
+          setCategoriesList(catItems);
+        }
       })
       .catch(() => {});
 
@@ -1156,7 +1186,7 @@ export default function Navbar() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Ketik nama tas, baju, atau SKU (misal: Dumpling Bag, Tote, T-Shirt)..."
+                placeholder="Ketik nama tas atau SKU (misal: Dumpling Bag, Tote Bag, Sling Bag)..."
                 autoFocus
                 className="w-full h-13 pl-12 pr-4 border-2 border-[#396254]/30 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-sm font-medium text-neutral-900 dark:text-white rounded-2xl focus:outline-none focus:border-[#396254] focus:ring-2 focus:ring-[#d5c6ff]/50 shadow-sm"
               />

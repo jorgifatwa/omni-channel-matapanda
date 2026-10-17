@@ -154,6 +154,25 @@ export async function getActiveBrands(): Promise<StorefrontBrand[]> {
   }));
 }
 
+const NON_BAG_PATTERNS = [
+  "apparel",
+  "t-shirt",
+  "tshirt",
+  "outerwear",
+  "outer",
+  "headwear",
+  "caps-hats",
+  "clothing",
+  "baju",
+  "kaos",
+];
+
+export function isNonBagCategory(slug: string, name?: string): boolean {
+  const s = (slug || "").toLowerCase();
+  const n = (name || "").toLowerCase();
+  return NON_BAG_PATTERNS.some((p) => s.includes(p) || n.includes(p));
+}
+
 export async function getActiveCategories(): Promise<StorefrontCategory[]> {
   try {
     const categories = await prisma.category.findMany({
@@ -171,27 +190,35 @@ export async function getActiveCategories(): Promise<StorefrontCategory[]> {
     });
 
     if (categories && categories.length > 0) {
-      return categories.map((c) => ({
-        id: c.id,
-        name: c.name,
-        slug: c.slug,
-        parentId: c.parentId,
-        parentName: c.parent?.name ?? null,
-        children: c.children.map((ch) => ({
-          id: ch.id,
-          name: ch.name,
-          slug: ch.slug,
-          parentId: ch.parentId,
-        })),
-        productCount: c._count.products,
-      }));
+      // Strictly exclude any non-bag categories (apparel, headwear, outer, t-shirt)
+      const bagCategories = categories.filter((c) => !isNonBagCategory(c.slug, c.name));
+      if (bagCategories.length > 0) {
+        return bagCategories.map((c) => ({
+          id: c.id,
+          name: c.name,
+          slug: c.slug,
+          parentId: c.parentId,
+          parentName: c.parent?.name ?? null,
+          children: c.children
+            .filter((ch) => !isNonBagCategory(ch.slug, ch.name))
+            .map((ch) => ({
+              id: ch.id,
+              name: ch.name,
+              slug: ch.slug,
+              parentId: ch.parentId,
+            })),
+          productCount: c._count.products,
+        }));
+      }
     }
   } catch (error) {
     console.warn("Database unavailable, using fallback categories:", error);
   }
 
-  // Fallback to active initial categories
-  return INITIAL_CATEGORIES.filter((c) => c.isActive).map((c) => ({
+  // Fallback to active initial bag categories
+  return INITIAL_CATEGORIES.filter(
+    (c) => c.isActive && !isNonBagCategory(c.slug, c.name)
+  ).map((c) => ({
     id: c.id,
     name: c.name,
     slug: c.slug,

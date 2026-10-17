@@ -240,7 +240,7 @@ export default function AdminCategoriesPage() {
                 id="cat-name"
                 value={name}
                 onChange={(e) => handleNameChange(e.target.value)}
-                placeholder="Outerwear"
+                placeholder="Shoulder Bags"
                 required
               />
             </div>
@@ -251,7 +251,7 @@ export default function AdminCategoriesPage() {
                 id="cat-slug"
                 value={slug}
                 onChange={(e) => setSlug(e.target.value)}
-                placeholder="outerwear"
+                placeholder="shoulder-bags"
                 required
               />
             </div>

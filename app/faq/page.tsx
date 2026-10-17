@@ -143,7 +143,7 @@ export default function FaqPage() {
           </div>
 
           <p className="max-w-xl mx-auto text-xs sm:text-sm text-neutral-600 dark:text-neutral-400 font-medium leading-relaxed">
-            Temukan jawaban lengkap seputar pemesanan tas &amp; baju, opsi pengiriman, material nylon water-resistant, perawatan, hingga penukaran produk.
+            Temukan jawaban lengkap seputar pemesanan tas, opsi pengiriman, material nylon water-resistant, perawatan, hingga penukaran produk.
           </p>
 
           {/* Quick Search Bar */}

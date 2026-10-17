@@ -31,10 +31,18 @@ export default async function HomePage() {
     bagProducts = [...bagProducts, ...additional];
   }
 
-  // 3. Fetch real favourite products (Apparel / Best sellers)
-  const { products: apparelProducts } = await getProductsByCategorySlug("apparel");
-  const favouriteProducts =
-    apparelProducts.length > 0 ? apparelProducts : newInProducts;
+  // 3. Fetch real favourite products (Shoulder Bags / Best sellers)
+  const { products: shoulderProducts } = await getProductsByCategorySlug("shoulder-bags");
+  let favouriteProducts = shoulderProducts;
+  if (favouriteProducts.length < 4) {
+    const { products: slingProducts } = await getProductsByCategorySlug("sling-crossbody");
+    const existingFavIds = new Set(favouriteProducts.map((p) => p.id));
+    const extra = slingProducts.filter((p) => !existingFavIds.has(p.id));
+    favouriteProducts = [...favouriteProducts, ...extra];
+  }
+  if (favouriteProducts.length === 0) {
+    favouriteProducts = newInProducts;
+  }
 
   return (
     <div className="min-h-dvh flex flex-col bg-[#fafaf8] dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 font-sans transition-colors duration-200">
@@ -80,7 +88,7 @@ export default async function HomePage() {
           title="All-Time Favourites"
           bannerBg="#d5c6ff"
           bannerTextColor="text-[#396254]"
-          shopMoreHref="/categories/apparel"
+          shopMoreHref="/categories/shoulder-bags"
           shopMoreBg="bg-[#396254]"
           shopMoreTextColor="text-white"
           products={favouriteProducts}

@@ -64,7 +64,7 @@ export default function AboutPage() {
                 Thoughtful Design
               </h3>
               <p className="text-xs sm:text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">
-                Setiap tas, apparel, dan aksesoris didesain dengan ketelitian tinggi, siluet fungsional, serta material yang nyaman untuk keseharianmu.
+                Setiap tas dan aksesoris didesain dengan ketelitian tinggi, siluet fungsional, serta material yang nyaman untuk keseharianmu.
               </p>
             </div>
 
@@ -100,7 +100,7 @@ export default function AboutPage() {
                 Temukan Koleksi Favoritmu
               </h2>
               <p className="text-xs sm:text-sm text-white/80 leading-relaxed">
-                Dari Dumpling Bag yang ikonik hingga apparel oversized dengan sentuhan grafis orisinal it&apos;smatapanda.
+                Dari Dumpling Bag yang ikonik hingga tas canvas carryall dengan sentuhan desain orisinal it&apos;smatapanda.
               </p>
             </div>
 

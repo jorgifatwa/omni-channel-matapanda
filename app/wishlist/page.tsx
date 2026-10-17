@@ -139,7 +139,7 @@ export default function WishlistPage() {
                 Wishlist Kamu Masih Kosong
               </h2>
               <p className="text-xs sm:text-sm text-neutral-500 max-w-md mx-auto leading-relaxed">
-                Yuk jelajahi koleksi tas, apparel, dan merchandise seru dari it&apos;smatapanda. Tekan ikon favorit pada produk untuk menyimpannya di sini!
+                Yuk jelajahi koleksi tas dan aksesoris seru dari it&apos;smatapanda. Tekan ikon favorit pada produk untuk menyimpannya di sini!
               </p>
             </div>
             <div className="pt-2">

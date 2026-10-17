@@ -8,8 +8,45 @@ function isValidUuid(id?: string | null): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
 }
 
+const NON_BAG_PATTERNS = [
+  "apparel",
+  "t-shirt",
+  "tshirt",
+  "outerwear",
+  "outer",
+  "headwear",
+  "caps-hats",
+  "clothing",
+  "baju",
+  "kaos",
+];
+
+function isNonBagCategory(slug: string, name?: string): boolean {
+  const s = (slug || "").toLowerCase();
+  const n = (name || "").toLowerCase();
+  return NON_BAG_PATTERNS.some((p) => s.includes(p) || n.includes(p));
+}
+
 export async function GET() {
   try {
+    try {
+      await prisma.category.updateMany({
+        where: {
+          OR: [
+            { slug: { in: ["apparel", "t-shirts", "outerwear-jackets", "headwear", "caps-hats"] } },
+            { name: { in: ["Apparel", "T-Shirts", "Outerwear & Jackets", "Headwear", "Caps & Hats"] } },
+          ],
+          isActive: true,
+        },
+        data: {
+          isActive: false,
+          deletedAt: new Date(),
+        },
+      });
+    } catch {
+      // Ignore if DB is not reachable
+    }
+
     const dbCategories = await prisma.category.findMany({
       where: { deletedAt: null },
       orderBy: { name: "asc" },
@@ -21,8 +58,10 @@ export async function GET() {
       },
     });
 
-    if (dbCategories && dbCategories.length > 0) {
-      const formatted: AdminCategory[] = dbCategories.map((c) => ({
+    const bagCategories = dbCategories ? dbCategories.filter((c) => !isNonBagCategory(c.slug, c.name)) : [];
+
+    if (bagCategories.length > 0) {
+      const formatted: AdminCategory[] = bagCategories.map((c) => ({
         id: c.id,
         name: c.name,
         slug: c.slug,
