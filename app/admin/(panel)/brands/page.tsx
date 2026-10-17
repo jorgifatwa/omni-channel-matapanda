@@ -301,6 +301,9 @@ export default function AdminBrandsPage() {
                   />
                 </label>
               </div>
+              <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+                Rekomendasi rasio 1:1 (persegi, minimal 500x500px). Format PNG atau SVG transparan dengan latar belakang bersih.
+              </p>
             </div>
 
             <div className="flex items-center justify-between rounded-lg border border-neutral-200 dark:border-neutral-800 p-3">

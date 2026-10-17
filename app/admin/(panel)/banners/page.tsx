@@ -1053,8 +1053,8 @@ export default function AdminBannersPage() {
                     className="h-9 text-xs font-mono"
                   />
                 </div>
-                <p className="text-[11px] text-neutral-400">
-                  Rekomendasi rasio gambar desktop: 16:9 atau 21:9 resolusi tinggi (minimal 1920x1080px).
+                <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+                  Rekomendasi rasio gambar desktop: <strong>16:9</strong> atau <strong>21:9</strong> resolusi tinggi (minimal 1920x1080px). Format JPG, PNG, atau WEBP (maks. 5MB).
                 </p>
               </div>
 

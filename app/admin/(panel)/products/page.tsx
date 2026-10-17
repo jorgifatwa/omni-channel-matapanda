@@ -12,6 +12,7 @@ import {
   ArrowUp,
   ArrowDown,
   X,
+  Info,
 } from "lucide-react";
 import { DataTable } from "@/components/admin/DataTable";
 import { Button } from "@/components/ui/button";
@@ -654,9 +655,28 @@ export default function AdminProductsPage() {
                   {images.length}/3 Foto Terpenuhi
                 </span>
               </div>
-              <p className="text-[11px] text-neutral-500">
-                Gambar 1 = Foto Utama (Default) • Gambar 2 = Hover Sisi Kiri (Lifestyle/Model) • Gambar 3 = Hover Sisi Kanan (Detail/Angle)
-              </p>
+
+              {/* Panduan Resolusi & Format Gambar Produk */}
+              <div className="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50/80 dark:bg-neutral-900/40 p-3 space-y-2">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-neutral-800 dark:text-neutral-200">
+                  <Info className="h-4 w-4 text-[#396254] shrink-0" />
+                  <span>Panduan Resolusi &amp; Format Foto Produk</span>
+                </div>
+                <div className="text-[11px] text-neutral-600 dark:text-neutral-400 space-y-1 leading-relaxed">
+                  <p>
+                    • <strong>Rasio Rekomendasi:</strong> <strong>1:1 (Persegi / Square)</strong> atau <strong>3:4 (Potret Vertikal)</strong>. Tampilan etalase dan kartu produk menggunakan rasio persegi 1:1.
+                  </p>
+                  <p>
+                    • <strong>Resolusi Bagus:</strong> Minimal <strong>1000 x 1000 px</strong> (sangat disarankan <strong>1200 x 1200 px</strong> hingga <strong>1600 x 1600 px</strong>) agar gambar tetap tajam, jernih, dan tidak blur saat pembeli memperbesar produk dengan fitur <em>Zoom &amp; Lightbox</em> di etalase toko.
+                  </p>
+                  <p>
+                    • <strong>Format &amp; Ukuran:</strong> JPG, PNG, atau WEBP (maksimal 5MB per file).
+                  </p>
+                  <p>
+                    • <strong>Alur 3 Foto Wajib:</strong> <strong>Foto 1 (Utama)</strong>: Tampak depan bersih / studio • <strong>Foto 2 (Hover Sisi Kiri)</strong>: Foto OOTD / Model saat tas dipakai • <strong>Foto 3 (Hover Sisi Kanan)</strong>: Close-up detail jahitan, resleting, atau kompartemen tas.
+                  </p>
+                </div>
+              </div>
 
               <div
                 onDragOver={(e) => e.preventDefault()}
@@ -670,6 +690,9 @@ export default function AdminProductsPage() {
                 <p className="text-xs font-medium">
                   Drag &amp; drop foto produk di sini, atau pilih file untuk
                   diunggah ke Cloudinary
+                </p>
+                <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-1">
+                  Format: JPG, PNG, WEBP • Rasio 1:1 (min. 1000x1000px, rekomendasi 1200x1200px)
                 </p>
                 <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
                   <label className="cursor-pointer inline-flex items-center rounded-md bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 px-3 py-1.5 text-xs font-medium">
@@ -958,6 +981,11 @@ export default function AdminProductsPage() {
                           placeholder="Atau tempel URL foto warna ini (https://...)"
                           className="h-7 text-xs bg-white dark:bg-neutral-950 flex-1 font-mono"
                         />
+                      </div>
+                      <div className="col-span-12">
+                        <p className="text-[10px] text-neutral-400 dark:text-neutral-500">
+                          Rekomendasi rasio 1:1 (persegi, min. 800x800px) untuk swatch warna saat di-hover atau dipilih pembeli.
+                        </p>
                       </div>
                     </div>
                   </div>

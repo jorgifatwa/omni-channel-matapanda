@@ -739,6 +739,9 @@ export default function AdminCommunityPage() {
                   />
                 </label>
               </div>
+              <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+                Rekomendasi rasio 1:1 (Persegi 1080x1080px) atau 4:5 (Potret OOTD 1080x1350px). Format JPG, PNG, atau WEBP kualitas tinggi untuk tampilan feed komunitas.
+              </p>
 
               {/* Photo Preview */}
               {image && (
