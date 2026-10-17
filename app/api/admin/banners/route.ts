@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import {
   INITIAL_ALL_BANNERS,
@@ -8,15 +9,58 @@ import {
   type AdminBannerItem,
 } from "@/lib/banner-store";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const type = searchParams.get("type") as BannerType | null;
 
   try {
-    const banners = await prisma.banner.findMany({
+    let banners = await prisma.banner.findMany({
       where: type ? { type } : undefined,
       orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
     });
+
+    // Auto-seed into PostgreSQL database if completely empty so all banners have real UUIDs
+    if (banners.length === 0 && !type) {
+      try {
+        const seedHero = INITIAL_HERO_BANNERS.map((b) => ({
+          type: "HERO_BANNER" as const,
+          title: b.title,
+          subtitle: b.subtitle || null,
+          description: b.description || null,
+          imageUrl: b.imageUrl,
+          mobileImageUrl: b.mobileImageUrl || null,
+          ctaText: b.ctaText || null,
+          ctaLink: b.ctaLink || null,
+          sortOrder: b.sortOrder,
+          isActive: b.isActive,
+        }));
+
+        const seedSecondary = INITIAL_SECONDARY_BANNERS.map((b) => ({
+          type: "SECONDARY_BANNER" as const,
+          title: b.title,
+          subtitle: b.subtitle || null,
+          description: b.description || null,
+          imageUrl: b.imageUrl,
+          mobileImageUrl: b.mobileImageUrl || null,
+          ctaText: b.ctaText || null,
+          ctaLink: b.ctaLink || null,
+          sortOrder: b.sortOrder,
+          isActive: b.isActive,
+        }));
+
+        for (const item of [...seedHero, ...seedSecondary]) {
+          await prisma.banner.create({ data: item });
+        }
+
+        banners = await prisma.banner.findMany({
+          orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+        });
+      } catch (seedErr) {
+        console.warn("Auto-seeding initial banners to DB skipped:", seedErr);
+      }
+    }
 
     const formattedBanners: AdminBannerItem[] = banners.map((b) => ({
       id: b.id,
@@ -53,7 +97,7 @@ export async function GET(request: Request) {
       combined = combined.filter((b) => b.type === type);
     }
 
-    return NextResponse.json({ banners: combined, source: "database_or_defaults" });
+    return NextResponse.json({ banners: combined, source: banners.length > 0 ? "database" : "defaults" });
   } catch (error) {
     console.warn("Database unavailable for banners, using fallback:", error);
     const filteredDefaults = type
@@ -101,6 +145,11 @@ export async function POST(request: Request) {
           isActive: Boolean(isActive),
         },
       });
+
+      try {
+        revalidatePath("/");
+        revalidatePath("/admin/banners");
+      } catch {}
 
       return NextResponse.json({ banner, success: true }, { status: 201 });
     } catch (dbError) {

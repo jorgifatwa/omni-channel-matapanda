@@ -42,12 +42,17 @@ import {
   INITIAL_SECONDARY_BANNERS,
 } from "@/lib/banner-store";
 
-const LOCAL_STORAGE_KEY = "matapanda_admin_banners_v1";
-
 export default function AdminBannersPage() {
   const [activeTab, setActiveTab] = React.useState<BannerType>("HERO_BANNER");
   const [banners, setBanners] = React.useState<AdminBannerItem[]>([]);
   const [loading, setLoading] = React.useState(true);
+
+  // Clear any legacy local storage on mount to ensure fresh DB sync
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem("matapanda_admin_banners_v1");
+    }
+  }, []);
 
   // Modal State
   const [modalOpen, setModalOpen] = React.useState(false);
@@ -95,60 +100,30 @@ export default function AdminBannersPage() {
     setTimeout(() => setToast(null), 3500);
   };
 
-  // Load Banners
+  // Load Banners directly from database API
   const loadBanners = React.useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/admin/banners");
+      const res = await fetch("/api/admin/banners", { cache: "no-store" });
       if (res.ok) {
         const json = await res.json();
-        if (json.banners && Array.isArray(json.banners) && json.banners.length > 0) {
+        if (json.banners && Array.isArray(json.banners)) {
           setBanners(json.banners);
-          if (typeof window !== "undefined") {
-            window.localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(json.banners));
-          }
           return;
         }
       }
     } catch {
-      console.warn("Failed fetching banners from API, trying localStorage...");
+      console.warn("Failed fetching banners from API");
     } finally {
       setLoading(false);
     }
 
-    // Fallback to localStorage or initial presets
-    if (typeof window !== "undefined") {
-      try {
-        const local = window.localStorage.getItem(LOCAL_STORAGE_KEY);
-        if (local) {
-          setBanners(JSON.parse(local));
-          setLoading(false);
-          return;
-        }
-      } catch {
-        // Ignore JSON error
-      }
-    }
-
     setBanners([...INITIAL_HERO_BANNERS, ...INITIAL_SECONDARY_BANNERS]);
-    setLoading(false);
   }, []);
 
   React.useEffect(() => {
     loadBanners();
   }, [loadBanners]);
-
-  // Persist locally on change
-  const saveBannersLocally = (updated: AdminBannerItem[]) => {
-    setBanners(updated);
-    if (typeof window !== "undefined") {
-      try {
-        window.localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
-      } catch {
-        // Ignore
-      }
-    }
-  };
 
   // Filtered by active tab
   const currentTabBanners = React.useMemo(() => {
@@ -309,11 +284,12 @@ export default function AdminBannersPage() {
         if (res.ok) {
           const data = await res.json();
           if (data.banner) Object.assign(updatedItem, data.banner);
+          showToast("success", `Banner "${payload.title}" berhasil diperbarui!`);
+        } else {
+          showToast("error", "Gagal memperbarui banner di database.");
         }
 
-        const nextList = banners.map((b) => (b.id === editingBanner.id ? updatedItem : b));
-        saveBannersLocally(nextList);
-        showToast("success", `Banner "${payload.title}" berhasil diperbarui!`);
+        await loadBanners();
       } else {
         // Create via API
         const res = await fetch("/api/admin/banners", {
@@ -322,20 +298,13 @@ export default function AdminBannersPage() {
           body: JSON.stringify(payload),
         });
 
-        let newItem: AdminBannerItem = {
-          id: `banner-${Date.now()}`,
-          ...payload,
-          createdAt: new Date().toISOString(),
-        };
-
         if (res.ok) {
-          const data = await res.json();
-          if (data.banner) newItem = data.banner;
+          showToast("success", `Banner "${payload.title}" berhasil ditambahkan!`);
+        } else {
+          showToast("error", "Gagal menyimpan banner baru di database.");
         }
 
-        const nextList = [...banners, newItem];
-        saveBannersLocally(nextList);
-        showToast("success", `Banner "${payload.title}" berhasil ditambahkan!`);
+        await loadBanners();
       }
 
       setModalOpen(false);
@@ -349,9 +318,7 @@ export default function AdminBannersPage() {
   // Toggle Active Switch directly from list
   const handleToggleActive = async (banner: AdminBannerItem) => {
     const nextActive = !banner.isActive;
-    const updated: AdminBannerItem = { ...banner, isActive: nextActive };
-    const nextList = banners.map((b) => (b.id === banner.id ? updated : b));
-    saveBannersLocally(nextList);
+    setBanners((prev) => prev.map((b) => (b.id === banner.id ? { ...b, isActive: nextActive } : b)));
 
     try {
       await fetch(`/api/admin/banners/${banner.id}`, {
@@ -359,8 +326,9 @@ export default function AdminBannersPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive: nextActive }),
       });
+      await loadBanners();
     } catch {
-      // Ignore API failure, local already saved
+      // Ignore
     }
 
     showToast(
@@ -388,13 +356,13 @@ export default function AdminBannersPage() {
     const currentOrder = currentItem.sortOrder;
     const targetOrder = targetItem.sortOrder;
 
-    const updatedList = banners.map((b) => {
-      if (b.id === currentItem.id) return { ...b, sortOrder: targetOrder };
-      if (b.id === targetItem.id) return { ...b, sortOrder: currentOrder };
-      return b;
-    });
-
-    saveBannersLocally(updatedList);
+    setBanners((prev) =>
+      prev.map((b) => {
+        if (b.id === currentItem.id) return { ...b, sortOrder: targetOrder };
+        if (b.id === targetItem.id) return { ...b, sortOrder: currentOrder };
+        return b;
+      })
+    );
 
     // Sync to API
     try {
@@ -410,6 +378,7 @@ export default function AdminBannersPage() {
           body: JSON.stringify({ sortOrder: currentOrder }),
         }),
       ]);
+      await loadBanners();
     } catch {
       // Ignore
     }
@@ -424,20 +393,31 @@ export default function AdminBannersPage() {
     try {
       await fetch(`/api/admin/banners/${deleteTarget.id}`, {
         method: "DELETE",
-      }).catch(() => {});
-    } finally {
-      const nextList = banners.filter((b) => b.id !== deleteTarget.id);
-      saveBannersLocally(nextList);
+      });
+      await loadBanners();
       showToast("success", `Banner "${deleteTarget.title}" berhasil dihapus.`);
+    } catch {
+      showToast("error", "Gagal menghapus banner.");
+    } finally {
       setDeleteTarget(null);
     }
   };
 
-  // Reset to default presets
-  const handleResetDefaults = () => {
-    const nextList = [...INITIAL_HERO_BANNERS, ...INITIAL_SECONDARY_BANNERS];
-    saveBannersLocally(nextList);
-    showToast("success", "Banner beranda berhasil direset ke preset default.");
+  // Reset to default presets in DB
+  const handleResetDefaults = async () => {
+    try {
+      setLoading(true);
+      for (const b of banners) {
+        await fetch(`/api/admin/banners/${b.id}`, { method: "DELETE" }).catch(() => {});
+      }
+      await fetch("/api/admin/banners");
+      await loadBanners();
+      showToast("success", "Banner beranda berhasil direset ke preset default.");
+    } catch {
+      showToast("error", "Gagal mereset banner.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

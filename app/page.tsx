@@ -12,6 +12,7 @@ import {
 } from "@/lib/data-fetcher";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function HomePage() {
   // 0. Fetch dynamic banners for Hero (Banner Kesatu) & Secondary Promo (Banner Kedua)
