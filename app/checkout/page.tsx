@@ -1100,13 +1100,13 @@ export default function CheckoutPage() {
                     key={item.key}
                     className={`flex items-center justify-between gap-4 p-3 rounded-2xl border transition-all hover:shadow-xs ${
                       isGift
-                        ? "bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700"
+                        ? "bg-[#396254]/10 dark:bg-[#396254]/20 border-[#396254]/30 dark:border-[#396254]/50"
                         : "bg-[#fafaf8] dark:bg-neutral-800/40 border-[#396254]/10 dark:border-neutral-800"
                     }`}
                   >
                     <div className="flex items-center gap-3.5 min-w-0">
                       <div className={`relative h-18 w-18 sm:h-20 sm:w-20 rounded-2xl border-2 shrink-0 ${
-                        isGift ? "border-emerald-300 bg-white" : "border-[#396254]/15 bg-white dark:bg-neutral-800"
+                        isGift ? "border-[#396254]/30 bg-white" : "border-[#396254]/15 bg-white dark:bg-neutral-800"
                       }`}>
                         <div className="relative h-full w-full overflow-hidden rounded-2xl">
                           <Image
@@ -1118,7 +1118,7 @@ export default function CheckoutPage() {
                           />
                         </div>
                         <span className={`absolute -top-2 -right-2 h-6 min-w-[24px] px-1.5 rounded-full text-xs font-black flex items-center justify-center leading-none shadow-sm ${
-                          isGift ? "bg-emerald-600 text-white" : "bg-[#396254] text-[#dcf58d]"
+                          isGift ? "bg-[#396254] text-white" : "bg-[#396254] text-[#dcf58d]"
                         }`}>
                           {item.quantity}
                         </span>
@@ -1126,7 +1126,7 @@ export default function CheckoutPage() {
 
                       <div className="min-w-0">
                         {isGift && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-600 text-white font-extrabold text-[9px] uppercase tracking-wider mb-1">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#396254] text-white font-extrabold text-[9px] uppercase tracking-wider mb-1">
                             <Gift className="h-2.5 w-2.5" /> Hadiah Gratis
                           </span>
                         )}

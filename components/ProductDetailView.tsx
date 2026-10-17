@@ -507,12 +507,12 @@ export default function ProductDetailView({
 
           {/* Paket Hadiah Shopee-style Badge */}
           {giftBadge && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl shadow-xs">
-              <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-600 text-white px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1">
+            <div className="flex items-center gap-2 px-3 py-2 bg-[#396254]/10 dark:bg-[#396254]/20 border border-[#396254]/20 dark:border-[#396254]/40 rounded-2xl shadow-xs">
+              <span className="text-[10px] font-black uppercase tracking-wider bg-[#396254] text-white px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1">
                 <Gift className="h-3 w-3" />
                 Paket Hadiah
               </span>
-              <span className="text-xs font-bold text-emerald-900 dark:text-emerald-200">
+              <span className="text-xs font-bold text-[#396254] dark:text-[#dcf58d]">
                 Beli min. {formatPrice(giftBadge.minSpend || 0)}, gratis {giftBadge.giftQuantity || 1}x {giftBadge.giftProductName || "Hadiah Produk"}!
               </span>
             </div>

@@ -273,7 +273,7 @@ export default function ProductCard({
               </span>
             )}
             {giftBadge && (
-              <span className="bg-emerald-600 text-white text-[9px] sm:text-[10px] uppercase font-extrabold tracking-[0.08em] px-2 py-0.5 shadow-sm flex items-center gap-1">
+              <span className="bg-[#396254] text-white text-[9px] sm:text-[10px] uppercase font-extrabold tracking-[0.08em] px-2 py-0.5 shadow-sm flex items-center gap-1">
                 <Gift className="h-2.5 w-2.5" />
                 Hadiah
               </span>

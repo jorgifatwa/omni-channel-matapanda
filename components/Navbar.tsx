@@ -655,42 +655,42 @@ export default function Navbar() {
                       {giftProgress && giftProgress.appliedCampaign && (
                         <div className="px-6 py-2.5 bg-white dark:bg-neutral-900 border-b border-[#396254]/10 dark:border-neutral-800">
                           {giftProgress.isEligible ? (
-                            <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-2.5 flex items-center justify-between gap-2 shadow-xs">
+                            <div className="bg-[#396254]/10 dark:bg-[#396254]/20 border border-[#396254]/20 dark:border-[#396254]/40 rounded-2xl p-2.5 flex items-center justify-between gap-2 shadow-xs">
                               <div className="flex items-center gap-2 min-w-0">
-                                <div className="w-7 h-7 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                                <div className="w-7 h-7 rounded-full bg-[#396254] text-white flex items-center justify-center shrink-0">
                                   <Gift className="h-4 w-4 stroke-[2.5]" />
                                 </div>
                                 <div className="min-w-0">
-                                  <p className="text-xs font-black text-emerald-900 dark:text-emerald-200 truncate">
+                                  <p className="text-xs font-black text-[#396254] dark:text-[#dcf58d] truncate">
                                     Hadiah Gratis Aktif!
                                   </p>
-                                  <p className="text-[10px] text-emerald-700 dark:text-emerald-300 truncate">
+                                  <p className="text-[10px] text-[#396254]/80 dark:text-neutral-300 truncate">
                                     Gratis {giftProgress.giftQuantity}x {giftProgress.giftProductName || "Hadiah"} otomatis ditambahkan!
                                   </p>
                                 </div>
                               </div>
-                              <span className="text-[10px] font-black bg-emerald-200 dark:bg-emerald-800 text-emerald-900 dark:text-emerald-100 px-2 py-0.5 rounded-full shrink-0">
+                              <span className="text-[10px] font-black bg-[#396254] text-white px-2 py-0.5 rounded-full shrink-0">
                                 GRATIS
                               </span>
                             </div>
                           ) : (
-                            <div className="bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-2.5 space-y-1.5 shadow-xs">
-                              <div className="flex items-center justify-between text-xs font-bold text-emerald-900 dark:text-emerald-200">
+                            <div className="bg-[#396254]/10 dark:bg-[#396254]/20 border border-[#396254]/20 dark:border-[#396254]/40 rounded-2xl p-2.5 space-y-1.5 shadow-xs">
+                              <div className="flex items-center justify-between text-xs font-bold text-[#396254] dark:text-[#dcf58d]">
                                 <span className="flex items-center gap-1.5 truncate">
-                                  <Gift className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                  <Gift className="h-3.5 w-3.5 text-[#396254] dark:text-[#dcf58d] shrink-0" />
                                   <span className="truncate">Gratis {giftProgress.giftProductName || "Hadiah"}</span>
                                 </span>
-                                <span className="text-[11px] font-black text-emerald-800 dark:text-emerald-300 shrink-0">
+                                <span className="text-[11px] font-black text-[#396254] dark:text-[#dcf58d] shrink-0">
                                   Kurang {formatPrice(giftProgress.remainingToThreshold)}
                                 </span>
                               </div>
-                              <div className="w-full bg-emerald-200/50 dark:bg-neutral-800 h-2 rounded-full overflow-hidden">
+                              <div className="w-full bg-[#396254]/20 dark:bg-neutral-800 h-2 rounded-full overflow-hidden">
                                 <div
-                                  className="bg-emerald-500 dark:bg-emerald-400 h-full transition-all duration-500 rounded-full"
+                                  className="bg-[#396254] dark:bg-[#dcf58d] h-full transition-all duration-500 rounded-full"
                                   style={{ width: `${giftProgress.progressPercent}%` }}
                                 />
                               </div>
-                              <p className="text-[10px] text-emerald-700 dark:text-emerald-300 leading-tight">
+                              <p className="text-[10px] text-[#396254]/80 dark:text-neutral-300 leading-tight">
                                 Tambah belanja {formatPrice(giftProgress.remainingToThreshold)} lagi untuk dapat gratis {giftProgress.giftProductName || "Hadiah"}!
                               </p>
                             </div>
@@ -782,9 +782,9 @@ export default function Navbar() {
                         {giftItem && (
                           <div
                             key={giftItem.key}
-                            className="p-3.5 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/30 border-2 border-emerald-300 dark:border-emerald-700 flex gap-3.5 shadow-xs transition-all relative overflow-hidden"
+                            className="p-3.5 rounded-2xl bg-[#396254]/10 dark:bg-[#396254]/20 border-2 border-[#396254]/30 dark:border-[#396254]/50 flex gap-3.5 shadow-xs transition-all relative overflow-hidden"
                           >
-                            <div className="relative h-22 w-20 shrink-0 bg-white dark:bg-neutral-800 overflow-hidden block border-2 border-emerald-200 rounded-2xl">
+                            <div className="relative h-22 w-20 shrink-0 bg-white dark:bg-neutral-800 overflow-hidden block border-2 border-[#396254]/20 rounded-2xl">
                               <Image
                                 src={giftItem.image}
                                 alt={giftItem.name}
@@ -797,7 +797,7 @@ export default function Navbar() {
                             <div className="flex-1 min-w-0 flex flex-col justify-between">
                               <div>
                                 <div className="flex items-center gap-1.5 mb-1">
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-600 text-white font-extrabold text-[9px] uppercase tracking-wider">
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#396254] text-white font-extrabold text-[9px] uppercase tracking-wider">
                                     <Gift className="h-2.5 w-2.5" /> Hadiah Gratis
                                   </span>
                                 </div>
@@ -805,18 +805,18 @@ export default function Navbar() {
                                   {giftItem.name}
                                 </p>
                                 <div className="mt-1 flex items-center gap-2">
-                                  <span className="text-xs font-black text-emerald-700 dark:text-emerald-400">
+                                  <span className="text-xs font-black text-[#396254] dark:text-[#dcf58d]">
                                     Rp 0 (GRATIS)
                                   </span>
                                 </div>
                                 <p className="mt-1">
-                                  <span className="inline-block px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 font-bold text-[10px]">
+                                  <span className="inline-block px-2 py-0.5 rounded-full bg-[#396254]/20 dark:bg-[#396254]/30 text-[#396254] dark:text-[#dcf58d] font-bold text-[10px]">
                                     Jumlah: {giftItem.quantity} pcs
                                   </span>
                                 </p>
                               </div>
 
-                              <div className="mt-2 text-[10px] text-emerald-700 dark:text-emerald-400 font-medium italic">
+                              <div className="mt-2 text-[10px] text-[#396254] dark:text-[#dcf58d] font-medium italic">
                                 Bonus otomatis memenuhi syarat belanja
                               </div>
                             </div>
@@ -925,12 +925,12 @@ export default function Navbar() {
                           )}
 
                           {giftItem && (
-                            <div className="flex items-center justify-between text-emerald-700 dark:text-emerald-300 font-bold bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800">
+                            <div className="flex items-center justify-between text-[#396254] dark:text-[#dcf58d] font-bold bg-[#396254]/10 dark:bg-[#396254]/20 px-2.5 py-1.5 rounded-xl border border-[#396254]/20 dark:border-[#396254]/40">
                               <span className="flex items-center gap-1 truncate">
-                                <Gift className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                <Gift className="h-3.5 w-3.5 text-[#396254] dark:text-[#dcf58d] shrink-0" />
                                 <span className="truncate">Paket Hadiah ({giftItem.quantity}x {giftProgress?.giftProductName || "Hadiah"})</span>
                               </span>
-                              <span className="uppercase text-[11px] font-black text-emerald-600 dark:text-emerald-400 shrink-0">GRATIS</span>
+                              <span className="uppercase text-[11px] font-black text-[#396254] dark:text-[#dcf58d] shrink-0">GRATIS</span>
                             </div>
                           )}
 
