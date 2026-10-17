@@ -54,7 +54,7 @@ export default function HeroBanner({
   return (
     <section
       aria-label="Featured Hero Banner"
-      className="relative w-full h-[65vh] sm:h-[92vh] min-h-[480px] sm:min-h-[700px] max-h-[580px] sm:max-h-[1050px] overflow-hidden bg-neutral-900 select-none group"
+      className="relative w-full h-[65vh] sm:h-[92vh] min-h-[480px] sm:min-h-[700px] max-h-[580px] sm:max-h-[1050px] overflow-hidden bg-neutral-100 dark:bg-neutral-900 select-none group"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
@@ -79,8 +79,6 @@ export default function HeroBanner({
               sizes="100vw"
               className="object-cover object-center"
             />
-            {/* Contrast Overlay per slide */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/25 to-black/35" />
           </div>
         ))}
       </div>
@@ -89,7 +87,7 @@ export default function HeroBanner({
       <div className="absolute inset-0 z-20 pointer-events-none flex flex-col justify-between">
         {/* Editorial Top Categories Typography */}
         <div className="w-full pt-3 sm:pt-6 md:pt-8 px-4 sm:px-8 lg:px-12 text-left pointer-events-auto">
-          <div className="max-w-6xl lg:max-w-7xl text-2xl sm:text-6xl md:text-7xl lg:text-[5rem] xl:text-[6.2rem] 2xl:text-[7.2rem] font-medium tracking-tight text-white leading-[1.05] sm:leading-[0.95] select-none break-words">
+          <div className="max-w-6xl lg:max-w-7xl text-2xl sm:text-6xl md:text-7xl lg:text-[5rem] xl:text-[6.2rem] 2xl:text-[7.2rem] font-medium tracking-tight text-white leading-[1.05] sm:leading-[0.95] select-none break-words drop-shadow-[0_2px_8px_rgba(0,0,0,0.55)]">
             {activeCategories.map((cat, cIdx) => {
               const isActive = currentIndex === cIdx;
               return (

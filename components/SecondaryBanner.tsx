@@ -111,7 +111,7 @@ export default function SecondaryBanner({
   return (
     <section
       aria-label="Promotional Secondary Banner"
-      className="relative w-full h-[38vh] sm:h-[92vh] min-h-[280px] sm:min-h-[700px] max-h-[350px] sm:max-h-[1050px] overflow-hidden bg-neutral-900 select-none group"
+      className="relative w-full h-[38vh] sm:h-[92vh] min-h-[280px] sm:min-h-[700px] max-h-[350px] sm:max-h-[1050px] overflow-hidden bg-neutral-100 dark:bg-neutral-900 select-none group"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
@@ -136,30 +136,28 @@ export default function SecondaryBanner({
               sizes="100vw"
               className="object-cover object-center"
             />
-            {/* Dark Contrast Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/40" />
 
             {/* Slide Content (Centered Editorial Style) */}
             <div className="absolute inset-0 z-20 flex flex-col items-center justify-center text-center px-4 sm:px-12 max-w-5xl mx-auto space-y-1.5 sm:space-y-5">
               {slide.ctaLink ? (
                 <Link
                   href={slide.ctaLink}
-                  className="group/title block text-xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tight text-white drop-shadow-md leading-tight transition-colors duration-200 hover:text-[#396254]"
+                  className="group/title block text-xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tight text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.65)] leading-tight transition-colors duration-200 hover:text-[#396254]"
                 >
                   <h2>{slide.title}</h2>
                 </Link>
               ) : (
-                <h2 className="text-xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tight text-white drop-shadow-md leading-tight transition-colors duration-200 hover:text-[#396254]">
+                <h2 className="text-xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tight text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.65)] leading-tight transition-colors duration-200 hover:text-[#396254]">
                   {slide.title}
                 </h2>
               )}
               {slide.subtitle && (
-                <p className="text-[11px] sm:text-base md:text-lg font-medium tracking-wide text-white/95 max-w-xs sm:max-w-2xl mx-auto drop-shadow-sm transition-colors duration-200 hover:text-[#396254]">
+                <p className="text-[11px] sm:text-base md:text-lg font-medium tracking-wide text-white max-w-xs sm:max-w-2xl mx-auto drop-shadow-[0_1px_6px_rgba(0,0,0,0.7)] transition-colors duration-200 hover:text-[#396254]">
                   {slide.subtitle}
                 </p>
               )}
               {slide.description && (
-                <p className="text-xs sm:text-sm text-white/80 max-w-lg mx-auto hidden sm:block transition-colors duration-200 hover:text-[#396254]">
+                <p className="text-xs sm:text-sm text-white max-w-lg mx-auto hidden sm:block drop-shadow-[0_1px_6px_rgba(0,0,0,0.7)] transition-colors duration-200 hover:text-[#396254]">
                   {slide.description}
                 </p>
               )}
