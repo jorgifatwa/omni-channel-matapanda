@@ -72,10 +72,10 @@ export default async function HomePage() {
           showNewBadge={true}
         />
 
-        {/* 4. Bubblegum Pink Section Banner ("it'smatapanda Bags") */}
+        {/* 4. Lavender Purple Section Banner ("it'smatapanda Bags") */}
         <HomeProductSection
           title="it'smatapanda Bags"
-          bannerBg="#ED96D7"
+          bannerBg="#d5c6ff"
           bannerTextColor="text-[#396254]"
           shopMoreHref="/categories/bags-totes"
           shopMoreBg="bg-[#396254]"
