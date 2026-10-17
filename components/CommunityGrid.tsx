@@ -143,10 +143,10 @@ export default function CommunityGrid() {
     >
       {/* Header */}
       <div className="text-center max-w-xl mx-auto px-4 mb-8 sm:mb-12 space-y-3">
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold font-heading bg-[#d5c6ff]/40 text-[#396254] dark:bg-[#d5c6ff]/20 dark:text-[#d5c6ff]">
+        <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-bold font-heading bg-[#d5c6ff] text-[#396254] dark:bg-[#d5c6ff] dark:text-[#396254] shadow-xs">
           <span>Komunitas Panda</span>
         </span>
-        <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-neutral-900 dark:text-neutral-100 font-heading leading-tight">
+        <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-[#d5c6ff] dark:text-[#d5c6ff] font-heading leading-tight">
           it&apos;smatapanda
           <br />
           ON YOU

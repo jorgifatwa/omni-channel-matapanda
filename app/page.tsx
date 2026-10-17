@@ -60,14 +60,14 @@ export default async function HomePage() {
         {/* 2. Secondary Promo Banner: Dynamic promotional slides directly beneath with no gap */}
         <SecondaryBanner banners={secondaryBanners} />
 
-        {/* 3. Pine Green Section Banner ("New Arrivals") */}
+        {/* 3. Lavender Purple Section Banner ("New Arrivals") */}
         <HomeProductSection
           title="New Arrivals"
-          bannerBg="#396254"
-          bannerTextColor="text-[#dcf58d]"
+          bannerBg="#d5c6ff"
+          bannerTextColor="text-[#396254]"
           shopMoreHref="/new-arrivals"
-          shopMoreBg="bg-[#dcf58d]"
-          shopMoreTextColor="text-[#233a32]"
+          shopMoreBg="bg-[#396254]"
+          shopMoreTextColor="text-white"
           products={newInProducts}
           showNewBadge={true}
         />
