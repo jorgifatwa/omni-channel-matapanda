@@ -1034,6 +1034,14 @@ export default function Navbar() {
             {/* Main Category Links (Large Bold Typography) */}
             <div className="flex flex-col space-y-4">
               <Link
+                href="/products"
+                onClick={() => setMenuOpen(false)}
+                className="text-3xl sm:text-4xl font-bold tracking-tight text-[#396254] hover:text-white transition-colors"
+              >
+                All Products
+              </Link>
+
+              <Link
                 href="/new-arrivals"
                 onClick={() => setMenuOpen(false)}
                 className="text-3xl sm:text-4xl font-bold tracking-tight text-[#396254] hover:text-white transition-colors"

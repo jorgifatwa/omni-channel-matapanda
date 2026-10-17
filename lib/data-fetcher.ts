@@ -259,6 +259,37 @@ export async function getNewArrivalProducts(): Promise<StorefrontProduct[]> {
   return applyDiscountsToProducts(fallback);
 }
 
+export async function getAllStorefrontProducts(): Promise<StorefrontProduct[]> {
+  try {
+    const products = await prisma.product.findMany({
+      where: {
+        isActive: true,
+        deletedAt: null,
+      },
+      orderBy: [{ isNewArrival: "desc" }, { createdAt: "desc" }],
+      include: {
+        brand: true,
+        category: true,
+        productSeries: true,
+        images: { orderBy: { sortOrder: "asc" } },
+        variants: { where: { deletedAt: null } },
+      },
+    });
+
+    if (products && products.length > 0) {
+      return applyDiscountsToProducts(products.map((p) => formatPrismaProduct(p)));
+    }
+  } catch (error) {
+    console.warn("Database unavailable, using fallback all products:", error);
+  }
+
+  // Fallback to all initial products
+  const fallback = INITIAL_PRODUCTS.filter((p) => p.isActive).map((p) =>
+    formatFallbackProduct(p)
+  );
+  return applyDiscountsToProducts(fallback);
+}
+
 export async function getProductsByBrandSlug(
   slug: string
 ): Promise<{ brand: StorefrontBrand | null; products: StorefrontProduct[] }> {

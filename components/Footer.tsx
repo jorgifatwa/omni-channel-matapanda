@@ -193,6 +193,14 @@ export default function Footer() {
             <ul className="space-y-2.5 text-neutral-600">
               <li>
                 <Link
+                  href="/products"
+                  className="hover:text-black hover:underline underline-offset-4 transition-colors font-medium text-black"
+                >
+                  All Products
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/new-arrivals"
                   className="hover:text-black hover:underline underline-offset-4 transition-colors"
                 >
