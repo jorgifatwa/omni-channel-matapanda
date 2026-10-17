@@ -76,7 +76,7 @@ export default async function HomePage() {
         <HomeProductSection
           title="it'smatapanda Bags"
           bannerBg="#ED96D7"
-          bannerTextColor="text-[#233a32]"
+          bannerTextColor="text-[#396254]"
           shopMoreHref="/categories/bags-totes"
           shopMoreBg="bg-[#396254]"
           shopMoreTextColor="text-white"
