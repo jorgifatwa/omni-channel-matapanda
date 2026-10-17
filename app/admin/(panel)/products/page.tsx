@@ -91,7 +91,7 @@ export default function AdminProductsPage() {
     setDiscountPrice("");
     setStock("20");
     setLowStockThreshold("5");
-    setIsNewArrival(false);
+    setIsNewArrival(true);
     setIsActive(true);
     setImages([
       "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?auto=format&fit=crop&w=800&q=80",
