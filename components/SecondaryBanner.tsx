@@ -99,6 +99,30 @@ export default function SecondaryBanner({
     setCurrentIndex((prev) => (prev - 1 + total) % total);
   }, [total]);
 
+  // Touch Swipe for Mobile Devices
+  const touchStartX = React.useRef<number | null>(null);
+  const touchEndX = React.useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.targetTouches[0].clientX;
+  };
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+  };
+  const handleTouchEnd = () => {
+    if (touchStartX.current === null || touchEndX.current === null) return;
+    const diff = touchStartX.current - touchEndX.current;
+    if (Math.abs(diff) > 40) {
+      if (diff > 0) {
+        nextSlide();
+      } else {
+        prevSlide();
+      }
+    }
+    touchStartX.current = null;
+    touchEndX.current = null;
+  };
+
   // Auto-advance slides every 6 seconds when not paused
   React.useEffect(() => {
     if (isPaused || total <= 1) return;
@@ -110,19 +134,15 @@ export default function SecondaryBanner({
 
   if (!activeSlides || activeSlides.length === 0) return null;
 
-  const currentSlide = activeSlides[currentIndex] || activeSlides[0];
-  const hasMobileImage = Boolean(currentSlide?.mobileImage);
-
   return (
     <section
       aria-label="Promotional Secondary Banner"
-      className={`relative w-full ${
-        hasMobileImage
-          ? "h-[50vh] min-h-[350px] max-h-[500px] sm:h-[92vh] sm:min-h-[700px] sm:max-h-[1050px]"
-          : "aspect-[16/9] sm:aspect-auto sm:h-[92vh] sm:min-h-[700px] max-h-[400px] sm:max-h-[1050px]"
-      } overflow-hidden bg-neutral-100 dark:bg-neutral-900 select-none group`}
+      className="relative w-full h-[60vh] min-h-[420px] max-h-[580px] sm:h-[92vh] sm:min-h-[700px] sm:max-h-[1050px] overflow-hidden bg-neutral-900 select-none group"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
     >
       {/* 1. Horizontal Sliding Track (Dynamic Unlimited Slides) */}
       <div
@@ -134,34 +154,32 @@ export default function SecondaryBanner({
         {activeSlides.map((slide, idx) => (
           <div
             key={slide.id}
-            className="relative h-full w-full flex-shrink-0"
+            className="relative h-full w-full flex-shrink-0 bg-neutral-900"
             aria-hidden={idx !== currentIndex}
           >
-            {/* Desktop / Default Image */}
-            <div className={`relative h-full w-full ${slide.mobileImage ? "hidden sm:block" : "block"}`}>
+            {/* 1. Desktop Image (Wide 16:9 / 21:9 - displayed on PC/Laptop) */}
+            <div className="relative h-full w-full hidden sm:block">
               <Image
                 src={slide.image}
-                alt={slide.title}
+                alt={`${slide.title} Desktop Banner`}
                 fill
                 priority={idx === 0}
-                sizes="(min-width: 640px) 100vw, 100vw"
+                sizes="100vw"
                 className="object-cover object-center"
               />
             </div>
 
-            {/* Mobile Specific Image (when provided) */}
-            {slide.mobileImage && (
-              <div className="relative h-full w-full block sm:hidden">
-                <Image
-                  src={slide.mobileImage}
-                  alt={slide.title}
-                  fill
-                  priority={idx === 0}
-                  sizes="100vw"
-                  className="object-cover object-center"
-                />
-              </div>
-            )}
+            {/* 2. Mobile Image (Portrait 4:5 / 1:1 - displayed on Smartphone / HP) */}
+            <div className="relative h-full w-full block sm:hidden">
+              <Image
+                src={slide.mobileImage || slide.image}
+                alt={`${slide.title} Mobile Banner`}
+                fill
+                priority={idx === 0}
+                sizes="100vw"
+                className="object-cover object-center"
+              />
+            </div>
 
             {/* Slide Content (Centered Editorial Style) */}
             <div className="absolute inset-0 z-20 flex flex-col items-center justify-center text-center px-4 sm:px-12 max-w-5xl mx-auto space-y-1 sm:space-y-5">

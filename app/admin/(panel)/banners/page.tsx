@@ -1122,7 +1122,7 @@ export default function AdminBannersPage() {
                   />
                 </div>
                 <p className="text-[11px] text-neutral-500 dark:text-neutral-400 leading-relaxed">
-                  Rekomendasi rasio untuk HP: <strong>4:5</strong>, <strong>1:1</strong>, atau <strong>9:16</strong> (misal 1080x1080px atau 1080x1350px). Jika dikosongkan, tampilan HP akan otomatis menyesuaikan banner desktop secara responsif tanpa terpotong.
+                  Rekomendasi rasio untuk HP: <strong>4:5</strong>, <strong>1:1</strong>, atau <strong>9:16</strong> (misal 1080x1350px atau 1080x1080px). Banner HP akan tampil penuh dan tinggi di layar smartphone tanpa mengecil, sementara pengunjung laptop/PC melihat banner desktop (dua aset gambar berbeda yang tersaji secara responsif).
                 </p>
               </div>
 

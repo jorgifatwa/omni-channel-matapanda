@@ -17,7 +17,7 @@ export default function HeroBanner({
   slides = HERO_SLIDES,
   categories = HERO_CATEGORIES,
 }: HeroBannerProps) {
-  // If dynamic banners provided from admin, convert to category links
+  // If dynamic banners provided from admin / database, convert to category links
   const activeCategories: HeroCategoryLink[] = React.useMemo(() => {
     if (banners && banners.length > 0) {
       return banners.map((b) => ({
@@ -39,6 +39,34 @@ export default function HeroBanner({
     setCurrentIndex((prev) => (prev + 1) % total);
   }, [total]);
 
+  const prevSlide = React.useCallback(() => {
+    setCurrentIndex((prev) => (prev - 1 + total) % total);
+  }, [total]);
+
+  // Touch Swipe for Mobile Devices
+  const touchStartX = React.useRef<number | null>(null);
+  const touchEndX = React.useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.targetTouches[0].clientX;
+  };
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+  };
+  const handleTouchEnd = () => {
+    if (touchStartX.current === null || touchEndX.current === null) return;
+    const diff = touchStartX.current - touchEndX.current;
+    if (Math.abs(diff) > 40) {
+      if (diff > 0) {
+        nextSlide();
+      } else {
+        prevSlide();
+      }
+    }
+    touchStartX.current = null;
+    touchEndX.current = null;
+  };
+
   // Auto-advance slides every 6.5 seconds when not paused
   React.useEffect(() => {
     if (isPaused || total <= 1) return;
@@ -51,20 +79,18 @@ export default function HeroBanner({
   if (total === 0) return null;
 
   const currentCategory = activeCategories[currentIndex] || activeCategories[0];
-  const hasMobileImage = Boolean(currentCategory?.mobileImage);
 
   return (
     <section
       aria-label="Featured Hero Banner"
-      className={`relative w-full ${
-        hasMobileImage
-          ? "h-[60vh] min-h-[440px] max-h-[600px] sm:h-[92vh] sm:min-h-[700px] sm:max-h-[1050px]"
-          : "aspect-[16/9] sm:aspect-auto sm:h-[92vh] sm:min-h-[700px] sm:max-h-[1050px]"
-      } overflow-hidden bg-neutral-100 dark:bg-neutral-900 select-none group`}
+      className="relative w-full h-[75vh] min-h-[500px] max-h-[720px] sm:h-[92vh] sm:min-h-[700px] sm:max-h-[1050px] overflow-hidden bg-neutral-950 select-none group"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
     >
-      {/* 1. Horizontal Sliding Track (8 Slides) */}
+      {/* 1. Horizontal Sliding Track */}
       <div
         className="flex h-full w-full transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
         style={{
@@ -74,43 +100,41 @@ export default function HeroBanner({
         {activeCategories.map((cat, idx) => (
           <div
             key={cat.label}
-            className="relative h-full w-full flex-shrink-0"
+            className="relative h-full w-full flex-shrink-0 bg-neutral-900"
             aria-hidden={idx !== currentIndex}
           >
-            {/* Desktop / Default Image */}
-            <div className={`relative h-full w-full ${cat.mobileImage ? "hidden sm:block" : "block"}`}>
+            {/* 1. Desktop Image (Wide 16:9 / 21:9 - displayed on PC/Laptop) */}
+            <div className="relative h-full w-full hidden sm:block">
               <Image
                 src={cat.image}
-                alt={cat.label}
+                alt={`${cat.label} Desktop Banner`}
                 fill
                 priority={idx === 0}
-                sizes="(min-width: 640px) 100vw, 100vw"
+                sizes="100vw"
                 className="object-cover object-center"
               />
             </div>
 
-            {/* Mobile Specific Image (when provided) */}
-            {cat.mobileImage && (
-              <div className="relative h-full w-full block sm:hidden">
-                <Image
-                  src={cat.mobileImage}
-                  alt={cat.label}
-                  fill
-                  priority={idx === 0}
-                  sizes="100vw"
-                  className="object-cover object-center"
-                />
-              </div>
-            )}
+            {/* 2. Mobile Image (Portrait 4:5 / 1:1 - displayed on Smartphone / HP) */}
+            <div className="relative h-full w-full block sm:hidden">
+              <Image
+                src={cat.mobileImage || cat.image}
+                alt={`${cat.label} Mobile Banner`}
+                fill
+                priority={idx === 0}
+                sizes="100vw"
+                className="object-cover object-center"
+              />
+            </div>
           </div>
         ))}
       </div>
 
-      {/* 2. Content Overlay (Fixed on Top: Editorial Category Links) */}
+      {/* 2. Content Overlay (Fixed on Top: Editorial Category Links & CTA) */}
       <div className="absolute inset-0 z-20 pointer-events-none flex flex-col justify-between">
         {/* Editorial Top Categories Typography */}
-        <div className="w-full pt-2 sm:pt-6 md:pt-8 px-3 sm:px-8 lg:px-12 text-left pointer-events-auto">
-          <div className="max-w-6xl lg:max-w-7xl text-lg sm:text-6xl md:text-7xl lg:text-[5rem] xl:text-[6.2rem] 2xl:text-[7.2rem] font-medium tracking-tight text-white leading-[1.1] sm:leading-[0.95] select-none break-words drop-shadow-[0_2px_8px_rgba(0,0,0,0.55)]">
+        <div className="w-full pt-3 sm:pt-6 md:pt-8 px-3 sm:px-8 lg:px-12 text-left pointer-events-auto">
+          <div className="max-w-6xl lg:max-w-7xl text-lg sm:text-6xl md:text-7xl lg:text-[5rem] xl:text-[6.2rem] 2xl:text-[7.2rem] font-medium tracking-tight text-white leading-[1.1] sm:leading-[0.95] select-none break-words drop-shadow-[0_2px_8px_rgba(0,0,0,0.65)]">
             {activeCategories.map((cat, cIdx) => {
               const isActive = currentIndex === cIdx;
               return (
@@ -130,10 +154,10 @@ export default function HeroBanner({
           </div>
 
           {currentCategory && (
-            <div className="mt-3 sm:mt-8 hidden sm:block">
+            <div className="mt-3 sm:mt-8 block">
               <Link
                 href={currentCategory.href}
-                className="inline-flex items-center gap-2 bg-[#396254] text-white hover:bg-[#2d4e44] px-8 sm:px-9 py-3.5 rounded-full text-xs sm:text-sm font-black font-heading uppercase tracking-wider transition-all hover:-translate-y-0.5 active:scale-95 shadow-lg hover:shadow-xl"
+                className="inline-flex items-center gap-2 bg-[#396254] text-white hover:bg-[#2d4e44] px-5 sm:px-9 py-2.5 sm:py-3.5 rounded-full text-xs sm:text-sm font-bold sm:font-black font-heading uppercase tracking-wider transition-all hover:-translate-y-0.5 active:scale-95 shadow-lg hover:shadow-xl"
               >
                 <span>Discover {currentCategory.label}</span>
                 <span>&rarr;</span>
@@ -143,9 +167,9 @@ export default function HeroBanner({
         </div>
       </div>
 
-      {/* 3. 8-Slide Pagination Dots (No arrow buttons) */}
+      {/* 3. Pagination Dots */}
       {total > 1 && (
-        <div className="absolute bottom-2.5 sm:bottom-6 inset-x-0 z-30 flex items-center justify-center gap-1.5 sm:gap-2">
+        <div className="absolute bottom-3 sm:bottom-6 inset-x-0 z-30 flex items-center justify-center gap-1.5 sm:gap-2">
           {activeCategories.map((cat, idx) => {
             const isActive = idx === currentIndex;
             return (
@@ -155,7 +179,7 @@ export default function HeroBanner({
                 onClick={() => setCurrentIndex(idx)}
                 onMouseEnter={() => setCurrentIndex(idx)}
                 aria-label={`Go to slide ${idx + 1} (${cat.label})`}
-                className={`transition-all duration-300 rounded-full ${
+                className={`transition-all duration-300 rounded-full cursor-pointer ${
                   isActive
                     ? "w-6 sm:w-8 h-1.5 sm:h-2 bg-white"
                     : "w-1.5 sm:w-2 h-1.5 sm:h-2 bg-white/50 hover:bg-white/80"

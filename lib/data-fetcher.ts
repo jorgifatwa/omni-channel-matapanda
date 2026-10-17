@@ -810,8 +810,7 @@ function slugifyFallback(text: string): string {
 }
 
 import {
-  INITIAL_HERO_BANNERS,
-  INITIAL_SECONDARY_BANNERS,
+  getActiveStorefrontBanners,
   type AdminBannerItem,
 } from "@/lib/banner-store";
 
@@ -819,58 +818,7 @@ export async function getStorefrontBanners(): Promise<{
   heroBanners: AdminBannerItem[];
   secondaryBanners: AdminBannerItem[];
 }> {
-  try {
-    const banners = await prisma.banner.findMany({
-      where: { isActive: true },
-      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
-    });
-
-    const hero = banners
-      .filter((b) => b.type === "HERO_BANNER")
-      .map((b) => ({
-        id: b.id,
-        type: b.type as "HERO_BANNER",
-        title: b.title,
-        subtitle: b.subtitle,
-        description: b.description,
-        imageUrl: b.imageUrl,
-        mobileImageUrl: b.mobileImageUrl,
-        ctaText: b.ctaText,
-        ctaLink: b.ctaLink,
-        sortOrder: b.sortOrder,
-        isActive: b.isActive,
-        createdAt: b.createdAt.toISOString(),
-        updatedAt: b.updatedAt.toISOString(),
-      }));
-
-    const secondary = banners
-      .filter((b) => b.type === "SECONDARY_BANNER")
-      .map((b) => ({
-        id: b.id,
-        type: b.type as "SECONDARY_BANNER",
-        title: b.title,
-        subtitle: b.subtitle,
-        description: b.description,
-        imageUrl: b.imageUrl,
-        mobileImageUrl: b.mobileImageUrl,
-        ctaText: b.ctaText,
-        ctaLink: b.ctaLink,
-        sortOrder: b.sortOrder,
-        isActive: b.isActive,
-        createdAt: b.createdAt.toISOString(),
-        updatedAt: b.updatedAt.toISOString(),
-      }));
-
-    return {
-      heroBanners: hero.length > 0 ? hero : INITIAL_HERO_BANNERS,
-      secondaryBanners: secondary.length > 0 ? secondary : INITIAL_SECONDARY_BANNERS,
-    };
-  } catch (error) {
-    console.warn("Database banners fallback used:", error);
-    return {
-      heroBanners: INITIAL_HERO_BANNERS,
-      secondaryBanners: INITIAL_SECONDARY_BANNERS,
-    };
-  }
+  const { heroBanners, secondaryBanners } = await getActiveStorefrontBanners();
+  return { heroBanners, secondaryBanners };
 }
 

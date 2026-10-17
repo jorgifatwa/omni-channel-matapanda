@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
+import {
+  saveBannerStore,
+  deleteBannerStore,
+  readBannersFromFile,
+  type BannerType,
+} from "@/lib/banner-store";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -11,23 +16,22 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    if (!UUID_REGEX.test(params.id)) {
-      const banner = await prisma.banner.findFirst({
-        where: { title: params.id },
-      });
-      if (banner) return NextResponse.json({ banner });
-      return NextResponse.json({ error: "Banner tidak ditemukan" }, { status: 404 });
+    // 1. Try DB
+    if (UUID_REGEX.test(params.id)) {
+      try {
+        const banner = await prisma.banner.findUnique({
+          where: { id: params.id },
+        });
+        if (banner) return NextResponse.json({ banner });
+      } catch {}
     }
 
-    const banner = await prisma.banner.findUnique({
-      where: { id: params.id },
-    });
+    // 2. Try file store
+    const fileBanners = readBannersFromFile();
+    const banner = fileBanners.find((b) => b.id === params.id || b.title === params.id);
+    if (banner) return NextResponse.json({ banner });
 
-    if (!banner) {
-      return NextResponse.json({ error: "Banner tidak ditemukan" }, { status: 404 });
-    }
-
-    return NextResponse.json({ banner });
+    return NextResponse.json({ error: "Banner tidak ditemukan" }, { status: 404 });
   } catch (error) {
     console.error("GET /api/admin/banners/[id] error:", error);
     return NextResponse.json(
@@ -56,97 +60,25 @@ export async function PUT(
       isActive,
     } = body;
 
-    const isUuid = UUID_REGEX.test(params.id);
-    let banner;
+    // Get current item to preserve existing values if not specified
+    const fileBanners = readBannersFromFile();
+    const existing = fileBanners.find((b) => b.id === params.id || b.title === params.id);
 
-    try {
-      if (isUuid) {
-        // Try to update existing database row
-        banner = await prisma.banner.update({
-          where: { id: params.id },
-          data: {
-            ...(type !== undefined && { type }),
-            ...(title !== undefined && { title }),
-            ...(subtitle !== undefined && { subtitle: subtitle || null }),
-            ...(description !== undefined && { description: description || null }),
-            ...(imageUrl !== undefined && { imageUrl }),
-            ...(mobileImageUrl !== undefined && { mobileImageUrl: mobileImageUrl || null }),
-            ...(ctaText !== undefined && { ctaText: ctaText || null }),
-            ...(ctaLink !== undefined && { ctaLink: ctaLink || null }),
-            ...(sortOrder !== undefined && { sortOrder: Number(sortOrder) }),
-            ...(isActive !== undefined && { isActive: Boolean(isActive) }),
-          },
-        });
-      } else {
-        // Preset / non-UUID ID (e.g. 'free-shipping-promo', 'everyday-carryalls', 'hero-new-in')
-        // Check if banner with this title already exists in DB
-        const existing = await prisma.banner.findFirst({
-          where: {
-            OR: [
-              ...(title ? [{ title }] : []),
-              { type: type || (params.id.startsWith("hero") ? "HERO_BANNER" : "SECONDARY_BANNER") },
-            ],
-          },
-        });
+    const banner = await saveBannerStore({
+      id: existing?.id || params.id,
+      type: (type || existing?.type || "HERO_BANNER") as BannerType,
+      title: title !== undefined ? title.trim() : (existing?.title || "Banner"),
+      subtitle: subtitle !== undefined ? (subtitle?.trim() || null) : existing?.subtitle,
+      description: description !== undefined ? (description?.trim() || null) : existing?.description,
+      imageUrl: imageUrl !== undefined ? imageUrl.trim() : (existing?.imageUrl || ""),
+      mobileImageUrl: mobileImageUrl !== undefined ? (mobileImageUrl?.trim() || null) : existing?.mobileImageUrl,
+      ctaText: ctaText !== undefined ? (ctaText?.trim() || null) : existing?.ctaText,
+      ctaLink: ctaLink !== undefined ? (ctaLink?.trim() || null) : existing?.ctaLink,
+      sortOrder: sortOrder !== undefined ? Number(sortOrder) : (existing?.sortOrder || 0),
+      isActive: isActive !== undefined ? Boolean(isActive) : (existing?.isActive ?? true),
+    });
 
-        if (existing) {
-          banner = await prisma.banner.update({
-            where: { id: existing.id },
-            data: {
-              ...(type !== undefined && { type }),
-              ...(title !== undefined && { title }),
-              ...(subtitle !== undefined && { subtitle: subtitle || null }),
-              ...(description !== undefined && { description: description || null }),
-              ...(imageUrl !== undefined && { imageUrl }),
-              ...(mobileImageUrl !== undefined && { mobileImageUrl: mobileImageUrl || null }),
-              ...(ctaText !== undefined && { ctaText: ctaText || null }),
-              ...(ctaLink !== undefined && { ctaLink: ctaLink || null }),
-              ...(sortOrder !== undefined && { sortOrder: Number(sortOrder) }),
-              ...(isActive !== undefined && { isActive: Boolean(isActive) }),
-            },
-          });
-        } else {
-          banner = await prisma.banner.create({
-            data: {
-              type: type || (params.id.startsWith("hero") ? "HERO_BANNER" : "SECONDARY_BANNER"),
-              title: title || "Banner",
-              subtitle: subtitle || null,
-              description: description || null,
-              imageUrl: imageUrl || "",
-              mobileImageUrl: mobileImageUrl || null,
-              ctaText: ctaText || null,
-              ctaLink: ctaLink || null,
-              sortOrder: sortOrder !== undefined ? Number(sortOrder) : 0,
-              isActive: isActive !== undefined ? Boolean(isActive) : true,
-            },
-          });
-        }
-      }
-
-      try {
-        revalidatePath("/");
-        revalidatePath("/admin/banners");
-      } catch {}
-
-      return NextResponse.json({ banner, success: true });
-    } catch (dbError) {
-      console.warn("Database banner operation failed:", dbError);
-      const fallbackUpdated = {
-        id: params.id,
-        type: type || "HERO_BANNER",
-        title: title || "Banner",
-        subtitle: subtitle || null,
-        description: description || null,
-        imageUrl: imageUrl || "",
-        mobileImageUrl: mobileImageUrl || null,
-        ctaText: ctaText || null,
-        ctaLink: ctaLink || null,
-        sortOrder: sortOrder !== undefined ? Number(sortOrder) : 0,
-        isActive: isActive !== undefined ? Boolean(isActive) : true,
-        updatedAt: new Date().toISOString(),
-      };
-      return NextResponse.json({ banner: fallbackUpdated, success: true });
-    }
+    return NextResponse.json({ banner, success: true });
   } catch (error) {
     console.error("PUT /api/admin/banners/[id] error:", error);
     return NextResponse.json(
@@ -161,23 +93,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const isUuid = UUID_REGEX.test(params.id);
-    if (isUuid) {
-      await prisma.banner.delete({
-        where: { id: params.id },
-      }).catch(() => {});
-    } else {
-      const found = await prisma.banner.findFirst({ where: { title: params.id } }).catch(() => null);
-      if (found) {
-        await prisma.banner.delete({ where: { id: found.id } }).catch(() => {});
-      }
-    }
-
-    try {
-      revalidatePath("/");
-      revalidatePath("/admin/banners");
-    } catch {}
-
+    await deleteBannerStore(params.id);
     return NextResponse.json({ success: true, message: "Banner berhasil dihapus." });
   } catch (error) {
     console.error("DELETE /api/admin/banners/[id] error:", error);
