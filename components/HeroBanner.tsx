@@ -24,6 +24,7 @@ export default function HeroBanner({
         label: b.title,
         href: b.ctaLink || "/new-arrivals",
         image: b.imageUrl,
+        mobileImage: b.mobileImageUrl || undefined,
       }));
     }
     return categories;
@@ -50,11 +51,16 @@ export default function HeroBanner({
   if (total === 0) return null;
 
   const currentCategory = activeCategories[currentIndex] || activeCategories[0];
+  const hasMobileImage = Boolean(currentCategory?.mobileImage);
 
   return (
     <section
       aria-label="Featured Hero Banner"
-      className="relative w-full h-[65vh] sm:h-[92vh] min-h-[480px] sm:min-h-[700px] max-h-[580px] sm:max-h-[1050px] overflow-hidden bg-neutral-100 dark:bg-neutral-900 select-none group"
+      className={`relative w-full ${
+        hasMobileImage
+          ? "h-[60vh] min-h-[440px] max-h-[600px] sm:h-[92vh] sm:min-h-[700px] sm:max-h-[1050px]"
+          : "aspect-[16/9] sm:aspect-auto sm:h-[92vh] sm:min-h-[700px] sm:max-h-[1050px]"
+      } overflow-hidden bg-neutral-100 dark:bg-neutral-900 select-none group`}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
@@ -71,14 +77,31 @@ export default function HeroBanner({
             className="relative h-full w-full flex-shrink-0"
             aria-hidden={idx !== currentIndex}
           >
-            <Image
-              src={cat.image}
-              alt={cat.label}
-              fill
-              priority={idx === 0}
-              sizes="100vw"
-              className="object-cover object-center"
-            />
+            {/* Desktop / Default Image */}
+            <div className={`relative h-full w-full ${cat.mobileImage ? "hidden sm:block" : "block"}`}>
+              <Image
+                src={cat.image}
+                alt={cat.label}
+                fill
+                priority={idx === 0}
+                sizes="(min-width: 640px) 100vw, 100vw"
+                className="object-cover object-center"
+              />
+            </div>
+
+            {/* Mobile Specific Image (when provided) */}
+            {cat.mobileImage && (
+              <div className="relative h-full w-full block sm:hidden">
+                <Image
+                  src={cat.mobileImage}
+                  alt={cat.label}
+                  fill
+                  priority={idx === 0}
+                  sizes="100vw"
+                  className="object-cover object-center"
+                />
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -86,8 +109,8 @@ export default function HeroBanner({
       {/* 2. Content Overlay (Fixed on Top: Editorial Category Links) */}
       <div className="absolute inset-0 z-20 pointer-events-none flex flex-col justify-between">
         {/* Editorial Top Categories Typography */}
-        <div className="w-full pt-3 sm:pt-6 md:pt-8 px-4 sm:px-8 lg:px-12 text-left pointer-events-auto">
-          <div className="max-w-6xl lg:max-w-7xl text-2xl sm:text-6xl md:text-7xl lg:text-[5rem] xl:text-[6.2rem] 2xl:text-[7.2rem] font-medium tracking-tight text-white leading-[1.05] sm:leading-[0.95] select-none break-words drop-shadow-[0_2px_8px_rgba(0,0,0,0.55)]">
+        <div className="w-full pt-2 sm:pt-6 md:pt-8 px-3 sm:px-8 lg:px-12 text-left pointer-events-auto">
+          <div className="max-w-6xl lg:max-w-7xl text-lg sm:text-6xl md:text-7xl lg:text-[5rem] xl:text-[6.2rem] 2xl:text-[7.2rem] font-medium tracking-tight text-white leading-[1.1] sm:leading-[0.95] select-none break-words drop-shadow-[0_2px_8px_rgba(0,0,0,0.55)]">
             {activeCategories.map((cat, cIdx) => {
               const isActive = currentIndex === cIdx;
               return (

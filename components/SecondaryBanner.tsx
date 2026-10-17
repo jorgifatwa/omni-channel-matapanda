@@ -11,6 +11,7 @@ export interface SecondarySlide {
   subtitle?: string;
   description?: string;
   image: string;
+  mobileImage?: string;
   ctaText?: string;
   ctaLink?: string;
 }
@@ -77,6 +78,7 @@ export default function SecondaryBanner({
         subtitle: b.subtitle || undefined,
         description: b.description || undefined,
         image: b.imageUrl,
+        mobileImage: b.mobileImageUrl || undefined,
         ctaText: b.ctaText || undefined,
         ctaLink: b.ctaLink || undefined,
       }));
@@ -108,10 +110,17 @@ export default function SecondaryBanner({
 
   if (!activeSlides || activeSlides.length === 0) return null;
 
+  const currentSlide = activeSlides[currentIndex] || activeSlides[0];
+  const hasMobileImage = Boolean(currentSlide?.mobileImage);
+
   return (
     <section
       aria-label="Promotional Secondary Banner"
-      className="relative w-full h-[38vh] sm:h-[92vh] min-h-[280px] sm:min-h-[700px] max-h-[350px] sm:max-h-[1050px] overflow-hidden bg-neutral-100 dark:bg-neutral-900 select-none group"
+      className={`relative w-full ${
+        hasMobileImage
+          ? "h-[50vh] min-h-[350px] max-h-[500px] sm:h-[92vh] sm:min-h-[700px] sm:max-h-[1050px]"
+          : "aspect-[16/9] sm:aspect-auto sm:h-[92vh] sm:min-h-[700px] max-h-[400px] sm:max-h-[1050px]"
+      } overflow-hidden bg-neutral-100 dark:bg-neutral-900 select-none group`}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
@@ -128,31 +137,48 @@ export default function SecondaryBanner({
             className="relative h-full w-full flex-shrink-0"
             aria-hidden={idx !== currentIndex}
           >
-            <Image
-              src={slide.image}
-              alt={slide.title}
-              fill
-              priority={idx === 0}
-              sizes="100vw"
-              className="object-cover object-center"
-            />
+            {/* Desktop / Default Image */}
+            <div className={`relative h-full w-full ${slide.mobileImage ? "hidden sm:block" : "block"}`}>
+              <Image
+                src={slide.image}
+                alt={slide.title}
+                fill
+                priority={idx === 0}
+                sizes="(min-width: 640px) 100vw, 100vw"
+                className="object-cover object-center"
+              />
+            </div>
+
+            {/* Mobile Specific Image (when provided) */}
+            {slide.mobileImage && (
+              <div className="relative h-full w-full block sm:hidden">
+                <Image
+                  src={slide.mobileImage}
+                  alt={slide.title}
+                  fill
+                  priority={idx === 0}
+                  sizes="100vw"
+                  className="object-cover object-center"
+                />
+              </div>
+            )}
 
             {/* Slide Content (Centered Editorial Style) */}
-            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center text-center px-4 sm:px-12 max-w-5xl mx-auto space-y-1.5 sm:space-y-5">
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center text-center px-4 sm:px-12 max-w-5xl mx-auto space-y-1 sm:space-y-5">
               {slide.ctaLink ? (
                 <Link
                   href={slide.ctaLink}
-                  className="group/title block text-xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tight text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.65)] leading-tight transition-colors duration-200 hover:text-[#396254]"
+                  className="group/title block text-lg sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tight text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.65)] leading-tight transition-colors duration-200 hover:text-[#396254]"
                 >
                   <h2>{slide.title}</h2>
                 </Link>
               ) : (
-                <h2 className="text-xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tight text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.65)] leading-tight transition-colors duration-200 hover:text-[#396254]">
+                <h2 className="text-lg sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tight text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.65)] leading-tight transition-colors duration-200 hover:text-[#396254]">
                   {slide.title}
                 </h2>
               )}
               {slide.subtitle && (
-                <p className="text-[11px] sm:text-base md:text-lg font-medium tracking-wide text-white max-w-xs sm:max-w-2xl mx-auto drop-shadow-[0_1px_6px_rgba(0,0,0,0.7)] transition-colors duration-200 hover:text-[#396254]">
+                <p className="text-[10px] sm:text-base md:text-lg font-medium tracking-wide text-white max-w-xs sm:max-w-2xl mx-auto drop-shadow-[0_1px_6px_rgba(0,0,0,0.7)] transition-colors duration-200 hover:text-[#396254]">
                   {slide.subtitle}
                 </p>
               )}
@@ -165,7 +191,7 @@ export default function SecondaryBanner({
                 <div className="pt-0.5 sm:pt-2">
                   <Link
                     href={slide.ctaLink}
-                    className="inline-flex items-center gap-1.5 bg-white text-black hover:bg-neutral-100 px-5 sm:px-8 py-1.5 sm:py-3.5 rounded-full text-[11px] sm:text-sm font-bold uppercase tracking-wider transition-all hover:scale-105 active:scale-95 shadow-lg"
+                    className="inline-flex items-center gap-1.5 bg-white text-black hover:bg-neutral-100 px-4 sm:px-8 py-1 sm:py-3.5 rounded-full text-[10px] sm:text-sm font-bold uppercase tracking-wider transition-all hover:scale-105 active:scale-95 shadow-lg"
                   >
                     <span>{slide.ctaText}</span>
                     <span>&rarr;</span>

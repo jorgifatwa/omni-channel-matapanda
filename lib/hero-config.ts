@@ -2,6 +2,7 @@ export interface HeroCategoryLink {
   label: string;
   href: string;
   image: string;
+  mobileImage?: string;
 }
 
 export interface HeroSlide {

@@ -17,6 +17,8 @@ import {
   Layers,
   Loader2,
   RotateCcw,
+  Smartphone,
+  Monitor,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -51,6 +53,7 @@ export default function AdminBannersPage() {
   const [modalOpen, setModalOpen] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isUploading, setIsUploading] = React.useState(false);
+  const [isUploadingMobile, setIsUploadingMobile] = React.useState(false);
   const [editingBanner, setEditingBanner] = React.useState<AdminBannerItem | null>(null);
   const [deleteTarget, setDeleteTarget] = React.useState<AdminBannerItem | null>(null);
 
@@ -60,6 +63,7 @@ export default function AdminBannersPage() {
   const [subtitle, setSubtitle] = React.useState("");
   const [description, setDescription] = React.useState("");
   const [imageUrl, setImageUrl] = React.useState("");
+  const [mobileImageUrl, setMobileImageUrl] = React.useState("");
   const [ctaText, setCtaText] = React.useState("");
   const [ctaLink, setCtaLink] = React.useState("");
   const [sortOrder, setSortOrder] = React.useState<number>(0);
@@ -170,6 +174,7 @@ export default function AdminBannersPage() {
     setSubtitle("");
     setDescription("");
     setImageUrl("");
+    setMobileImageUrl("");
     setCtaText(type === "HERO_BANNER" ? "Discover Collection" : "Shop The Collection");
     setCtaLink(type === "HERO_BANNER" ? "/new-arrivals" : "/new-arrivals");
     const sameTypeBanners = banners.filter((b) => b.type === type);
@@ -187,6 +192,7 @@ export default function AdminBannersPage() {
     setSubtitle(banner.subtitle || "");
     setDescription(banner.description || "");
     setImageUrl(banner.imageUrl);
+    setMobileImageUrl(banner.mobileImageUrl || "");
     setCtaText(banner.ctaText || "");
     setCtaLink(banner.ctaLink || "");
     setSortOrder(banner.sortOrder);
@@ -224,6 +230,35 @@ export default function AdminBannersPage() {
     }
   };
 
+  // Mobile Image Upload handler
+  const handleMobileImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsUploadingMobile(true);
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("folder", "banners");
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error("Upload gagal");
+      const data = await res.json();
+      if (data.url) {
+        setMobileImageUrl(data.url);
+        showToast("success", "Foto banner mobile berhasil diunggah!");
+      }
+    } catch {
+      showToast("error", "Gagal mengunggah foto banner mobile. Silakan masukkan URL gambar.");
+    } finally {
+      setIsUploadingMobile(false);
+    }
+  };
+
   // Save Banner (Create / Update)
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -249,6 +284,7 @@ export default function AdminBannersPage() {
       subtitle: subtitle.trim() || null,
       description: description.trim() || null,
       imageUrl: imageUrl.trim(),
+      mobileImageUrl: mobileImageUrl.trim() || null,
       ctaText: ctaText.trim() || null,
       ctaLink: ctaLink.trim() || null,
       sortOrder: Number(sortOrder) || 0,
@@ -568,6 +604,12 @@ export default function AdminBannersPage() {
                       <span className="h-5 px-2 rounded-full bg-black/80 text-white text-[10px] font-mono font-bold flex items-center justify-center backdrop-blur-sm">
                         Slide {index + 1}
                       </span>
+                      {banner.mobileImageUrl && (
+                        <span className="h-5 px-1.5 rounded-full bg-emerald-600/90 text-white text-[9px] font-bold flex items-center gap-1 backdrop-blur-sm" title="Foto khusus HP terpasang">
+                          <Smartphone className="h-2.5 w-2.5" />
+                          <span>HP</span>
+                        </span>
+                      )}
                       {!banner.isActive && (
                         <span className="h-5 px-2 rounded-full bg-red-600 text-white text-[9px] font-bold uppercase tracking-wider flex items-center justify-center">
                           Nonaktif
@@ -739,6 +781,12 @@ export default function AdminBannersPage() {
                       <span className="h-5 px-2.5 rounded-full bg-black/80 text-white text-[10px] font-mono font-bold flex items-center justify-center backdrop-blur-sm">
                         Promo Slide {index + 1}
                       </span>
+                      {banner.mobileImageUrl && (
+                        <span className="h-5 px-1.5 rounded-full bg-emerald-600/90 text-white text-[9px] font-bold flex items-center gap-1 backdrop-blur-sm" title="Foto khusus HP terpasang">
+                          <Smartphone className="h-2.5 w-2.5" />
+                          <span>HP</span>
+                        </span>
+                      )}
                       {!banner.isActive && (
                         <span className="h-5 px-2 rounded-full bg-red-600 text-white text-[9px] font-bold uppercase tracking-wider flex items-center justify-center">
                           Nonaktif
@@ -964,9 +1012,17 @@ export default function AdminBannersPage() {
 
               {/* Field 4: Image Upload & URL */}
               <div className="space-y-2">
-                <Label className="text-xs font-semibold">
-                  Foto Banner Background *
-                </Label>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Monitor className="h-4 w-4 text-neutral-500" />
+                    <Label className="text-xs font-semibold">
+                      Foto Banner Desktop (PC / Laptop) *
+                    </Label>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] font-normal">
+                    Layar Lebar (16:9 / 21:9)
+                  </Badge>
+                </div>
 
                 {/* Image Preview */}
                 {imageUrl && (
@@ -998,7 +1054,7 @@ export default function AdminBannersPage() {
                     ) : (
                       <>
                         <Upload className="h-4 w-4 text-neutral-500" />
-                        <span>Upload File Gambar</span>
+                        <span>Upload File Desktop</span>
                       </>
                     )}
                     <input
@@ -1018,7 +1074,75 @@ export default function AdminBannersPage() {
                   />
                 </div>
                 <p className="text-[11px] text-neutral-400">
-                  Rekomendasi rasio gambar: 16:9 atau 21:9 resolusi tinggi (minimal 1920x1080px).
+                  Rekomendasi rasio gambar desktop: 16:9 atau 21:9 resolusi tinggi (minimal 1920x1080px).
+                </p>
+              </div>
+
+              {/* Field 4.5: Mobile Banner Image Upload & URL */}
+              <div className="space-y-2 p-3 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50/70 dark:bg-neutral-900/40">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Smartphone className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    <Label className="text-xs font-semibold text-neutral-900 dark:text-neutral-100">
+                      Foto Banner Khusus HP / Mobile (Opsional)
+                    </Label>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] font-normal border-emerald-300 text-emerald-700 dark:text-emerald-400">
+                    Smartphone Ready
+                  </Badge>
+                </div>
+
+                {/* Mobile Image Preview */}
+                {mobileImageUrl && (
+                  <div className="relative aspect-[4/5] sm:aspect-[16/9] w-36 max-h-44 mx-auto rounded-lg overflow-hidden border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-900">
+                    <Image
+                      src={mobileImageUrl}
+                      alt="Mobile Banner Preview"
+                      fill
+                      className="object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setMobileImageUrl("")}
+                      className="absolute top-1.5 right-1.5 bg-black/80 hover:bg-black text-white text-[9px] font-bold px-1.5 py-0.5 rounded"
+                    >
+                      Hapus
+                    </button>
+                  </div>
+                )}
+
+                {/* Upload or URL input */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <label className="flex items-center justify-center gap-2 h-9 px-3 border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 rounded-md cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors text-xs font-medium">
+                    {isUploadingMobile ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin text-neutral-500" />
+                        <span>Mengunggah...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-4 w-4 text-neutral-500" />
+                        <span>Upload Banner Mobile</span>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleMobileImageUpload}
+                      disabled={isUploadingMobile}
+                      className="hidden"
+                    />
+                  </label>
+
+                  <Input
+                    placeholder="Atau URL gambar mobile..."
+                    value={mobileImageUrl}
+                    onChange={(e) => setMobileImageUrl(e.target.value)}
+                    className="h-9 text-xs font-mono bg-white dark:bg-neutral-900"
+                  />
+                </div>
+                <p className="text-[11px] text-neutral-500 dark:text-neutral-400 leading-relaxed">
+                  Rekomendasi rasio untuk HP: <strong>4:5</strong>, <strong>1:1</strong>, atau <strong>9:16</strong> (misal 1080x1080px atau 1080x1350px). Jika dikosongkan, tampilan HP akan otomatis menyesuaikan banner desktop secara responsif tanpa terpotong.
                 </p>
               </div>
 
