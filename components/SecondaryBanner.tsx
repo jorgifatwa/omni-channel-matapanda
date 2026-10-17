@@ -99,28 +99,40 @@ export default function SecondaryBanner({
     setCurrentIndex((prev) => (prev - 1 + total) % total);
   }, [total]);
 
-  // Touch Swipe for Mobile Devices
-  const touchStartX = React.useRef<number | null>(null);
-  const touchEndX = React.useRef<number | null>(null);
+  // Touch Swipe Gesture for Smartphones
+  const touchStartX = React.useRef<number>(0);
+  const touchStartY = React.useRef<number>(0);
+  const isSwiping = React.useRef<boolean>(false);
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.targetTouches[0].clientX;
+    if (e.touches.length === 1) {
+      touchStartX.current = e.touches[0].clientX;
+      touchStartY.current = e.touches[0].clientY;
+      isSwiping.current = true;
+      setIsPaused(true);
+    }
   };
-  const handleTouchMove = (e: React.TouchEvent) => {
-    touchEndX.current = e.targetTouches[0].clientX;
-  };
-  const handleTouchEnd = () => {
-    if (touchStartX.current === null || touchEndX.current === null) return;
-    const diff = touchStartX.current - touchEndX.current;
-    if (Math.abs(diff) > 40) {
-      if (diff > 0) {
-        nextSlide();
-      } else {
-        prevSlide();
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!isSwiping.current) return;
+    isSwiping.current = false;
+    setIsPaused(false);
+
+    if (e.changedTouches.length === 1) {
+      const endX = e.changedTouches[0].clientX;
+      const endY = e.changedTouches[0].clientY;
+      const diffX = touchStartX.current - endX;
+      const diffY = touchStartY.current - endY;
+
+      // Threshold: 25px horizontal and predominantly horizontal movement
+      if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 25) {
+        if (diffX > 0) {
+          nextSlide();
+        } else {
+          prevSlide();
+        }
       }
     }
-    touchStartX.current = null;
-    touchEndX.current = null;
   };
 
   // Auto-advance slides every 6 seconds when not paused
@@ -137,11 +149,10 @@ export default function SecondaryBanner({
   return (
     <section
       aria-label="Promotional Secondary Banner"
-      className="relative w-full h-[60vh] min-h-[420px] max-h-[580px] sm:h-[92vh] sm:min-h-[700px] sm:max-h-[1050px] overflow-hidden bg-neutral-900 select-none group"
+      className="relative w-full h-[60vh] min-h-[420px] max-h-[580px] sm:h-[92vh] sm:min-h-[700px] sm:max-h-[1050px] overflow-hidden bg-neutral-900 select-none group touch-pan-y"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
       onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
       {/* 1. Horizontal Sliding Track (Dynamic Unlimited Slides) */}
@@ -182,11 +193,11 @@ export default function SecondaryBanner({
             </div>
 
             {/* Slide Content (Centered Editorial Style) */}
-            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center text-center px-4 sm:px-12 max-w-5xl mx-auto space-y-1 sm:space-y-5">
+            <div className="absolute inset-0 z-20 pointer-events-none flex flex-col items-center justify-center text-center px-4 sm:px-12 max-w-5xl mx-auto space-y-1 sm:space-y-5">
               {slide.ctaLink ? (
                 <Link
                   href={slide.ctaLink}
-                  className="group/title block text-lg sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tight text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.65)] leading-tight transition-colors duration-200 hover:text-[#396254]"
+                  className="group/title pointer-events-auto block text-lg sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tight text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.65)] leading-tight transition-colors duration-200 hover:text-[#396254]"
                 >
                   <h2>{slide.title}</h2>
                 </Link>
@@ -206,7 +217,7 @@ export default function SecondaryBanner({
                 </p>
               )}
               {slide.ctaLink && slide.ctaText && (
-                <div className="pt-0.5 sm:pt-2">
+                <div className="pt-0.5 sm:pt-2 pointer-events-auto">
                   <Link
                     href={slide.ctaLink}
                     className="inline-flex items-center gap-1.5 bg-white text-black hover:bg-neutral-100 px-4 sm:px-8 py-1 sm:py-3.5 rounded-full text-[10px] sm:text-sm font-bold uppercase tracking-wider transition-all hover:scale-105 active:scale-95 shadow-lg"
@@ -224,28 +235,53 @@ export default function SecondaryBanner({
       {/* Prev / Next Navigation Arrows */}
       {total > 1 && (
         <>
+          {/* Mobile Arrows: visible on HP */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              prevSlide();
+            }}
+            aria-label="Previous Slide"
+            className="flex sm:hidden absolute left-2.5 top-1/2 -translate-y-1/2 z-30 h-8 w-8 rounded-full bg-black/45 text-white backdrop-blur-xs items-center justify-center active:scale-90 transition-transform shadow-md"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              nextSlide();
+            }}
+            aria-label="Next Slide"
+            className="flex sm:hidden absolute right-2.5 top-1/2 -translate-y-1/2 z-30 h-8 w-8 rounded-full bg-black/45 text-white backdrop-blur-xs items-center justify-center active:scale-90 transition-transform shadow-md"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+
+          {/* Desktop Arrows */}
           <button
             type="button"
             onClick={prevSlide}
             aria-label="Previous Slide"
-            className="hidden sm:flex absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 z-30 h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-xs items-center justify-center transition-all opacity-0 group-hover:opacity-100 hover:scale-110 shadow-lg"
+            className="hidden sm:flex absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 z-30 h-11 w-11 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-xs items-center justify-center transition-all opacity-0 group-hover:opacity-100 hover:scale-110 shadow-lg cursor-pointer"
           >
-            <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
+            <ChevronLeft className="h-6 w-6" />
           </button>
           <button
             type="button"
             onClick={nextSlide}
             aria-label="Next Slide"
-            className="hidden sm:flex absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 z-30 h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-xs items-center justify-center transition-all opacity-0 group-hover:opacity-100 hover:scale-110 shadow-lg"
+            className="hidden sm:flex absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 z-30 h-11 w-11 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-xs items-center justify-center transition-all opacity-0 group-hover:opacity-100 hover:scale-110 shadow-lg cursor-pointer"
           >
-            <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
+            <ChevronRight className="h-6 w-6" />
           </button>
         </>
       )}
 
       {/* Pagination Dots (Supports any number of slides) */}
       {total > 1 && (
-        <div className="absolute bottom-2.5 sm:bottom-6 inset-x-0 z-30 flex items-center justify-center gap-1.5 sm:gap-2">
+        <div className="absolute bottom-2.5 sm:bottom-6 inset-x-0 z-30 flex items-center justify-center gap-1.5 sm:gap-2 pointer-events-auto">
           {activeSlides.map((s, idx) => {
             const isActive = idx === currentIndex;
             return (
@@ -254,9 +290,9 @@ export default function SecondaryBanner({
                 type="button"
                 onClick={() => setCurrentIndex(idx)}
                 aria-label={`Go to slide ${idx + 1}`}
-                className={`transition-all duration-300 rounded-full ${
+                className={`transition-all duration-300 rounded-full cursor-pointer ${
                   isActive
-                    ? "w-6 sm:w-8 h-1.5 sm:h-2 bg-white"
+                    ? "w-6 sm:w-8 h-1.5 sm:h-2 bg-white shadow-sm"
                     : "w-1.5 sm:w-2 h-1.5 sm:h-2 bg-white/50 hover:bg-white/80"
                 }`}
               />
