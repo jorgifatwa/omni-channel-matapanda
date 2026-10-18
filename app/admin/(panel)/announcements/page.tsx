@@ -177,23 +177,19 @@ export default function AdminAnnouncementsPage() {
     if (targetValue.startsWith("cat:")) {
       const catSlug = targetValue.replace("cat:", "");
       const cat = categoriesList.find((c) => c.slug === catSlug);
-      setLink(`/categories/${catSlug}`);
       if (!text) {
         setText(`JELAJAHI KOLEKSI TAS ${cat?.name.toUpperCase() || ""} TERBARU`);
       }
     } else if (targetValue === "page:new-arrivals") {
-      setLink("/new-arrivals");
       if (!text) setText("NEW ARRIVALS: TEMUKAN KOLEKSI TAS TERBARU MINGGU INI");
     } else if (targetValue === "page:register") {
-      setLink("/account/register");
       setBadge("CLUB EXCLUSIVE");
       if (!text) setText("RP100K OFF YOUR FIRST ORDER WHEN YOU JOIN THE IT'SMATAPANDA CLUB*");
     } else if (targetValue === "page:contact") {
-      setLink("/contact");
       setBadge("INFO");
       if (!text) setText("BUTUH BANTUAN? HUBUNGI CUSTOMER SERVICE RESMI KAMI");
     } else if (targetValue === "page:home") {
-      setLink("/");
+      // No link set
     }
   };
 
@@ -778,22 +774,30 @@ export default function AdminAnnouncementsPage() {
                 )}
               </select>
               <p className="text-[11px] text-neutral-500">
-                Memilih target akan otomatis mengisi Link URL dan saran teks.
+                Memilih target akan otomatis mengisi saran teks dan label badge.
               </p>
             </div>
 
-            {/* Link URL Manual */}
-            <div className="space-y-1.5">
-              <Label htmlFor="ann-link" className="text-xs font-semibold">
-                Link URL Tujuan (Opsional)
-              </Label>
+            {/* Link URL Manual (Disabled) */}
+            <div className="space-y-1.5 opacity-70">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="ann-link" className="text-xs font-semibold text-neutral-500">
+                  Link URL Tujuan
+                </Label>
+                <span className="text-[10px] font-medium text-neutral-500 bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded-full border border-neutral-200 dark:border-neutral-700">
+                  Dinonaktifkan
+                </span>
+              </div>
               <Input
                 id="ann-link"
-                placeholder="/new-arrivals atau https://..."
+                disabled
+                placeholder="Link URL dinonaktifkan"
                 value={link}
-                onChange={(e) => setLink(e.target.value)}
-                className="text-xs font-mono"
+                className="text-xs font-mono bg-neutral-100 dark:bg-neutral-900 text-neutral-400 dark:text-neutral-500 cursor-not-allowed border-dashed select-none"
               />
+              <p className="text-[11px] text-neutral-400 dark:text-neutral-500">
+                Kolom link URL tujuan saat ini dinonaktifkan.
+              </p>
             </div>
 
             {/* Badge / Label Text & Presets */}
