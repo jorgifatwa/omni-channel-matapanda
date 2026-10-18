@@ -40,8 +40,6 @@ import {
   type FaqItem,
 } from "@/lib/faq-data";
 
-const LOCAL_STORAGE_KEY = "itspanda_admin_faqs_v1";
-
 export default function AdminFaqsPage() {
   const [faqs, setFaqs] = React.useState<FaqItem[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -78,44 +76,24 @@ export default function AdminFaqsPage() {
     setTimeout(() => setToast(null), 3500);
   };
 
-  // Load FAQs from API or LocalStorage/Defaults
+  // Load FAQs from API
   const loadFaqs = React.useCallback(async () => {
     try {
       setLoading(true);
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem("itspanda_admin_faqs_v1");
+      }
       const res = await fetch("/api/admin/faqs");
       if (res.ok) {
         const json = await res.json();
         if (json.faqs && Array.isArray(json.faqs)) {
           setFaqs(json.faqs);
-          try {
-            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(json.faqs));
-          } catch {}
           return;
         }
       }
-
-      // Fallback
-      const cached = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setFaqs(parsed);
-            return;
-          }
-        } catch {}
-      }
-
       setFaqs(INITIAL_FAQS);
     } catch (err) {
-      console.warn("Using fallback local storage for faqs:", err);
-      const cached = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (cached) {
-        try {
-          setFaqs(JSON.parse(cached));
-          return;
-        } catch {}
-      }
+      console.warn("Failed to load faqs from server:", err);
       setFaqs(INITIAL_FAQS);
     } finally {
       setLoading(false);
@@ -126,17 +104,18 @@ export default function AdminFaqsPage() {
     loadFaqs();
   }, [loadFaqs]);
 
-  // Sync helper
-  const saveToLocalAndState = (updatedList: FaqItem[]) => {
-    setFaqs(updatedList);
+  const handleResetDefaults = async () => {
     try {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedList));
-    } catch {}
-  };
-
-  const handleResetDefaults = () => {
-    saveToLocalAndState(INITIAL_FAQS);
-    showToast("info", "FAQs berhasil direset ke dataset awal default.");
+      setLoading(true);
+      const res = await fetch("/api/admin/faqs");
+      if (res.ok) {
+        const json = await res.json();
+        if (json.faqs) setFaqs(json.faqs);
+      }
+      showToast("info", "Dataset FAQ dimuat ulang dari server.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Open Create Modal
@@ -205,51 +184,35 @@ export default function AdminFaqsPage() {
 
       if (editingItem) {
         // UPDATE
-        let updatedItem: FaqItem = {
-          ...editingItem,
-          ...payload,
-          updatedAt: new Date().toISOString(),
-        };
-
-        try {
-          const res = await fetch(`/api/admin/faqs/${editingItem.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-          if (res.ok) {
-            const json = await res.json();
-            if (json.faq) updatedItem = json.faq;
-          }
-        } catch {}
-
-        const updatedList = faqs.map((f) => (f.id === editingItem.id ? updatedItem : f));
-        saveToLocalAndState(updatedList);
-        showToast("success", "FAQ berhasil diperbarui!");
+        const res = await fetch(`/api/admin/faqs/${editingItem.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+          const json = await res.json();
+          const updatedItem = json.faq || { ...editingItem, ...payload };
+          setFaqs((prev) => prev.map((f) => (f.id === editingItem.id ? updatedItem : f)));
+          showToast("success", "FAQ berhasil diperbarui!");
+        } else {
+          showToast("error", "Gagal memperbarui FAQ di server.");
+        }
       } else {
         // CREATE
-        let newItem: FaqItem = {
-          id: `faq-${Date.now()}`,
-          ...payload,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-
-        try {
-          const res = await fetch("/api/admin/faqs", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-          if (res.ok) {
-            const json = await res.json();
-            if (json.faq) newItem = json.faq;
+        const res = await fetch("/api/admin/faqs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.faq) {
+            setFaqs((prev) => [json.faq, ...prev]);
           }
-        } catch {}
-
-        const updatedList = [newItem, ...faqs];
-        saveToLocalAndState(updatedList);
-        showToast("success", "FAQ baru berhasil ditambahkan!");
+          showToast("success", "FAQ baru berhasil ditambahkan!");
+        } else {
+          showToast("error", "Gagal menambahkan FAQ di server.");
+        }
       }
 
       setModalOpen(false);
@@ -263,18 +226,20 @@ export default function AdminFaqsPage() {
   // Toggle Active Switch
   const handleToggleActive = async (id: string, currentStatus: boolean) => {
     const nextStatus = !currentStatus;
-    const updatedList = faqs.map((f) => (f.id === id ? { ...f, isActive: nextStatus } : f));
-    saveToLocalAndState(updatedList);
+    setFaqs((prev) => prev.map((f) => (f.id === id ? { ...f, isActive: nextStatus } : f)));
 
     try {
-      await fetch(`/api/admin/faqs/${id}`, {
+      const res = await fetch(`/api/admin/faqs/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive: nextStatus }),
       });
-    } catch {}
-
-    showToast("info", `Status FAQ diubah menjadi ${nextStatus ? "Aktif" : "Non-aktif"}.`);
+      if (!res.ok) throw new Error("Gagal update");
+      showToast("info", `Status FAQ diubah menjadi ${nextStatus ? "Aktif" : "Non-aktif"}.`);
+    } catch {
+      setFaqs((prev) => prev.map((f) => (f.id === id ? { ...f, isActive: currentStatus } : f)));
+      showToast("error", "Gagal memperbarui status di server.");
+    }
   };
 
   // Move Order
@@ -299,7 +264,7 @@ export default function AdminFaqsPage() {
       updated[idxA] = updated[idxB];
       updated[idxB] = temp;
 
-      saveToLocalAndState(updated);
+      setFaqs(updated);
 
       try {
         await Promise.all([
@@ -324,17 +289,21 @@ export default function AdminFaqsPage() {
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
 
-    const updatedList = faqs.filter((f) => f.id !== deleteTarget.id);
-    saveToLocalAndState(updatedList);
-
     try {
-      await fetch(`/api/admin/faqs/${deleteTarget.id}`, {
+      const res = await fetch(`/api/admin/faqs/${deleteTarget.id}`, {
         method: "DELETE",
       });
-    } catch {}
-
-    showToast("success", "FAQ berhasil dihapus.");
-    setDeleteTarget(null);
+      if (res.ok) {
+        setFaqs((prev) => prev.filter((f) => f.id !== deleteTarget.id));
+        showToast("success", "FAQ berhasil dihapus.");
+      } else {
+        showToast("error", "Gagal menghapus FAQ dari server.");
+      }
+    } catch {
+      showToast("error", "Gagal menghapus FAQ dari server.");
+    } finally {
+      setDeleteTarget(null);
+    }
   };
 
   // Filtered FAQs

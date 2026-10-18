@@ -36,8 +36,6 @@ import {
   INITIAL_COMMUNITY_POSTS,
 } from "@/lib/community-store";
 
-const LOCAL_STORAGE_KEY = "itspanda_admin_community_v1";
-
 export default function AdminCommunityPage() {
   const [posts, setPosts] = React.useState<CommunityPost[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -76,39 +74,20 @@ export default function AdminCommunityPage() {
   const loadPosts = React.useCallback(async () => {
     try {
       setLoading(true);
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem("itspanda_admin_community_v1");
+      }
       const res = await fetch("/api/admin/community");
       if (res.ok) {
         const json = await res.json();
         if (json.posts && Array.isArray(json.posts)) {
           setPosts(json.posts);
-          try {
-            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(json.posts));
-          } catch {}
           return;
         }
       }
-
-      const cached = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setPosts(parsed);
-            return;
-          }
-        } catch {}
-      }
-
       setPosts(INITIAL_COMMUNITY_POSTS);
     } catch (err) {
-      console.warn("Using fallback local storage for community posts:", err);
-      const cached = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (cached) {
-        try {
-          setPosts(JSON.parse(cached));
-          return;
-        } catch {}
-      }
+      console.warn("Failed to load community posts from server:", err);
       setPosts(INITIAL_COMMUNITY_POSTS);
     } finally {
       setLoading(false);
@@ -119,18 +98,19 @@ export default function AdminCommunityPage() {
     loadPosts();
   }, [loadPosts]);
 
-  // Sync to state & local storage
-  const saveToLocalAndState = (updatedList: CommunityPost[]) => {
-    setPosts(updatedList);
-    try {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedList));
-    } catch {}
-  };
-
   // Reset to default
-  const handleResetDefaults = () => {
-    saveToLocalAndState(INITIAL_COMMUNITY_POSTS);
-    showToast("info", "Postingan Community berhasil direset ke data default.");
+  const handleResetDefaults = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("/api/admin/community");
+      if (res.ok) {
+        const json = await res.json();
+        if (json.posts) setPosts(json.posts);
+      }
+      showToast("info", "Postingan Community dimuat ulang dari server.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Open Create Modal
@@ -234,21 +214,12 @@ export default function AdminCommunityPage() {
         if (res.ok) {
           const json = await res.json();
           const updatedItem = json.post || { ...editingPost, ...payload };
-          const updatedList = posts.map((p) =>
-            p.id === editingPost.id ? updatedItem : p
+          setPosts((prev) =>
+            prev.map((p) => (p.id === editingPost.id ? updatedItem : p))
           );
-          saveToLocalAndState(updatedList);
           showToast("success", "Postingan berhasil diperbarui.");
         } else {
-          const updatedItem: CommunityPost = {
-            ...editingPost,
-            ...payload,
-            updatedAt: new Date().toISOString(),
-          };
-          saveToLocalAndState(
-            posts.map((p) => (p.id === editingPost.id ? updatedItem : p))
-          );
-          showToast("success", "Postingan berhasil diperbarui (mode lokal).");
+          showToast("error", "Gagal memperbarui postingan di server.");
         }
       } else {
         // POST create
@@ -260,45 +231,18 @@ export default function AdminCommunityPage() {
 
         if (res.ok) {
           const json = await res.json();
-          const newItem = json.post || {
-            id: `cp-${Date.now()}`,
-            ...payload,
-            createdAt: new Date().toISOString(),
-          };
-          saveToLocalAndState([...posts, newItem]);
+          if (json.post) {
+            setPosts((prev) => [...prev, json.post]);
+          }
           showToast("success", "Postingan baru berhasil ditambahkan.");
         } else {
-          const newItem: CommunityPost = {
-            id: `cp-${Date.now()}`,
-            ...payload,
-            createdAt: new Date().toISOString(),
-          };
-          saveToLocalAndState([...posts, newItem]);
-          showToast("success", "Postingan baru berhasil dibuat (mode lokal).");
+          showToast("error", "Gagal menambahkan postingan di server.");
         }
       }
 
       setModalOpen(false);
     } catch {
-      if (editingPost) {
-        const updatedItem: CommunityPost = {
-          ...editingPost,
-          ...payload,
-          updatedAt: new Date().toISOString(),
-        };
-        saveToLocalAndState(
-          posts.map((p) => (p.id === editingPost.id ? updatedItem : p))
-        );
-      } else {
-        const newItem: CommunityPost = {
-          id: `cp-${Date.now()}`,
-          ...payload,
-          createdAt: new Date().toISOString(),
-        };
-        saveToLocalAndState([...posts, newItem]);
-      }
-      showToast("success", "Data tersimpan di penyimpanan lokal.");
-      setModalOpen(false);
+      showToast("error", "Terjadi kesalahan jaringan saat menyimpan postingan.");
     } finally {
       setIsSubmitting(false);
     }
@@ -307,23 +251,27 @@ export default function AdminCommunityPage() {
   // Toggle Active Status
   const handleToggleActive = async (post: CommunityPost) => {
     const nextActive = !post.isActive;
-    const updatedList = posts.map((p) =>
-      p.id === post.id ? { ...p, isActive: nextActive } : p
+    setPosts((prev) =>
+      prev.map((p) => (p.id === post.id ? { ...p, isActive: nextActive } : p))
     );
-    saveToLocalAndState(updatedList);
 
     try {
-      await fetch(`/api/admin/community/${post.id}`, {
+      const res = await fetch(`/api/admin/community/${post.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive: nextActive }),
       });
+      if (!res.ok) throw new Error("Gagal update");
       showToast(
         "info",
         `Postingan ${nextActive ? "diaktifkan" : "dinonaktifkan"}.`
       );
     } catch {
-      showToast("info", `Postingan ${nextActive ? "diaktifkan" : "dinonaktifkan"} (lokal).`);
+      // Revert on error
+      setPosts((prev) =>
+        prev.map((p) => (p.id === post.id ? { ...p, isActive: !nextActive } : p))
+      );
+      showToast("error", "Gagal memperbarui status di server.");
     }
   };
 
@@ -341,7 +289,7 @@ export default function AdminCommunityPage() {
       sortOrder: idx,
     }));
 
-    saveToLocalAndState(reorderedList);
+    setPosts(reorderedList);
 
     reorderedList.forEach((item) => {
       fetch(`/api/admin/community/${item.id}`, {
@@ -358,16 +306,18 @@ export default function AdminCommunityPage() {
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
 
-    const updatedList = posts.filter((p) => p.id !== deleteTarget.id);
-    saveToLocalAndState(updatedList);
-
     try {
-      await fetch(`/api/admin/community/${deleteTarget.id}`, {
+      const res = await fetch(`/api/admin/community/${deleteTarget.id}`, {
         method: "DELETE",
       });
-      showToast("success", "Postingan berhasil dihapus.");
+      if (res.ok) {
+        setPosts((prev) => prev.filter((p) => p.id !== deleteTarget.id));
+        showToast("success", "Postingan berhasil dihapus.");
+      } else {
+        showToast("error", "Gagal menghapus postingan dari server.");
+      }
     } catch {
-      showToast("success", "Postingan dihapus dari daftar lokal.");
+      showToast("error", "Gagal menghapus postingan dari server.");
     } finally {
       setDeleteTarget(null);
     }

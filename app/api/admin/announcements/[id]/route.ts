@@ -1,32 +1,23 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { type AdminAnnouncementItem } from "@/lib/announcements";
+import {
+  saveAnnouncementStore,
+  deleteAnnouncementStore,
+  getAllAnnouncementsStore,
+} from "@/lib/announcements.server";
 
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    const item = await prisma.announcement.findUnique({
-      where: { id: params.id },
-    });
+    const { announcements } = await getAllAnnouncementsStore();
+    const item = announcements.find((a) => a.id === params.id);
 
     if (!item) {
       return NextResponse.json({ error: "Announcement tidak ditemukan" }, { status: 404 });
     }
 
-    const formatted: AdminAnnouncementItem = {
-      id: item.id,
-      text: item.text,
-      link: item.link,
-      badge: item.badge,
-      sortOrder: item.sortOrder,
-      isActive: item.isActive,
-      createdAt: item.createdAt.toISOString(),
-      updatedAt: item.updatedAt.toISOString(),
-    };
-
-    return NextResponse.json({ announcement: formatted });
+    return NextResponse.json({ announcement: item });
   } catch (error) {
     console.error("GET /api/admin/announcements/[id] error:", error);
     return NextResponse.json(
@@ -50,44 +41,19 @@ export async function PUT(
       isActive,
     } = body;
 
-    try {
-      const updated = await prisma.announcement.update({
-        where: { id: params.id },
-        data: {
-          ...(text !== undefined && { text: text.trim().toUpperCase() }),
-          ...(link !== undefined && { link: link && link.trim() ? link.trim() : null }),
-          ...(badge !== undefined && { badge: badge && badge.trim() ? badge.trim().toUpperCase() : null }),
-          ...(sortOrder !== undefined && { sortOrder: Number(sortOrder) }),
-          ...(isActive !== undefined && { isActive: Boolean(isActive) }),
-        },
-      });
+    const { announcements } = await getAllAnnouncementsStore();
+    const existing = announcements.find((a) => a.id === params.id);
 
-      const formatted: AdminAnnouncementItem = {
-        id: updated.id,
-        text: updated.text,
-        link: updated.link,
-        badge: updated.badge,
-        sortOrder: updated.sortOrder,
-        isActive: updated.isActive,
-        createdAt: updated.createdAt.toISOString(),
-        updatedAt: updated.updatedAt.toISOString(),
-      };
+    const saved = await saveAnnouncementStore({
+      id: params.id,
+      text: text !== undefined ? text : existing?.text || "ANNOUNCEMENT",
+      link: link !== undefined ? link : existing?.link,
+      badge: badge !== undefined ? badge : existing?.badge,
+      sortOrder: sortOrder !== undefined ? sortOrder : existing?.sortOrder ?? 0,
+      isActive: isActive !== undefined ? isActive : existing?.isActive ?? true,
+    });
 
-      return NextResponse.json({ announcement: formatted, success: true });
-    } catch (dbError) {
-      console.warn("Database update failed, echoing updated payload:", dbError);
-      const fallbackUpdated: AdminAnnouncementItem = {
-        id: params.id,
-        text: text ? text.trim().toUpperCase() : "ANNOUNCEMENT",
-        link: link && link.trim() ? link.trim() : null,
-        badge: badge && badge.trim() ? badge.trim().toUpperCase() : null,
-        sortOrder: sortOrder !== undefined ? Number(sortOrder) : 0,
-        isActive: isActive !== undefined ? Boolean(isActive) : true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      return NextResponse.json({ announcement: fallbackUpdated, success: true });
-    }
+    return NextResponse.json({ announcement: saved, success: true });
   } catch (error) {
     console.error("PUT /api/admin/announcements/[id] error:", error);
     return NextResponse.json(
@@ -102,15 +68,8 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    try {
-      await prisma.announcement.delete({
-        where: { id: params.id },
-      });
-      return NextResponse.json({ success: true, message: "Announcement berhasil dihapus." });
-    } catch (dbError) {
-      console.warn("Database delete failed, returning success for client-sync:", dbError);
-      return NextResponse.json({ success: true, message: "Announcement berhasil dihapus." });
-    }
+    await deleteAnnouncementStore(params.id);
+    return NextResponse.json({ success: true, message: "Announcement berhasil dihapus." });
   } catch (error) {
     console.error("DELETE /api/admin/announcements/[id] error:", error);
     return NextResponse.json(

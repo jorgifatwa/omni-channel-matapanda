@@ -1,99 +1,55 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { INITIAL_FAQS, type FaqItem } from "@/lib/faq-data";
+import {
+  saveFaqStore,
+  deleteFaqStore,
+  getAllFaqsStore,
+} from "@/lib/faq-store.server";
 
 export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  request: Request,
+  { params }: { params: { id: string } }
 ) {
-  const { id } = await params;
-
   try {
-    const item = await prisma.faqItem.findUnique({
-      where: { id },
-    });
+    const { faqs } = await getAllFaqsStore();
+    const item = faqs.find((f) => f.id === params.id);
 
-    if (item) {
-      const formatted: FaqItem = {
-        id: item.id,
-        category: item.category,
-        question: item.question,
-        answer: item.answer,
-        sortOrder: item.sortOrder,
-        isActive: item.isActive,
-        createdAt: item.createdAt.toISOString(),
-        updatedAt: item.updatedAt.toISOString(),
-      };
-      return NextResponse.json({ faq: formatted });
+    if (!item) {
+      return NextResponse.json({ error: "FAQ tidak ditemukan" }, { status: 404 });
     }
 
-    const fallback = INITIAL_FAQS.find((f) => f.id === id);
-    if (fallback) {
-      return NextResponse.json({ faq: fallback });
-    }
-
-    return NextResponse.json({ error: "FAQ tidak ditemukan." }, { status: 404 });
+    return NextResponse.json({ faq: item });
   } catch (error) {
-    console.warn("Database get failed, searching fallback:", error);
-    const fallback = INITIAL_FAQS.find((f) => f.id === id);
-    if (fallback) {
-      return NextResponse.json({ faq: fallback });
-    }
-    return NextResponse.json({ error: "FAQ tidak ditemukan." }, { status: 404 });
+    console.error("GET /api/admin/faqs/[id] error:", error);
+    return NextResponse.json(
+      { error: "Gagal mengambil data FAQ." },
+      { status: 500 }
+    );
   }
 }
 
 export async function PUT(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
-  const { id } = await params;
-
   try {
     const body = await request.json();
     const { category, question, answer, sortOrder, isActive } = body;
 
-    const dataToUpdate: Record<string, unknown> = {};
-    if (category !== undefined) dataToUpdate.category = category.trim();
-    if (question !== undefined) dataToUpdate.question = question.trim();
-    if (answer !== undefined) dataToUpdate.answer = answer.trim();
-    if (sortOrder !== undefined) dataToUpdate.sortOrder = Number(sortOrder);
-    if (isActive !== undefined) dataToUpdate.isActive = Boolean(isActive);
+    const { faqs } = await getAllFaqsStore();
+    const existing = faqs.find((f) => f.id === params.id);
 
-    try {
-      const updated = await prisma.faqItem.update({
-        where: { id },
-        data: dataToUpdate,
-      });
+    const saved = await saveFaqStore({
+      id: params.id,
+      category: category !== undefined ? category : existing?.category || "Most Asked",
+      question: question !== undefined ? question : existing?.question || "",
+      answer: answer !== undefined ? answer : existing?.answer || "",
+      sortOrder: sortOrder !== undefined ? sortOrder : existing?.sortOrder ?? 0,
+      isActive: isActive !== undefined ? isActive : existing?.isActive ?? true,
+    });
 
-      const formatted: FaqItem = {
-        id: updated.id,
-        category: updated.category,
-        question: updated.question,
-        answer: updated.answer,
-        sortOrder: updated.sortOrder,
-        isActive: updated.isActive,
-        createdAt: updated.createdAt.toISOString(),
-        updatedAt: updated.updatedAt.toISOString(),
-      };
-
-      return NextResponse.json({ faq: formatted, success: true });
-    } catch (dbError) {
-      console.warn("Database update failed, returning memory response:", dbError);
-      const matched = INITIAL_FAQS.find((f) => f.id === id);
-      const fallbackItem: FaqItem = {
-        id,
-        category: (category ?? matched?.category ?? "Most Asked").trim(),
-        question: (question ?? matched?.question ?? "").trim(),
-        answer: (answer ?? matched?.answer ?? "").trim(),
-        sortOrder: sortOrder !== undefined ? Number(sortOrder) : (matched?.sortOrder ?? 0),
-        isActive: isActive !== undefined ? Boolean(isActive) : (matched?.isActive ?? true),
-        updatedAt: new Date().toISOString(),
-      };
-      return NextResponse.json({ faq: fallbackItem, success: true });
-    }
+    return NextResponse.json({ faq: saved, success: true });
   } catch (error) {
-    console.error(`PUT /api/admin/faqs/${id} error:`, error);
+    console.error(`PUT /api/admin/faqs/${params.id} error:`, error);
     return NextResponse.json(
       { error: "Terjadi kesalahan saat memperbarui FAQ." },
       { status: 500 }
@@ -102,23 +58,14 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  request: Request,
+  { params }: { params: { id: string } }
 ) {
-  const { id } = await params;
-
   try {
-    try {
-      await prisma.faqItem.delete({
-        where: { id },
-      });
-      return NextResponse.json({ success: true, message: "FAQ berhasil dihapus." });
-    } catch (dbError) {
-      console.warn("Database delete failed, returning memory success:", dbError);
-      return NextResponse.json({ success: true, message: "FAQ berhasil dihapus." });
-    }
+    await deleteFaqStore(params.id);
+    return NextResponse.json({ success: true, message: "FAQ berhasil dihapus." });
   } catch (error) {
-    console.error(`DELETE /api/admin/faqs/${id} error:`, error);
+    console.error(`DELETE /api/admin/faqs/${params.id} error:`, error);
     return NextResponse.json(
       { error: "Terjadi kesalahan saat menghapus FAQ." },
       { status: 500 }

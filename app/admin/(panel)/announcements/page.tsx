@@ -36,8 +36,6 @@ import {
   ANNOUNCEMENT_BADGE_PRESETS,
 } from "@/lib/announcements";
 
-const LOCAL_STORAGE_KEY = "itspanda_admin_announcements_v1";
-
 export default function AdminAnnouncementsPage() {
   const [announcements, setAnnouncements] = React.useState<AdminAnnouncementItem[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -88,40 +86,21 @@ export default function AdminAnnouncementsPage() {
   const loadAnnouncements = React.useCallback(async () => {
     try {
       setLoading(true);
+      // Clean up legacy localStorage cache
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem("itspanda_admin_announcements_v1");
+      }
       const res = await fetch("/api/admin/announcements");
       if (res.ok) {
         const json = await res.json();
         if (json.announcements && Array.isArray(json.announcements)) {
           setAnnouncements(json.announcements);
-          try {
-            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(json.announcements));
-          } catch {}
           return;
         }
       }
-
-      // Check localStorage fallback
-      const cached = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setAnnouncements(parsed);
-            return;
-          }
-        } catch {}
-      }
-
       setAnnouncements(INITIAL_ANNOUNCEMENTS);
     } catch (err) {
-      console.warn("Using fallback local storage for announcements:", err);
-      const cached = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (cached) {
-        try {
-          setAnnouncements(JSON.parse(cached));
-          return;
-        } catch {}
-      }
+      console.warn("Failed to load announcements from server:", err);
       setAnnouncements(INITIAL_ANNOUNCEMENTS);
     } finally {
       setLoading(false);
@@ -132,18 +111,19 @@ export default function AdminAnnouncementsPage() {
     loadAnnouncements();
   }, [loadAnnouncements]);
 
-  // Sync back to localStorage
-  const saveToLocalAndState = (updatedList: AdminAnnouncementItem[]) => {
-    setAnnouncements(updatedList);
-    try {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedList));
-    } catch {}
-  };
-
   // Reset to default
-  const handleResetDefaults = () => {
-    saveToLocalAndState(INITIAL_ANNOUNCEMENTS);
-    showToast("info", "Announcement berhasil direset ke data awal default.");
+  const handleResetDefaults = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("/api/admin/announcements");
+      if (res.ok) {
+        const json = await res.json();
+        if (json.announcements) setAnnouncements(json.announcements);
+      }
+      showToast("info", "Data announcement dimuat ulang dari server.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Open Create Modal
@@ -224,23 +204,12 @@ export default function AdminAnnouncementsPage() {
         if (res.ok) {
           const json = await res.json();
           const updatedItem = json.announcement || { ...editingItem, ...payload };
-          const updatedList = announcements.map((a) =>
-            a.id === editingItem.id ? updatedItem : a
+          setAnnouncements((prev) =>
+            prev.map((a) => (a.id === editingItem.id ? updatedItem : a))
           );
-          saveToLocalAndState(updatedList);
           showToast("success", "Announcement berhasil diperbarui.");
         } else {
-          // Local fallback update
-          const updatedItem: AdminAnnouncementItem = {
-            ...editingItem,
-            ...payload,
-            updatedAt: new Date().toISOString(),
-          };
-          const updatedList = announcements.map((a) =>
-            a.id === editingItem.id ? updatedItem : a
-          );
-          saveToLocalAndState(updatedList);
-          showToast("success", "Announcement berhasil diperbarui (mode lokal).");
+          showToast("error", "Gagal memperbarui announcement di server.");
         }
       } else {
         // POST create
@@ -252,47 +221,18 @@ export default function AdminAnnouncementsPage() {
 
         if (res.ok) {
           const json = await res.json();
-          const newItem = json.announcement || {
-            id: `ann-${Date.now()}`,
-            ...payload,
-            createdAt: new Date().toISOString(),
-          };
-          saveToLocalAndState([...announcements, newItem]);
+          if (json.announcement) {
+            setAnnouncements((prev) => [...prev, json.announcement]);
+          }
           showToast("success", "Announcement baru berhasil ditambahkan.");
         } else {
-          // Local fallback create
-          const newItem: AdminAnnouncementItem = {
-            id: `ann-${Date.now()}`,
-            ...payload,
-            createdAt: new Date().toISOString(),
-          };
-          saveToLocalAndState([...announcements, newItem]);
-          showToast("success", "Announcement baru berhasil dibuat (mode lokal).");
+          showToast("error", "Gagal membuat announcement baru di server.");
         }
       }
 
       setModalOpen(false);
     } catch {
-      // Local fallback on network error
-      if (editingItem) {
-        const updatedItem: AdminAnnouncementItem = {
-          ...editingItem,
-          ...payload,
-          updatedAt: new Date().toISOString(),
-        };
-        saveToLocalAndState(
-          announcements.map((a) => (a.id === editingItem.id ? updatedItem : a))
-        );
-      } else {
-        const newItem: AdminAnnouncementItem = {
-          id: `ann-${Date.now()}`,
-          ...payload,
-          createdAt: new Date().toISOString(),
-        };
-        saveToLocalAndState([...announcements, newItem]);
-      }
-      showToast("success", "Data tersimpan di penyimpanan lokal.");
-      setModalOpen(false);
+      showToast("error", "Terjadi kesalahan jaringan saat menyimpan announcement.");
     } finally {
       setIsSubmitting(false);
     }
@@ -301,23 +241,27 @@ export default function AdminAnnouncementsPage() {
   // Toggle Active Status
   const handleToggleActive = async (item: AdminAnnouncementItem) => {
     const nextActive = !item.isActive;
-    const updatedList = announcements.map((a) =>
-      a.id === item.id ? { ...a, isActive: nextActive } : a
+    setAnnouncements((prev) =>
+      prev.map((a) => (a.id === item.id ? { ...a, isActive: nextActive } : a))
     );
-    saveToLocalAndState(updatedList);
 
     try {
-      await fetch(`/api/admin/announcements/${item.id}`, {
+      const res = await fetch(`/api/admin/announcements/${item.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive: nextActive }),
       });
+      if (!res.ok) throw new Error("Gagal update");
       showToast(
         "info",
         `Announcement ${nextActive ? "diaktifkan" : "dinonaktifkan"}.`
       );
     } catch {
-      showToast("info", `Announcement ${nextActive ? "diaktifkan" : "dinonaktifkan"} (lokal).`);
+      // Revert on error
+      setAnnouncements((prev) =>
+        prev.map((a) => (a.id === item.id ? { ...a, isActive: !nextActive } : a))
+      );
+      showToast("error", "Gagal memperbarui status di server.");
     }
   };
 
@@ -336,7 +280,7 @@ export default function AdminAnnouncementsPage() {
       sortOrder: idx,
     }));
 
-    saveToLocalAndState(reorderedList);
+    setAnnouncements(reorderedList);
 
     // Sync to server silently
     reorderedList.forEach((item) => {
@@ -354,16 +298,18 @@ export default function AdminAnnouncementsPage() {
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
 
-    const updatedList = announcements.filter((a) => a.id !== deleteTarget.id);
-    saveToLocalAndState(updatedList);
-
     try {
-      await fetch(`/api/admin/announcements/${deleteTarget.id}`, {
+      const res = await fetch(`/api/admin/announcements/${deleteTarget.id}`, {
         method: "DELETE",
       });
-      showToast("success", "Announcement berhasil dihapus.");
+      if (res.ok) {
+        setAnnouncements((prev) => prev.filter((a) => a.id !== deleteTarget.id));
+        showToast("success", "Announcement berhasil dihapus.");
+      } else {
+        showToast("error", "Gagal menghapus announcement dari server.");
+      }
     } catch {
-      showToast("success", "Announcement berhasil dihapus dari daftar lokal.");
+      showToast("error", "Gagal menghapus announcement dari server.");
     } finally {
       setDeleteTarget(null);
     }

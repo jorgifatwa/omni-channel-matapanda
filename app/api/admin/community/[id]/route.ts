@@ -1,35 +1,23 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { type CommunityPost } from "@/lib/community-store";
+import {
+  saveCommunityPostStore,
+  deleteCommunityPostStore,
+  getAllCommunityPostsStore,
+} from "@/lib/community-store.server";
 
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    const post = await prisma.communityPost.findUnique({
-      where: { id: params.id },
-    });
+    const { posts } = await getAllCommunityPostsStore();
+    const item = posts.find((p) => p.id === params.id);
 
-    if (!post) {
+    if (!item) {
       return NextResponse.json({ error: "Post tidak ditemukan" }, { status: 404 });
     }
 
-    const formatted: CommunityPost = {
-      id: post.id,
-      image: post.image,
-      accountHandle: post.accountHandle,
-      accountAvatarUrl: post.accountAvatarUrl,
-      caption: post.caption,
-      postDate: post.postDate,
-      instagramUrl: post.instagramUrl,
-      sortOrder: post.sortOrder,
-      isActive: post.isActive,
-      createdAt: post.createdAt.toISOString(),
-      updatedAt: post.updatedAt.toISOString(),
-    };
-
-    return NextResponse.json({ post: formatted });
+    return NextResponse.json({ post: item });
   } catch (error) {
     console.error("GET /api/admin/community/[id] error:", error);
     return NextResponse.json(
@@ -56,59 +44,22 @@ export async function PUT(
       isActive,
     } = body;
 
-    try {
-      const updated = await prisma.communityPost.update({
-        where: { id: params.id },
-        data: {
-          ...(image !== undefined && { image: image.trim() }),
-          ...(accountHandle !== undefined && {
-            accountHandle: accountHandle.replace(/^@/, "").trim(),
-          }),
-          ...(accountAvatarUrl !== undefined && {
-            accountAvatarUrl: accountAvatarUrl ? accountAvatarUrl.trim() : null,
-          }),
-          ...(caption !== undefined && { caption: caption.trim() }),
-          ...(postDate !== undefined && { postDate: postDate ? postDate.trim() : null }),
-          ...(instagramUrl !== undefined && {
-            instagramUrl: instagramUrl ? instagramUrl.trim() : null,
-          }),
-          ...(sortOrder !== undefined && { sortOrder: Number(sortOrder) }),
-          ...(isActive !== undefined && { isActive: Boolean(isActive) }),
-        },
-      });
+    const { posts } = await getAllCommunityPostsStore();
+    const existing = posts.find((p) => p.id === params.id);
 
-      const formatted: CommunityPost = {
-        id: updated.id,
-        image: updated.image,
-        accountHandle: updated.accountHandle,
-        accountAvatarUrl: updated.accountAvatarUrl,
-        caption: updated.caption,
-        postDate: updated.postDate,
-        instagramUrl: updated.instagramUrl,
-        sortOrder: updated.sortOrder,
-        isActive: updated.isActive,
-        createdAt: updated.createdAt.toISOString(),
-        updatedAt: updated.updatedAt.toISOString(),
-      };
+    const saved = await saveCommunityPostStore({
+      id: params.id,
+      image: image !== undefined ? image : existing?.image || "",
+      accountHandle: accountHandle !== undefined ? accountHandle : existing?.accountHandle,
+      accountAvatarUrl: accountAvatarUrl !== undefined ? accountAvatarUrl : existing?.accountAvatarUrl,
+      caption: caption !== undefined ? caption : existing?.caption || "",
+      postDate: postDate !== undefined ? postDate : existing?.postDate,
+      instagramUrl: instagramUrl !== undefined ? instagramUrl : existing?.instagramUrl,
+      sortOrder: sortOrder !== undefined ? sortOrder : existing?.sortOrder ?? 0,
+      isActive: isActive !== undefined ? isActive : existing?.isActive ?? true,
+    });
 
-      return NextResponse.json({ post: formatted, success: true });
-    } catch (dbError) {
-      console.warn("Database update failed for community post, echoing payload:", dbError);
-      const fallbackUpdated: CommunityPost = {
-        id: params.id,
-        image: image || "",
-        accountHandle: (accountHandle || "itsmatapanda").replace(/^@/, "").trim(),
-        accountAvatarUrl: accountAvatarUrl ? accountAvatarUrl.trim() : null,
-        caption: caption || "",
-        postDate: postDate ? postDate.trim() : null,
-        instagramUrl: instagramUrl ? instagramUrl.trim() : null,
-        sortOrder: sortOrder !== undefined ? Number(sortOrder) : 0,
-        isActive: isActive !== undefined ? Boolean(isActive) : true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      return NextResponse.json({ post: fallbackUpdated, success: true });
-    }
+    return NextResponse.json({ post: saved, success: true });
   } catch (error) {
     console.error("PUT /api/admin/community/[id] error:", error);
     return NextResponse.json(
@@ -123,15 +74,8 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    try {
-      await prisma.communityPost.delete({
-        where: { id: params.id },
-      });
-      return NextResponse.json({ success: true, message: "Post berhasil dihapus." });
-    } catch (dbError) {
-      console.warn("Database delete failed for community post:", dbError);
-      return NextResponse.json({ success: true, message: "Post berhasil dihapus." });
-    }
+    await deleteCommunityPostStore(params.id);
+    return NextResponse.json({ success: true, message: "Post berhasil dihapus." });
   } catch (error) {
     console.error("DELETE /api/admin/community/[id] error:", error);
     return NextResponse.json(
