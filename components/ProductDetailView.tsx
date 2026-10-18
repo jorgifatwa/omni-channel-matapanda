@@ -13,12 +13,11 @@ import {
   Truck,
   RotateCcw,
   ShieldCheck,
-  Gift,
 } from "lucide-react";
 import { type StorefrontProduct } from "@/lib/data-fetcher";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
-import { getProductBundleBadge, getProductGiftBadge } from "@/lib/discount-engine";
+import { getProductBundleBadge } from "@/lib/discount-engine";
 import CompareSeriesSection from "@/components/CompareSeriesSection";
 import YouMayAlsoLike from "@/components/YouMayAlsoLike";
 import RecentlyViewed from "@/components/RecentlyViewed";
@@ -38,10 +37,6 @@ export default function ProductDetailView({
 
   const bundleBadge = React.useMemo(() => {
     return getProductBundleBadge(product.id, product.category?.id, activeDiscounts);
-  }, [product.id, product.category?.id, activeDiscounts]);
-
-  const giftBadge = React.useMemo(() => {
-    return getProductGiftBadge(product.id, product.category?.id, activeDiscounts);
   }, [product.id, product.category?.id, activeDiscounts]);
 
   // Images
@@ -501,19 +496,6 @@ export default function ProductDetailView({
               </span>
               <span className="text-xs font-bold text-purple-900 dark:text-purple-200">
                 Beli min. {formatPrice(bundleBadge.minSpend || 0)}, diskon {bundleBadge.discountValue}% semua produk di transaksi!
-              </span>
-            </div>
-          )}
-
-          {/* Paket Hadiah Shopee-style Badge */}
-          {giftBadge && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-[#396254]/10 dark:bg-[#396254]/20 border border-[#396254]/20 dark:border-[#396254]/40 rounded-2xl shadow-xs">
-              <span className="text-[10px] font-black uppercase tracking-wider bg-[#396254] text-white px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1">
-                <Gift className="h-3 w-3" />
-                Paket Hadiah
-              </span>
-              <span className="text-xs font-bold text-[#396254] dark:text-[#dcf58d]">
-                Beli min. {formatPrice(giftBadge.minSpend || 0)}, gratis {giftBadge.giftQuantity || 1}x {giftBadge.giftProductName || "Hadiah Produk"}!
               </span>
             </div>
           )}
