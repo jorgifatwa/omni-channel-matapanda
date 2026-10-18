@@ -157,7 +157,7 @@ export default function SecondaryBanner({
     >
       {/* 1. Horizontal Sliding Track (Dynamic Unlimited Slides) */}
       <div
-        className="flex h-full w-full transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
+        className="flex h-full w-full transition-transform duration-700 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)]"
         style={{
           transform: `translateX(-${currentIndex * 100}%)`,
         }}

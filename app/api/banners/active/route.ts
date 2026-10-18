@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getActiveStorefrontBanners } from "@/lib/banner-store";
+import { getActiveStorefrontBanners } from "@/lib/banner-store.server";
 
 export const dynamic = "force-dynamic";
 

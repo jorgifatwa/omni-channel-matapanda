@@ -3,7 +3,7 @@ import {
   getAllBannersStore,
   saveBannerStore,
   type BannerType,
-} from "@/lib/banner-store";
+} from "@/lib/banner-store.server";
 
 export const dynamic = "force-dynamic";
 

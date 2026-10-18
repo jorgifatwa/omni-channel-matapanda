@@ -809,10 +809,8 @@ function slugifyFallback(text: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-import {
-  getActiveStorefrontBanners,
-  type AdminBannerItem,
-} from "@/lib/banner-store";
+import { getActiveStorefrontBanners } from "@/lib/banner-store.server";
+import { type AdminBannerItem } from "@/lib/banner-store";
 
 export async function getStorefrontBanners(): Promise<{
   heroBanners: AdminBannerItem[];

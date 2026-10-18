@@ -4,7 +4,7 @@ import {
   deleteBannerStore,
   readBannersFromFile,
   type BannerType,
-} from "@/lib/banner-store";
+} from "@/lib/banner-store.server";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
