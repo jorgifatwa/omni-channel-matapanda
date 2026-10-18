@@ -17,7 +17,6 @@ import {
 import { type StorefrontProduct } from "@/lib/data-fetcher";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
-import { getProductBundleBadge } from "@/lib/discount-engine";
 import CompareSeriesSection from "@/components/CompareSeriesSection";
 import YouMayAlsoLike from "@/components/YouMayAlsoLike";
 import RecentlyViewed from "@/components/RecentlyViewed";
@@ -31,13 +30,9 @@ export default function ProductDetailView({
   product,
   relatedProducts = [],
 }: ProductDetailViewProps) {
-  const { addItem, formatPrice, activeDiscounts } = useCart();
+  const { addItem, formatPrice } = useCart();
   const { toggleWishlist, isWishlisted: checkIsWishlisted } = useWishlist();
   const isWishlisted = checkIsWishlisted(product.id);
-
-  const bundleBadge = React.useMemo(() => {
-    return getProductBundleBadge(product.id, product.category?.id, activeDiscounts);
-  }, [product.id, product.category?.id, activeDiscounts]);
 
   // Images
   const allImages =
@@ -487,18 +482,6 @@ export default function ProductDetailView({
               SKU: {selectedVariant?.sku || product.sku}
             </span>
           </div>
-
-          {/* Paket Diskon Shopee-style Badge */}
-          {bundleBadge && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 rounded-2xl shadow-xs">
-              <span className="text-[10px] font-black uppercase tracking-wider bg-purple-600 text-white px-2 py-0.5 rounded-full shrink-0">
-                Paket Diskon
-              </span>
-              <span className="text-xs font-bold text-purple-900 dark:text-purple-200">
-                Beli min. {formatPrice(bundleBadge.minSpend || 0)}, diskon {bundleBadge.discountValue}% semua produk di transaksi!
-              </span>
-            </div>
-          )}
 
           <hr className="border-neutral-200 dark:border-neutral-800" />
 

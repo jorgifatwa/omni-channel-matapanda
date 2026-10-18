@@ -8,7 +8,6 @@ import { useCart } from "@/context/CartContext";
 import { useQuickAdd } from "@/context/QuickAddContext";
 import { useWishlist } from "@/context/WishlistContext";
 import { type StorefrontProduct } from "@/lib/data-fetcher";
-import { getProductBundleBadge } from "@/lib/discount-engine";
 
 interface ProductCardProps {
   product: StorefrontProduct;
@@ -23,16 +22,12 @@ export default function ProductCard({
   onQuickAdd,
   showNewBadge = false,
 }: ProductCardProps) {
-  const { addItem, formatPrice, activeDiscounts } = useCart();
+  const { addItem, formatPrice } = useCart();
   const { openQuickAdd } = useQuickAdd();
   const { toggleWishlist, isWishlisted: checkIsWishlisted } = useWishlist();
   const isWishlisted = checkIsWishlisted(product.id);
   const [wishlistToast, setWishlistToast] = React.useState(false);
   const [justAdded, setJustAdded] = React.useState(false);
-
-  const bundleBadge = React.useMemo(() => {
-    return getProductBundleBadge(product.id, product.category?.id, activeDiscounts);
-  }, [product.id, product.category?.id, activeDiscounts]);
   const [loveAnimation, setLoveAnimation] = React.useState<"pop" | "deflate" | null>(null);
 
   // Hover color image state
@@ -259,21 +254,16 @@ export default function ProductCard({
             </div>
           )}
 
-          {/* Top Left Badges: SALE, PAKET DISKON */}
-          <div className="absolute top-2.5 left-2.5 z-20 flex flex-col gap-1 items-start pointer-events-none">
-            {product.discountPrice && (
+          {/* Top Left Badges: SALE */}
+          {product.discountPrice && (
+            <div className="absolute top-2.5 left-2.5 z-20 flex flex-col gap-1 items-start pointer-events-none">
               <span className="bg-red-600 text-white text-[9px] sm:text-[10px] uppercase font-bold tracking-[0.14em] px-2 py-0.5 shadow-sm">
                 {product.discount?.discountPercent
                   ? `-${product.discount.discountPercent}%`
                   : "SALE"}
               </span>
-            )}
-            {bundleBadge && (
-              <span className="bg-purple-600 text-white text-[9px] sm:text-[10px] uppercase font-extrabold tracking-[0.08em] px-2 py-0.5 shadow-sm">
-                Paket Diskon
-              </span>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Top Right Wishlist Button */}
           <button
