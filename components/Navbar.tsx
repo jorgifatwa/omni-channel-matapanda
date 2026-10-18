@@ -45,6 +45,7 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
+  SheetClose,
 } from "@/components/ui/sheet";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
@@ -569,18 +570,32 @@ export default function Navbar() {
                 {/* Cart Drawer Content */}
                 <SheetContent
                   side="right"
+                  hideCloseButton
                   className="w-full sm:max-w-md bg-[#fafaf8] dark:bg-neutral-950 p-0 flex flex-col z-50 border-l border-[#396254]/10 dark:border-neutral-800"
                 >
-                  <SheetHeader className="px-6 py-5 border-b border-[#396254]/10 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md text-left">
-                    <SheetTitle className="text-lg font-black tracking-normal text-[#396254] dark:text-[#dcf58d] flex items-center justify-between">
-                      <span className="flex items-center gap-2">
-                        <ShoppingBag className="h-5 w-5" />
-                        <span>Tas Belanja Kamu</span>
-                      </span>
-                      <span className="px-3 py-1 rounded-full bg-[#d5c6ff]/30 text-[#396254] dark:text-[#d5c6ff] text-xs font-bold shadow-xs">
-                        {totalItems} barang
-                      </span>
-                    </SheetTitle>
+                  <SheetHeader className="px-4 sm:px-6 py-4 sm:py-5 border-b border-[#396254]/10 dark:border-neutral-800 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md text-left sticky top-0 z-20">
+                    <div className="flex items-center justify-between gap-2">
+                      <SheetTitle className="text-base sm:text-lg font-black tracking-normal text-[#396254] dark:text-[#dcf58d] flex items-center gap-2 m-0 p-0">
+                        <ShoppingBag className="h-5 w-5 shrink-0" />
+                        <span className="truncate">Tas Belanja Kamu</span>
+                      </SheetTitle>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="px-2.5 sm:px-3 py-1 rounded-full bg-[#d5c6ff]/30 text-[#396254] dark:text-[#d5c6ff] text-[11px] sm:text-xs font-bold shadow-xs whitespace-nowrap">
+                          {totalItems} barang
+                        </span>
+                        <SheetClose asChild>
+                          <button
+                            type="button"
+                            onClick={() => setIsOpen(false)}
+                            className="h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 flex items-center justify-center text-neutral-600 hover:text-black dark:text-neutral-300 dark:hover:text-white transition-all cursor-pointer active:scale-95"
+                            aria-label="Tutup Keranjang Belanja"
+                          >
+                            <X className="h-4 w-4 sm:h-4.5 sm:w-4.5 stroke-[2.25]" />
+                          </button>
+                        </SheetClose>
+                      </div>
+                    </div>
                   </SheetHeader>
 
                   {items.length === 0 ? (
@@ -594,13 +609,24 @@ export default function Navbar() {
                       <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-6 max-w-xs leading-relaxed">
                         Yuk jelajahi koleksi merchandise gemas it&apos;smatapanda dan bawa pulang produk favoritmu!
                       </p>
-                      <Button
-                        onClick={() => setIsOpen(false)}
-                        asChild
-                        className="rounded-full bg-[#396254] hover:bg-[#2e5044] text-[#dcf58d] px-8 py-5 text-xs font-black shadow-md hover:-translate-y-0.5 active:scale-95 transition-all"
-                      >
-                        <Link href="/new-arrivals">Mulai Belanja</Link>
-                      </Button>
+                      <div className="flex flex-col items-center gap-2 w-full max-w-xs">
+                        <Button
+                          onClick={() => setIsOpen(false)}
+                          asChild
+                          className="w-full rounded-full bg-[#396254] hover:bg-[#2e5044] text-[#dcf58d] px-8 py-5 text-xs font-black shadow-md hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer"
+                        >
+                          <Link href="/new-arrivals">Mulai Belanja</Link>
+                        </Button>
+                        <SheetClose asChild>
+                          <button
+                            type="button"
+                            onClick={() => setIsOpen(false)}
+                            className="text-xs font-bold text-neutral-500 hover:text-black dark:text-neutral-400 dark:hover:text-white transition-colors cursor-pointer py-1.5"
+                          >
+                            Tutup
+                          </button>
+                        </SheetClose>
+                      </div>
                     </div>
                   ) : (
                     <>
@@ -961,10 +987,20 @@ export default function Navbar() {
                         <Link
                           href="/checkout"
                           onClick={() => setIsOpen(false)}
-                          className="w-full h-12 bg-[#396254] hover:bg-[#2e5044] text-[#dcf58d] text-xs tracking-wider uppercase font-black transition-all flex items-center justify-center rounded-2xl shadow-md hover:-translate-y-0.5 active:scale-95 gap-2"
+                          className="w-full h-12 bg-[#396254] hover:bg-[#2e5044] text-[#dcf58d] text-xs tracking-wider uppercase font-black transition-all flex items-center justify-center rounded-2xl shadow-md hover:-translate-y-0.5 active:scale-95 gap-2 cursor-pointer"
                         >
                           <span>Lanjut ke Checkout</span>
                         </Link>
+
+                        <SheetClose asChild>
+                          <button
+                            type="button"
+                            onClick={() => setIsOpen(false)}
+                            className="w-full py-2 text-center text-xs font-bold text-neutral-500 dark:text-neutral-400 hover:text-[#396254] dark:hover:text-[#dcf58d] transition-colors cursor-pointer flex items-center justify-center gap-1 active:scale-95"
+                          >
+                            <span>&larr; Lanjut Belanja</span>
+                          </button>
+                        </SheetClose>
                       </div>
                     </>
                   )}
