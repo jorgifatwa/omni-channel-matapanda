@@ -44,40 +44,108 @@ export default function HeroBanner({
     setCurrentIndex((prev) => (prev - 1 + total) % total);
   }, [total]);
 
-  // Touch Swipe Gesture for Smartphones
-  const touchStartX = React.useRef<number>(0);
-  const touchStartY = React.useRef<number>(0);
-  const isSwiping = React.useRef<boolean>(false);
+  // Real-Time Touch & Pointer Drag for Smartphones
+  const [dragOffset, setDragOffset] = React.useState(0);
+  const [isSwiping, setIsSwiping] = React.useState(false);
+
+  const touchStartX = React.useRef(0);
+  const touchStartY = React.useRef(0);
+  const currentDrag = React.useRef(0);
+  const isHorizontalSwipe = React.useRef<boolean | null>(null);
+  const preventClick = React.useRef(false);
+  const isMouseDown = React.useRef(false);
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length === 1) {
-      touchStartX.current = e.touches[0].clientX;
-      touchStartY.current = e.touches[0].clientY;
-      isSwiping.current = true;
-      setIsPaused(true);
+    if (e.touches.length !== 1 || total <= 1) return;
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    currentDrag.current = 0;
+    isHorizontalSwipe.current = null;
+    preventClick.current = false;
+    setIsPaused(true);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length !== 1 || total <= 1) return;
+    const currentX = e.touches[0].clientX;
+    const currentY = e.touches[0].clientY;
+    const diffX = currentX - touchStartX.current;
+    const diffY = currentY - touchStartY.current;
+
+    // Determine direction after initial movement threshold (6px)
+    if (isHorizontalSwipe.current === null) {
+      if (Math.abs(diffX) > 6 || Math.abs(diffY) > 6) {
+        isHorizontalSwipe.current = Math.abs(diffX) > Math.abs(diffY);
+      }
+    }
+
+    // If horizontal swipe confirmed, drag slider in real time
+    if (isHorizontalSwipe.current === true) {
+      preventClick.current = true;
+      setIsSwiping(true);
+      currentDrag.current = diffX;
+      setDragOffset(diffX);
     }
   };
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (!isSwiping.current) return;
-    isSwiping.current = false;
+  const handleTouchEnd = () => {
     setIsPaused(false);
+    const diff = currentDrag.current;
+    const threshold = 35; // px threshold to trigger slide change
 
-    if (e.changedTouches.length === 1) {
-      const endX = e.changedTouches[0].clientX;
-      const endY = e.changedTouches[0].clientY;
-      const diffX = touchStartX.current - endX;
-      const diffY = touchStartY.current - endY;
-
-      // Threshold: 25px horizontal and predominantly horizontal movement
-      if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 25) {
-        if (diffX > 0) {
-          nextSlide();
-        } else {
-          prevSlide();
-        }
+    if (isHorizontalSwipe.current === true) {
+      if (diff < -threshold) {
+        nextSlide();
+      } else if (diff > threshold) {
+        prevSlide();
       }
     }
+
+    setIsSwiping(false);
+    setDragOffset(0);
+    currentDrag.current = 0;
+    isHorizontalSwipe.current = null;
+
+    // Suppress link clicks briefly after sliding
+    setTimeout(() => {
+      preventClick.current = false;
+    }, 150);
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0 || total <= 1) return;
+    isMouseDown.current = true;
+    touchStartX.current = e.clientX;
+    touchStartY.current = e.clientY;
+    currentDrag.current = 0;
+    isHorizontalSwipe.current = null;
+    preventClick.current = false;
+    setIsPaused(true);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isMouseDown.current || total <= 1) return;
+    const diffX = e.clientX - touchStartX.current;
+    const diffY = e.clientY - touchStartY.current;
+
+    if (isHorizontalSwipe.current === null) {
+      if (Math.abs(diffX) > 6 || Math.abs(diffY) > 6) {
+        isHorizontalSwipe.current = Math.abs(diffX) > Math.abs(diffY);
+      }
+    }
+
+    if (isHorizontalSwipe.current === true) {
+      preventClick.current = true;
+      setIsSwiping(true);
+      currentDrag.current = diffX;
+      setDragOffset(diffX);
+    }
+  };
+
+  const handleMouseUp = () => {
+    if (!isMouseDown.current) return;
+    isMouseDown.current = false;
+    handleTouchEnd();
   };
 
   // Auto-advance slides every 6.5 seconds when not paused
@@ -96,17 +164,32 @@ export default function HeroBanner({
   return (
     <section
       aria-label="Featured Hero Banner"
-      className="relative w-full h-[75vh] min-h-[500px] max-h-[720px] sm:h-[92vh] sm:min-h-[700px] sm:max-h-[1050px] overflow-hidden bg-neutral-950 select-none group touch-pan-y"
+      className="relative w-full h-[75vh] min-h-[500px] max-h-[720px] sm:h-[92vh] sm:min-h-[700px] sm:max-h-[1050px] overflow-hidden bg-neutral-950 select-none group touch-pan-y cursor-grab active:cursor-grabbing"
       onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
+      onMouseLeave={() => {
+        setIsPaused(false);
+        if (isMouseDown.current) handleMouseUp();
+      }}
       onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onClickCapture={(e) => {
+        if (preventClick.current) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }}
     >
-      {/* 1. Horizontal Sliding Track */}
+      {/* 1. Horizontal Sliding Track with Real-Time Drag Translation */}
       <div
-        className="flex h-full w-full transition-transform duration-700 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)]"
+        className="flex h-full w-full select-none"
         style={{
-          transform: `translateX(-${currentIndex * 100}%)`,
+          transform: `translateX(calc(-${currentIndex * 100}% + ${dragOffset}px))`,
+          transition: isSwiping ? "none" : "transform 500ms cubic-bezier(0.16, 1, 0.3, 1)",
         }}
       >
         {activeCategories.map((cat, idx) => (
@@ -123,7 +206,8 @@ export default function HeroBanner({
                 fill
                 priority={idx === 0}
                 sizes="100vw"
-                className="object-cover object-center"
+                draggable={false}
+                className="object-cover object-center pointer-events-none select-none"
               />
             </div>
 
@@ -135,7 +219,8 @@ export default function HeroBanner({
                 fill
                 priority={idx === 0}
                 sizes="100vw"
-                className="object-cover object-center"
+                draggable={false}
+                className="object-cover object-center pointer-events-none select-none"
               />
             </div>
           </div>
