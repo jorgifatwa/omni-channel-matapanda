@@ -217,7 +217,7 @@ export default function SecondaryBanner({
   return (
     <section
       aria-label="Promotional Secondary Banner"
-      className="relative w-full h-[60vh] min-h-[420px] max-h-[580px] sm:h-[92vh] sm:min-h-[700px] sm:max-h-[1050px] overflow-hidden bg-neutral-900 select-none group touch-pan-y cursor-grab active:cursor-grabbing"
+      className="relative w-full aspect-[16/9] min-h-[220px] sm:aspect-auto sm:h-[92vh] sm:min-h-[700px] sm:max-h-[1050px] overflow-hidden bg-neutral-900 select-none group touch-pan-y cursor-grab active:cursor-grabbing"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => {
         setIsPaused(false);
@@ -251,24 +251,11 @@ export default function SecondaryBanner({
             className="relative h-full w-full flex-shrink-0 bg-neutral-900"
             aria-hidden={idx !== currentIndex}
           >
-            {/* 1. Desktop Image (Wide 16:9 / 21:9 - displayed on PC/Laptop) */}
-            <div className="relative h-full w-full hidden sm:block">
+            {/* Desktop Landscape Image (Uniform across mobile and desktop) */}
+            <div className="relative h-full w-full">
               <Image
                 src={slide.image}
-                alt={`${slide.title} Desktop Banner`}
-                fill
-                priority={idx === 0}
-                sizes="100vw"
-                draggable={false}
-                className="object-cover object-center pointer-events-none select-none"
-              />
-            </div>
-
-            {/* 2. Mobile Image (Portrait 4:5 / 1:1 - displayed on Smartphone / HP) */}
-            <div className="relative h-full w-full block sm:hidden">
-              <Image
-                src={slide.mobileImage || slide.image}
-                alt={`${slide.title} Mobile Banner`}
+                alt={`${slide.title} Banner`}
                 fill
                 priority={idx === 0}
                 sizes="100vw"
