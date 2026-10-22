@@ -141,19 +141,6 @@ export const authOptions: NextAuthOptions = {
           console.warn("[Auth] Database check error:", dbErr);
         }
 
-        if (
-          e2eAdminPassword &&
-          lowerIdentifier === e2eAdminEmail &&
-          inputPassword === e2eAdminPassword
-        ) {
-          return {
-            id: "00000000-0000-4000-8000-000000000099",
-            name: "E2E Test Administrator",
-            email: e2eAdminEmail,
-            role: "ADMIN",
-          };
-        }
-
         // 3. Demo Customer Fallback (for easy instant local testing)
         if (
           (lowerIdentifier === "customer@itsmatapanda.com" ||

@@ -227,25 +227,6 @@ export function calculateBundlePackageDiscount(
 }
 
 /**
- * Get active bundle package badge for a product card/detail
- */
-export function getProductBundleBadge(
-  productId: string,
-  categoryId?: string | null,
-  activeCampaigns: DiscountCampaign[] = []
-): DiscountCampaign | null {
-  const bundles = activeCampaigns.filter(
-    (c) => c.campaignType === "BUNDLE_PACKAGE" && c.isActive
-  );
-  for (const b of bundles) {
-    if (b.targetType === "ALL_PRODUCTS") return b;
-    if (b.targetType === "CATEGORY" && categoryId && b.targetCategoryIds.includes(categoryId)) return b;
-    if (b.targetType === "SPECIFIC_PRODUCTS" && b.targetProductIds.includes(productId)) return b;
-  }
-  return null;
-}
-
-/**
  * Calculates Shopee-style "Paket Hadiah" (Free Gift with Purchase) based on cart items & min. spend threshold
  */
 export function calculateGiftPackageReward(
