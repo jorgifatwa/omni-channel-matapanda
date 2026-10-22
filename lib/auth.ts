@@ -3,16 +3,13 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 
+// Official production domain
+export const PRODUCTION_DOMAIN = "https://itsmypanda.my.id";
+
 // Auto-heal NEXTAUTH_URL in Vercel serverless environment
 if (process.env.VERCEL === "1" || process.env.NODE_ENV === "production") {
-  if (process.env.NEXTAUTH_URL && process.env.NEXTAUTH_URL.includes("localhost")) {
-    if (process.env.VERCEL_URL) {
-      process.env.NEXTAUTH_URL = `https://${process.env.VERCEL_URL}`;
-    } else {
-      delete process.env.NEXTAUTH_URL;
-    }
-  } else if (!process.env.NEXTAUTH_URL && process.env.VERCEL_URL) {
-    process.env.NEXTAUTH_URL = `https://${process.env.VERCEL_URL}`;
+  if (!process.env.NEXTAUTH_URL || process.env.NEXTAUTH_URL.includes("localhost")) {
+    process.env.NEXTAUTH_URL = PRODUCTION_DOMAIN;
   }
 }
 

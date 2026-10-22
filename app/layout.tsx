@@ -13,6 +13,7 @@ const grandstander = localFont({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXTAUTH_URL || "https://itsmypanda.my.id"),
   title: "it'smatapanda",
   description: "it'smatapanda — Streetwear, Print Shop & Cultural Space",
 };
