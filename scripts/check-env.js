@@ -149,7 +149,7 @@ const CHECKS = [
         key: "RAJAONGKIR_ORIGIN_CITY_ID",
         required: true,
         validator: (v) => Boolean(v),
-        desc: "City ID Origin pengiriman (153 = Jakarta Selatan)",
+        desc: "City ID Origin pengiriman (23 = Kota Bandung)",
       },
     ],
   },
