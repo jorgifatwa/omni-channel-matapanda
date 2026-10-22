@@ -262,9 +262,11 @@ Berikut template lengkap file `.env` untuk server production:
 DATABASE_URL="postgresql://user:password@db-host:5432/dbname?sslmode=require"
 
 # NEXTAUTH & DOMAIN
-NEXTAUTH_URL="https://domain-anda.com"
+# Ganti dengan domain production Anda (contoh: https://itsmypanda.my.id)
+NEXTAUTH_URL="https://itsmypanda.my.id"
+NEXT_PUBLIC_APP_URL="https://itsmypanda.my.id"
 NEXTAUTH_SECRET="hasil-dari-generate-keys"
-ADMIN_DEFAULT_EMAIL="admin@domain-anda.com"
+ADMIN_DEFAULT_EMAIL="jorgifatwaambia@gmail.com"
 ADMIN_DEFAULT_PASSWORD="PasswordKuatSuperAdmin123!"
 
 # STORAGE (CLOUDFLARE R2)

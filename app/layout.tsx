@@ -12,8 +12,14 @@ const grandstander = localFont({
   display: "swap",
 });
 
+const appUrl = (
+  process.env.NEXTAUTH_URL ||
+  process.env.NEXT_PUBLIC_APP_URL ||
+  "http://localhost:3000"
+).replace(/\/+$/, "");
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXTAUTH_URL || "https://itsmypanda.my.id"),
+  metadataBase: new URL(appUrl),
   title: "it'smatapanda",
   description: "it'smatapanda — Streetwear, Print Shop & Cultural Space",
 };
