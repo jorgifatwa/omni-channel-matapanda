@@ -16,6 +16,8 @@ import {
   KeyRound,
   AlertTriangle,
   ShoppingBag,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -75,6 +77,7 @@ export default function AdminUsersPage() {
   const [email, setEmail] = React.useState("");
   const [phone, setPhone] = React.useState("");
   const [password, setPassword] = React.useState("");
+  const [showPassword, setShowPassword] = React.useState(false);
   const [role, setRole] = React.useState<"ADMIN" | "CUSTOMER">("CUSTOMER");
   const [isActive, setIsActive] = React.useState(true);
 
@@ -798,14 +801,28 @@ export default function AdminUsersPage() {
               <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300">
                 Password * (minimal 6 karakter)
               </label>
-              <Input
-                type="password"
-                placeholder="Masukkan password..."
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="text-xs rounded-xl"
-                required
-              />
+              <div className="relative">
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Masukkan password..."
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="text-xs rounded-xl pr-10"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors focus:outline-none"
+                  aria-label={showPassword ? "Sembunyikan password" : "Lihat password"}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
             </div>
 
             <div className="space-y-1.5">
@@ -952,13 +969,27 @@ export default function AdminUsersPage() {
               <p className="text-[11px] text-neutral-400 mb-2">
                 Kosongkan field ini jika tidak ingin mengubah password akun.
               </p>
-              <Input
-                type="password"
-                placeholder="Masukkan password baru jika ingin mereset..."
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="text-xs rounded-xl bg-white dark:bg-neutral-900"
-              />
+              <div className="relative">
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Masukkan password baru jika ingin mereset..."
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="text-xs rounded-xl bg-white dark:bg-neutral-900 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors focus:outline-none"
+                  aria-label={showPassword ? "Sembunyikan password" : "Lihat password"}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
             </div>
 
             <div className="space-y-1.5">

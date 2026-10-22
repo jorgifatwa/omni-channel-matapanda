@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
-import { Loader2, ArrowRight, User, Mail, Lock } from "lucide-react";
+import { Loader2, ArrowRight, User, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import Navbar from "@/components/Navbar";
 
 function RegisterForm() {
@@ -16,6 +16,7 @@ function RegisterForm() {
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
+  const [showPassword, setShowPassword] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -170,17 +171,31 @@ function RegisterForm() {
                 <Lock className="h-3.5 w-3.5" />
                 <span>Kata Sandi (Minimal 6 Karakter)</span>
               </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                minLength={6}
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="block w-full rounded-2xl border border-neutral-300 px-4 py-3.5 text-sm text-black placeholder:text-neutral-400 focus:border-[#396254] focus:outline-none focus:ring-2 focus:ring-[#396254]/20 transition-all font-medium"
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  minLength={6}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="block w-full rounded-2xl border border-neutral-300 pl-4 pr-11 py-3.5 text-sm text-black placeholder:text-neutral-400 focus:border-[#396254] focus:outline-none focus:ring-2 focus:ring-[#396254]/20 transition-all font-medium"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 transition-colors focus:outline-none"
+                  aria-label={showPassword ? "Sembunyikan password" : "Lihat password"}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
             </div>
 
             <button
