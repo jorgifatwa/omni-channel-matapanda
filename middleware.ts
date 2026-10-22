@@ -14,12 +14,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(callbackUrl);
   }
 
-  const token = await getToken({
-    req: request,
-    secret:
-      process.env.NEXTAUTH_SECRET ||
-      "matapanda-super-secret-jwt-key-change-in-production-2026",
-  });
+  const isHttps =
+    request.url.startsWith("https://") ||
+    request.headers.get("x-forwarded-proto") === "https";
+
+  const secret =
+    process.env.NEXTAUTH_SECRET ||
+    "matapanda-super-secret-jwt-key-change-in-production-2026";
+
+  const token =
+    (await getToken({ req: request, secret, secureCookie: isHttps })) ||
+    (await getToken({ req: request, secret, secureCookie: !isHttps })) ||
+    (await getToken({ req: request, secret }));
 
   // 1. Handle /admin routes
   if (pathname.startsWith("/admin")) {

@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -38,7 +37,6 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function AdminLoginPage() {
-  const router = useRouter();
   const [authError, setAuthError] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
 
@@ -54,10 +52,13 @@ export default function AdminLoginPage() {
     setAuthError(null);
     setIsLoading(true);
 
+    const cleanEmail = values.email.trim();
+    const cleanPassword = values.password.trim();
+
     try {
       const result = await signIn("credentials", {
-        identifier: values.email,
-        password: values.password,
+        identifier: cleanEmail,
+        password: cleanPassword,
         redirect: false,
       });
 
@@ -67,8 +68,8 @@ export default function AdminLoginPage() {
         return;
       }
 
-      router.push("/admin/dashboard");
-      router.refresh();
+      // Hard redirect ensures auth cookies are cleanly committed by browser
+      window.location.href = "/admin/dashboard";
     } catch {
       setAuthError("Terjadi kesalahan saat memproses login.");
       setIsLoading(false);

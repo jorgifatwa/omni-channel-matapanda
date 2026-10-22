@@ -27,6 +27,7 @@ import {
   Camera,
   HelpCircle,
   Send,
+  UserCog,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -87,6 +88,11 @@ const ADMIN_NAV = [
         label: "Customers",
         href: "/admin/customers",
         icon: Users,
+      },
+      {
+        label: "Kelola User",
+        href: "/admin/users",
+        icon: UserCog,
       },
       {
         label: "Pesan Masuk",
