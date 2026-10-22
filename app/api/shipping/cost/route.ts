@@ -21,7 +21,8 @@ export async function POST(request: Request) {
       destinationCountry.toLowerCase().includes("indonesia");
 
     if (isDomestic) {
-      const originCityId = process.env.RAJAONGKIR_ORIGIN_CITY_ID || "153"; // 153 = Jakarta Selatan (it's matapanda Origin)
+      const originCityId =
+        process.env.RAJAONGKIR_ORIGIN_CITY_ID || "23"; // 23 = Kota Bandung (Kiara Condong Origin)
       const destinationCityId = resolveRajaOngkirCityId(
         destinationCity,
         destinationProvince
