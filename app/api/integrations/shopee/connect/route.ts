@@ -24,7 +24,7 @@ export async function GET() {
       {
         error:
           "Shopee credentials tidak dikonfigurasi. " +
-          "Tambahkan SHOPEE_PARTNER_ID dan SHOPEE_PARTNER_KEY ke .env",
+          "Isi SHOPEE_PARTNER_ID dan SHOPEE_PARTNER_KEY di Environment Variables (Vercel: Settings → Environment Variables, centang Production), lalu Redeploy.",
       },
       { status: 503 }
     );
