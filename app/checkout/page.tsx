@@ -23,6 +23,10 @@ import { useCart } from "@/context/CartContext";
 import { type CurrencyCode } from "@/lib/products";
 import { createCheckoutOrder, type CheckoutOrderPayload } from "@/context/AdminStoreContext";
 import { type AdminOrder } from "@/lib/admin-data";
+import SnapPaymentStep, {
+  CheckoutStepper,
+  type SnapSession,
+} from "@/components/checkout/SnapPaymentStep";
 
 interface ShippingOption {
   id: string;
@@ -115,6 +119,25 @@ export default function CheckoutPage() {
   const checkoutTokenRef = React.useRef<string | null>(null);
   const [paymentInitError, setPaymentInitError] = React.useState<string | null>(null);
   const [isRetryingPayment, setIsRetryingPayment] = React.useState(false);
+  // Active Midtrans Snap Embed session (langkah 2: Pembayaran)
+  const [snapSession, setSnapSession] = React.useState<SnapSession | null>(null);
+
+  const toSnapSession = (data: {
+    token?: string;
+    redirect_url?: string;
+    clientKey?: string | null;
+    isLive?: boolean;
+    expiresAt?: string | null;
+  }): SnapSession | null =>
+    data.token && data.redirect_url
+      ? {
+          token: data.token,
+          redirectUrl: data.redirect_url,
+          clientKey: data.clientKey ?? null,
+          isLive: Boolean(data.isLive),
+          expiresAt: data.expiresAt ?? null,
+        }
+      : null;
   const [isApplyingCoupon, setIsApplyingCoupon] = React.useState(false);
 
   const handleApplyCheckoutCoupon = async () => {
@@ -326,8 +349,11 @@ export default function CheckoutPage() {
       setCreatedOrder(savedOrder);
 
       const snapRes = await res.json().catch(() => ({}));
-      if (res.ok && snapRes.redirect_url) {
-        window.location.href = snapRes.redirect_url;
+      const session = res.ok ? toSnapSession(snapRes) : null;
+      if (session) {
+        // Langkah 2: form pembayaran Midtrans tampil di halaman ini (Snap Embed)
+        setSnapSession(session);
+        window.scrollTo({ top: 0, behavior: "smooth" });
         return;
       }
 
@@ -366,8 +392,11 @@ export default function CheckoutPage() {
         }),
       });
       const snapRes = await res.json().catch(() => ({}));
-      if (res.ok && snapRes.redirect_url) {
-        window.location.href = snapRes.redirect_url;
+      const session = res.ok ? toSnapSession(snapRes) : null;
+      if (session) {
+        setSnapSession(session);
+        setOrderSuccess(false);
+        window.scrollTo({ top: 0, behavior: "smooth" });
         return;
       }
       setPaymentInitError(snapRes.error || "Halaman pembayaran Midtrans gagal dibuat.");
@@ -428,7 +457,14 @@ export default function CheckoutPage() {
         {/* Left Column: Checkout Form */}
         <div className="lg:col-span-7 bg-[#fafaf8] dark:bg-neutral-950 flex justify-center lg:justify-end border-b lg:border-b-0 lg:border-r border-[#396254]/10 dark:border-neutral-800">
           <div className="w-full max-w-[760px] px-6 sm:px-10 lg:px-14 py-8 sm:py-11">
-            {orderSuccess && createdOrder ? (
+            {snapSession && createdOrder ? (
+              <SnapPaymentStep
+                order={createdOrder}
+                session={snapSession}
+                totalLabel={formatCheckoutPrice(createdOrder.totalAmount, currency)}
+                onPaid={clearCart}
+              />
+            ) : orderSuccess && createdOrder ? (
               createdOrder.paymentStatus === "PENDING" ? (
                 /* STATE 1: MENUNGGU PEMBAYARAN (PENDING) - EMAIL BELUM DIKIRIM */
                 <div className="rounded-3xl border-2 border-amber-300 dark:border-amber-700/60 bg-amber-50/60 dark:bg-amber-950/20 p-7 sm:p-10 space-y-6 shadow-sm">
@@ -517,7 +553,7 @@ export default function CheckoutPage() {
                       {isRetryingPayment ? (
                         <>
                           <RefreshCw className="h-4 w-4 animate-spin" />
-                          <span>Membuka Halaman Pembayaran...</span>
+                          <span>Memuat Pembayaran...</span>
                         </>
                       ) : (
                         <>
@@ -634,6 +670,7 @@ export default function CheckoutPage() {
               )
             ) : (
               <form onSubmit={handleSubmit}>
+                <CheckoutStepper step={1} />
                 {/* Contact Section */}
                 <section>
                   <div className="flex items-center justify-between mb-4">
@@ -976,7 +1013,7 @@ export default function CheckoutPage() {
                     </div>
 
                     <div className="bg-[#fafaf8] dark:bg-neutral-900/60 px-5 py-5 text-xs sm:text-sm text-neutral-600 dark:text-neutral-300 text-center leading-relaxed">
-                      Klik tombol <strong>Bayar Sekarang</strong> untuk memproses pesanan. Pop-up resmi Midtrans akan muncul dengan pilihan QRIS, Virtual Account BCA/Mandiri/BRI/BNI, GoPay, atau Kartu Kredit.
+                      Klik <strong>Lanjut ke Pembayaran</strong>. Pilihan pembayaran Midtrans (QRIS, Virtual Account BCA/Mandiri/BRI/BNI, GoPay, atau Kartu Kredit) akan tampil langsung di halaman ini.
                     </div>
                   </div>
                 </section>
@@ -1003,7 +1040,7 @@ export default function CheckoutPage() {
                     {isProcessingPayment ? (
                       <>
                         <RefreshCw className="h-5 w-5 animate-spin" />
-                        <span>Memproses Pesanan &amp; Midtrans...</span>
+                        <span>Menyiapkan Pembayaran...</span>
                       </>
                     ) : isLoadingShipping ? (
                       <>
@@ -1017,7 +1054,7 @@ export default function CheckoutPage() {
                       </>
                     ) : (
                       <span>
-                        Bayar Sekarang &bull;{" "}
+                        Lanjut ke Pembayaran &bull;{" "}
                         {formatCheckoutPrice(grandTotal, currency)}
                       </span>
                     )}
@@ -1114,8 +1151,8 @@ export default function CheckoutPage() {
               })}
             </div>
 
-            {/* Discount Code Input / Applied Badge */}
-            {appliedCoupon ? (
+            {/* Discount Code Input / Applied Badge (dikunci saat langkah Pembayaran) */}
+            {snapSession ? null : appliedCoupon ? (
               <div className="mt-6 bg-[#dcf58d]/30 dark:bg-[#dcf58d]/10 border-2 border-[#396254]/20 rounded-2xl p-4 flex items-center justify-between gap-3 shadow-xs">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <Ticket className="h-5 w-5 text-[#396254] dark:text-[#dcf58d] shrink-0" />
@@ -1267,7 +1304,10 @@ export default function CheckoutPage() {
                     {currency}
                   </span>
                   <span className="text-2xl font-black text-[#396254] dark:text-[#dcf58d]">
-                    {formatCheckoutPrice(grandTotal, currency)}
+                    {formatCheckoutPrice(
+                      snapSession && createdOrder ? createdOrder.totalAmount : grandTotal,
+                      currency
+                    )}
                   </span>
                 </div>
               </div>

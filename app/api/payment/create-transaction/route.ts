@@ -20,6 +20,9 @@ type MidtransItem = {
 };
 
 const toIdr = (value: unknown): number => Math.round(Number(value) || 0);
+
+/** Snap payment window; the checkout page shows a countdown to this time. */
+const PAYMENT_WINDOW_HOURS = 24;
 const clip = (value: string, max = 50): string => value.slice(0, max);
 
 export async function POST(request: Request) {
@@ -46,6 +49,11 @@ export async function POST(request: Request) {
   }
 
   const isProd = process.env.MIDTRANS_IS_PRODUCTION === "true";
+  // Public key for snap.js (Snap Embed). Read at runtime so no rebuild is needed.
+  const clientKey =
+    process.env.MIDTRANS_CLIENT_KEY?.trim() ||
+    process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY?.trim() ||
+    null;
   const snapUrl = isProd
     ? "https://app.midtrans.com/snap/v1/transactions"
     : "https://app.sandbox.midtrans.com/snap/v1/transactions";
@@ -109,6 +117,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Total pembayaran pesanan tidak valid." }, { status: 422 });
   }
 
+  const expiresAt = new Date(order.createdAt.getTime() + PAYMENT_WINDOW_HOURS * 3_600_000);
+
   // 2. Reuse an existing Snap token for the same order and amount.
   //    Midtrans rejects a second transaction with the same order_id.
   if (order.payment?.snapToken && order.payment.snapRedirectUrl) {
@@ -118,6 +128,8 @@ export async function POST(request: Request) {
         redirect_url: order.payment.snapRedirectUrl,
         orderId: order.payment.midtransOrderId,
         isLive: isProd,
+        clientKey,
+        expiresAt: expiresAt.toISOString(),
       });
     }
     return NextResponse.json(
@@ -196,6 +208,7 @@ export async function POST(request: Request) {
       shipping_address: shippingAddress,
     },
     credit_card: { secure: true },
+    expiry: { unit: "hours", duration: PAYMENT_WINDOW_HOURS },
     callbacks: { finish: `${appUrl}/checkout/finish` },
   };
 
@@ -266,5 +279,7 @@ export async function POST(request: Request) {
     redirect_url: snapData.redirect_url,
     orderId: order.orderNumber,
     isLive: isProd,
+    clientKey,
+    expiresAt: expiresAt.toISOString(),
   });
 }

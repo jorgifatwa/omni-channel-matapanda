@@ -160,10 +160,6 @@ test.describe.serial("E2E: admin setup → buyer checkout → payment → admin 
         },
       })
     );
-    // Don't actually load the Midtrans payment page
-    await page.route(/midtrans\.com/, (route) =>
-      route.fulfill({ contentType: "text/html", body: "<h1>Midtrans (mocked)</h1>" })
-    );
 
     await page.goto(`/products/${state.productSlug}`);
     await page.evaluate(() => localStorage.clear());
@@ -194,7 +190,7 @@ test.describe.serial("E2E: admin setup → buyer checkout → payment → admin 
     );
     const payResPromise = page.waitForResponse((r) => r.url().includes("/api/payment/create-transaction"));
 
-    const payBtn = page.locator("button[type='submit']").filter({ hasText: /Bayar Sekarang/i });
+    const payBtn = page.locator("button[type='submit']").filter({ hasText: /Lanjut ke Pembayaran/i });
     await expect(payBtn).toBeEnabled({ timeout: 15_000 });
     await payBtn.click();
 
@@ -216,9 +212,12 @@ test.describe.serial("E2E: admin setup → buyer checkout → payment → admin 
 
     const payRes = await payResPromise;
     if (SERVER_KEY) {
-      // Snap token created → buyer is redirected to the Midtrans payment page
+      // Snap token created → Midtrans form is embedded in OUR checkout page (Snap Embed)
       expect(payRes.status()).toBe(200);
-      await page.waitForURL(/midtrans\.com/, { timeout: 20_000 });
+      await expect(page.getByTestId("snap-payment-step")).toBeVisible();
+      await expect(page.locator("#snap-container iframe")).toBeAttached({ timeout: 30_000 });
+      expect(page.url()).toContain("/checkout");
+      await expect(page.getByText(/Selesaikan pembayaran sebelum/i)).toBeVisible();
     }
   });
 
