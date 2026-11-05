@@ -7,7 +7,7 @@ import { getActiveDiscounts } from "@/lib/discount-store";
  */
 export async function GET() {
   try {
-    const active = getActiveDiscounts();
+    const active = await getActiveDiscounts();
     const bannerCampaign = active.find((c) => Boolean(c.bannerText && c.bannerText.trim()));
 
     return NextResponse.json({
@@ -18,6 +18,9 @@ export async function GET() {
     });
   } catch (error) {
     console.error("[Active Discounts API] Error:", error);
-    return NextResponse.json({ success: false, activeCampaigns: [] }, { status: 500 });
+    return NextResponse.json(
+      { success: false, activeCampaigns: [], error: "Gagal memuat promo dari database" },
+      { status: 503 }
+    );
   }
 }

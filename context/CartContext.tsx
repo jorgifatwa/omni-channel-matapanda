@@ -5,7 +5,7 @@ import {
   type CurrencyCode,
   formatPriceByCurrency,
 } from "@/lib/products";
-import { type DiscountCampaign } from "@/lib/discount-store";
+import { type DiscountCampaign } from "@/lib/discount-types";
 import {
   calculateBundlePackageDiscount,
   calculateGiftPackageReward,

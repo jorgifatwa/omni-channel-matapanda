@@ -9,6 +9,7 @@ import { updateShopeeStock } from "@/lib/shopee-products";
 import { buildTikTokShopSign } from "@/lib/tiktokshop-products";
 import { TIKTOK_API_BASE } from "@/lib/tiktokshop-oauth";
 import { prisma } from "@/lib/prisma";
+import { verifyTikTokShopWebhook } from "@/lib/webhook-signature";
 
 /**
  * GET /api/integrations/tiktokshop/webhook
@@ -43,6 +44,14 @@ interface TikTokWebhookPayload {
 export async function POST(request: Request) {
   try {
     const rawBody = await request.text();
+
+    // Reject anything not signed by the marketplace BEFORE touching the payload / DB.
+    const verification = verifyTikTokShopWebhook(rawBody, request.headers.get("authorization"));
+    if (!verification.ok) {
+      console.warn(`[TikTok Shop Webhook] Rejected push: ${verification.reason}`);
+      return NextResponse.json({ error: "Signature tidak valid" }, { status: verification.status });
+    }
+
     let body: TikTokWebhookPayload = {};
     try {
       body = JSON.parse(rawBody);

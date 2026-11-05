@@ -21,7 +21,7 @@ import {
 import { useSession } from "next-auth/react";
 import { useCart } from "@/context/CartContext";
 import { type CurrencyCode } from "@/lib/products";
-import { createCheckoutOrder } from "@/context/AdminStoreContext";
+import { createCheckoutOrder, type CheckoutOrderPayload } from "@/context/AdminStoreContext";
 import { type AdminOrder } from "@/lib/admin-data";
 
 interface ShippingOption {
@@ -111,6 +111,8 @@ export default function CheckoutPage() {
   const [discountCode, setDiscountCode] = React.useState("");
   const [couponError, setCouponError] = React.useState<string | null>(null);
   const [orderError, setOrderError] = React.useState<string | null>(null);
+  const [paymentInitError, setPaymentInitError] = React.useState<string | null>(null);
+  const [isRetryingPayment, setIsRetryingPayment] = React.useState(false);
   const [isApplyingCoupon, setIsApplyingCoupon] = React.useState(false);
 
   const handleApplyCheckoutCoupon = async () => {
@@ -234,8 +236,11 @@ export default function CheckoutPage() {
       ? `${courierType}0098${Math.floor(10000000 + Math.random() * 90000000)}`
       : `DHL${Math.floor(1000000000 + Math.random() * 9000000000)}`;
 
-    const newOrder: AdminOrder = {
+    // Harga & total di bawah hanya perkiraan dari keranjang. Server menghitung
+    // ulang semuanya dari database dan pesanan memakai hasil hitungan server.
+    const newOrder: CheckoutOrderPayload = {
       id: `ord-${Date.now()}`,
+      couponCode: appliedCoupon?.code || null,
       orderNumber,
       customerId: `cust-${Date.now()}`,
       customerName: `${firstName} ${lastName}`.trim() || "Customer it's matapanda",
@@ -273,6 +278,7 @@ export default function CheckoutPage() {
         unitPrice: it.priceNumber,
         quantity: it.quantity,
         subtotal: it.priceNumber * it.quantity,
+        isGift: giftItem ? it.key === giftItem.key : false,
       })),
       trackingHistory: [
         {
@@ -288,8 +294,10 @@ export default function CheckoutPage() {
     setOrderError(null);
 
     // 0. Simpan pesanan ke database dulu. Kalau gagal, jangan lanjut ke pembayaran.
+    //    Server menghitung ulang harga, diskon dan total dari database; pakai hasil server.
+    let savedOrder: AdminOrder;
     try {
-      await createCheckoutOrder(newOrder);
+      savedOrder = (await createCheckoutOrder(newOrder)).order;
     } catch (err) {
       console.error("[Checkout] Failed to save order:", err);
       setOrderError(
@@ -302,102 +310,35 @@ export default function CheckoutPage() {
     }
 
     try {
-      // 1. Inisiasi Transaksi Midtrans Snap
+      // 1. Inisiasi Transaksi Midtrans Snap. Server menghitung nominal & item dari database.
       const res = await fetch("/api/payment/create-transaction", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orderId: orderNumber,
-          grossAmount: grandTotal,
-          customerDetails: {
-            firstName: firstName || "Customer",
-            lastName: lastName || "it's matapanda",
-            email: email || "customer@itsmatapanda.com",
-            phone: phone || "+6281234567890",
-            shippingAddress: {
-              address,
-              city,
-              postal_code: postalCode,
-              country_code: isDomestic ? "IDN" : "SGP",
-            },
-          },
-          itemDetails: [
-            ...checkoutItems.map((it) => ({
-              id: it.productId,
-              price: it.priceNumber,
-              quantity: it.quantity,
-              name: it.name.slice(0, 50),
-            })),
-            ...(bundleDiscount > 0
-              ? [
-                  {
-                    id: "BUNDLE-DISCOUNT",
-                    price: -bundleDiscount,
-                    quantity: 1,
-                    name: `Paket Diskon: ${appliedBundle?.name || "Min. Belanja"}`.slice(0, 50),
-                  },
-                ]
-              : []),
-            ...(couponDiscount > 0
-              ? [
-                  {
-                    id: "COUPON-DISCOUNT",
-                    price: -couponDiscount,
-                    quantity: 1,
-                    name: `Kupon: ${appliedCoupon?.code || "Voucher Promo"}`.slice(0, 50),
-                  },
-                ]
-              : []),
-            ...(shippingCost > 0
-              ? [
-                  {
-                    id: "SHIPPING-FEE",
-                    price: shippingCost,
-                    quantity: 1,
-                    name: `Shipping: ${courierService}`.slice(0, 50),
-                  },
-                ]
-              : []),
-          ],
-        }),
+        body: JSON.stringify({ orderNumber }),
       });
 
-      // 2. Pesanan sudah tersimpan di database (status awal PENDING)
-      setCreatedOrder(newOrder);
+      // 2. Pesanan sudah tersimpan di database (status awal PENDING) dengan total dari server.
+      //    Pemakaian kupon sudah dicatat oleh server saat pesanan disimpan.
+      setCreatedOrder(savedOrder);
 
-      // 3. Catat pemakaian kupon jika ada
-      if (appliedCoupon) {
-        fetch("/api/coupons/use", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code: appliedCoupon.code }),
-        }).catch(() => {});
+      const snapRes = await res.json().catch(() => ({}));
+      if (res.ok && snapRes.redirect_url) {
+        window.location.href = snapRes.redirect_url;
+        return;
       }
 
-      if (res.ok) {
-        const snapRes = await res.json();
-        // Jika mode live snap redirect aktif dan user ingin redirect:
-        if (snapRes.redirect_url && snapRes.isLive) {
-          // Simpan data order ke sessionStorage agar finish page bisa kirim email dengan data asli
-          sessionStorage.setItem("pendingOrderData", JSON.stringify(newOrder));
-          window.location.href = snapRes.redirect_url;
-          return;
-        }
-        // Untuk sandbox simulation dengan redirect_url tanpa isLive:
-        if (snapRes.redirect_url) {
-          sessionStorage.setItem("pendingOrderData", JSON.stringify(newOrder));
-          window.location.href = snapRes.redirect_url;
-          return;
-        }
-      }
-
-      // Tampilkan layar pesanan dibuat (Menunggu Pembayaran)
+      // Pesanan tersimpan, tetapi halaman pembayaran gagal dibuat
+      console.error("[Checkout] create-transaction gagal:", res.status, snapRes);
+      setPaymentInitError(
+        snapRes.error || "Halaman pembayaran Midtrans gagal dibuat. Silakan hubungi admin toko."
+      );
       setOrderSuccess(true);
       clearCart();
     } catch (err) {
       // Pesanan sudah tersimpan; hanya inisiasi pembayaran yang gagal
       console.error("Payment submission error:", err);
-      setCreatedOrder(newOrder);
+      setPaymentInitError("Tidak dapat menghubungi server pembayaran. Silakan hubungi admin toko.");
+      setCreatedOrder(savedOrder);
       setOrderSuccess(true);
       clearCart();
     } finally {
@@ -405,61 +346,28 @@ export default function CheckoutPage() {
     }
   };
 
-  const [isSettlingPayment, setIsSettlingPayment] = React.useState(false);
-
-  const handleSettlePayment = async () => {
+  // Buka ulang halaman pembayaran Midtrans untuk pesanan yang sudah dibuat.
+  // Status lunas hanya diperbarui oleh webhook Midtrans, bukan dari browser.
+  const handleRetryPayment = async () => {
     if (!createdOrder) return;
-    setIsSettlingPayment(true);
+    setIsRetryingPayment(true);
+    setPaymentInitError(null);
     try {
-      // Kirim email tanda terima resmi HANYA setelah status dikonfirmasi Lunas (Settlement)
-      const receiptResp = await fetch("/api/payment/send-receipt", {
+      const res = await fetch("/api/payment/create-transaction", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orderId: createdOrder.orderNumber,
-          email: createdOrder.customerEmail,
-          customerName: createdOrder.customerName,
-          customerPhone: createdOrder.customerPhone,
-          shippingAddress: createdOrder.shippingAddress,
-          items: createdOrder.items,
-          subtotal: createdOrder.subtotal,
-          shippingCost: createdOrder.shippingCost,
-          discountAmount: createdOrder.discountAmount,
-          totalAmount: createdOrder.totalAmount,
-          courier: createdOrder.courier,
-          courierService: createdOrder.courierService,
-          trackingNumber: createdOrder.trackingNumber,
-          paymentMethod: createdOrder.paymentMethod,
-          paymentStatus: "SETTLEMENT",
-        }),
+        body: JSON.stringify({ orderNumber: createdOrder.orderNumber }),
       });
-      const receiptData = await receiptResp.json();
-      console.log("[Checkout] send-receipt response:", receiptResp.status, receiptData);
-      if (!receiptResp.ok) {
-        console.error("[Checkout] Gagal kirim email receipt:", receiptData);
+      const snapRes = await res.json().catch(() => ({}));
+      if (res.ok && snapRes.redirect_url) {
+        window.location.href = snapRes.redirect_url;
+        return;
       }
-
-      const updated: AdminOrder = {
-        ...createdOrder,
-        paymentStatus: "SETTLEMENT",
-        orderStatus: "PAID",
-        trackingHistory: [
-          ...(createdOrder.trackingHistory || []),
-          {
-            timestamp: new Date().toISOString().replace("T", " ").slice(0, 16),
-            status: "PAID",
-            description: "Pembayaran terverifikasi lunas via Midtrans (Settlement). Paket pesanan disiapkan.",
-            location: isDomestic ? "Jakarta Selatan (Origin)" : "Jakarta International Gateway",
-          },
-        ],
-      };
-
-      // Status lunas hanya diperbarui oleh webhook Midtrans / admin, bukan dari browser
-      setCreatedOrder(updated);
-    } catch (err) {
-      console.error("Failed to settle simulated payment:", err);
+      setPaymentInitError(snapRes.error || "Halaman pembayaran Midtrans gagal dibuat.");
+    } catch {
+      setPaymentInitError("Tidak dapat menghubungi server pembayaran.");
     } finally {
-      setIsSettlingPayment(false);
+      setIsRetryingPayment(false);
     }
   };
 
@@ -588,21 +496,26 @@ export default function CheckoutPage() {
 
                   {/* Action Buttons */}
                   <div className="space-y-3 pt-2">
+{paymentInitError && (
+                      <p role="alert" className="rounded-2xl border border-red-300 bg-red-50 dark:bg-red-950/30 dark:border-red-800 p-3 text-xs font-semibold text-red-700 dark:text-red-300">
+                        {paymentInitError}
+                      </p>
+                    )}
                     <button
                       type="button"
-                      onClick={handleSettlePayment}
-                      disabled={isSettlingPayment}
+                      onClick={handleRetryPayment}
+                      disabled={isRetryingPayment}
                       className="w-full inline-flex items-center justify-center rounded-2xl bg-[#396254] hover:bg-[#2e5044] px-6 py-4 text-sm font-bold text-[#dcf58d] transition-all shadow-md gap-2 cursor-pointer disabled:opacity-75 hover:-translate-y-0.5 active:scale-95"
                     >
-                      {isSettlingPayment ? (
+                      {isRetryingPayment ? (
                         <>
                           <RefreshCw className="h-4 w-4 animate-spin" />
-                          <span>Memverifikasi Pembayaran &amp; Mengirim Email...</span>
+                          <span>Membuka Halaman Pembayaran...</span>
                         </>
                       ) : (
                         <>
                           <CreditCard className="h-4 w-4" />
-                          <span>Simulasikan Pembayaran Lunas (Bayar Sekarang)</span>
+                          <span>Bayar Sekarang via Midtrans</span>
                         </>
                       )}
                     </button>

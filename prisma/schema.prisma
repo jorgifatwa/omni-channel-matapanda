@@ -515,3 +515,75 @@ model FaqItem {
 
 
 
+
+enum PromoDiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum PromoTargetType {
+  ALL_PRODUCTS
+  CATEGORY
+  SPECIFIC_PRODUCTS
+}
+
+enum PromoCampaignType {
+  CATALOG_DISCOUNT
+  BUNDLE_PACKAGE
+  GIFT_PACKAGE
+}
+
+/// Kupon / voucher promo (mis. kode influencer). Kode selalu disimpan huruf besar.
+model Coupon {
+  id            String            @id @default(uuid()) @db.Uuid
+  code          String            @unique
+  name          String
+  description   String?           @db.Text
+  discountType  PromoDiscountType
+  /// Persen (mis. 10 = 10%) atau nominal Rupiah, tergantung discountType
+  discountValue Decimal           @db.Decimal(12, 2)
+  minSpend      Decimal           @default(0) @db.Decimal(12, 2)
+  maxDiscount   Decimal?          @db.Decimal(12, 2)
+  /// null = tanpa batas pemakaian
+  usageLimit    Int?
+  usageCount    Int               @default(0)
+  startDate     DateTime
+  endDate       DateTime
+  isActive      Boolean           @default(true)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([isActive])
+  @@index([endDate])
+}
+
+/// Kampanye diskon: diskon katalog, Paket Diskon (bundle) dan Paket Hadiah (gift).
+model DiscountCampaign {
+  id                String            @id @default(uuid()) @db.Uuid
+  name              String
+  description       String?           @db.Text
+  bannerText        String?
+  campaignType      PromoCampaignType @default(CATALOG_DISCOUNT)
+  discountType      PromoDiscountType @default(PERCENTAGE)
+  /// Persen atau nominal Rupiah (0 untuk Paket Hadiah)
+  discountValue     Decimal           @default(0) @db.Decimal(12, 2)
+  minSpend          Decimal?          @db.Decimal(12, 2)
+  maxDiscountAmount Decimal?          @db.Decimal(12, 2)
+  giftProductId     String?           @db.Uuid
+  giftProductName   String?
+  giftProductImage  String?
+  giftQuantity      Int               @default(1)
+  targetType        PromoTargetType   @default(ALL_PRODUCTS)
+  /// Array JSON berisi id kategori (string[])
+  targetCategoryIds Json              @default("[]")
+  /// Array JSON berisi id produk (string[])
+  targetProductIds  Json              @default("[]")
+  startDate         DateTime
+  endDate           DateTime
+  isActive          Boolean           @default(true)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([isActive, startDate, endDate])
+  @@index([campaignType])
+}

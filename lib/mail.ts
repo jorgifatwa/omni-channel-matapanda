@@ -329,12 +329,12 @@ export async function sendOrderConfirmationEmail(
     const transporter = getTransporter();
 
     if (!transporter) {
-      console.log(
-        `[Nodemailer Simulation] SMTP_USER/SMTP_PASSWORD belum dikonfigurasi di .env. Email untuk ${data.customerEmail} (Order ${data.orderNumber}) dicatat secara lokal.`
+      console.error(
+        `[Nodemailer] SMTP_USER/SMTP_PASSWORD belum dikonfigurasi. Email konfirmasi Order ${data.orderNumber} TIDAK dikirim.`
       );
       return {
-        success: true,
-        messageId: `simulated-${Date.now()}`,
+        success: false,
+        error: "Email belum dikonfigurasi (SMTP_USER/SMTP_PASSWORD kosong); email konfirmasi tidak dikirim.",
       };
     }
 

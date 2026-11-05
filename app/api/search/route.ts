@@ -38,12 +38,19 @@ export async function GET(req: Request) {
         name: p.name,
         slug: p.slug,
         sku: p.sku,
+        categoryId: p.categoryId,
         price: Number(p.price),
         discountPrice: p.discountPrice ? Number(p.discountPrice) : null,
         image: p.images[0]?.url || "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=600&q=80",
         categoryName: p.category?.name || "Apparel",
       }));
-      return NextResponse.json({ products: applyDiscountsToProducts(formatted, getActiveDiscounts()) });
+      let campaigns: Awaited<ReturnType<typeof getActiveDiscounts>> = [];
+      try {
+        campaigns = await getActiveDiscounts();
+      } catch (discountErr) {
+        console.error("[Search] Failed to load discount campaigns:", discountErr);
+      }
+      return NextResponse.json({ products: applyDiscountsToProducts(formatted, campaigns) });
     }
   } catch (err) {
     console.error("[Search] Database query failed:", err);

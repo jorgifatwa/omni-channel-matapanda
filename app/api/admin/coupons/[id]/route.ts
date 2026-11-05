@@ -1,24 +1,29 @@
 import { NextResponse } from "next/server";
 import {
+  DuplicateCouponCodeError,
   getCouponById,
   saveCoupon,
   deleteCoupon,
   toggleCouponActive,
 } from "@/lib/coupon-store";
+import { validateCouponBody } from "@/lib/coupon-admin-validation";
 
 export async function GET(
   req: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    const coupon = getCouponById(params.id);
+    const coupon = await getCouponById(params.id);
     if (!coupon) {
       return NextResponse.json({ error: "Kupon tidak ditemukan" }, { status: 404 });
     }
     return NextResponse.json({ coupon });
   } catch (error) {
     console.error("[AdminCouponsAPI] Failed to get coupon:", error);
-    return NextResponse.json({ error: "Gagal mengambil data kupon" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Gagal memuat data kupon dari database" },
+      { status: 503 }
+    );
   }
 }
 
@@ -26,12 +31,15 @@ export async function PUT(
   req: Request,
   { params }: { params: { id: string } }
 ) {
-  try {
-    const body = await req.json();
+  const body = await req.json().catch(() => null);
+  if (!body || typeof body !== "object") {
+    return NextResponse.json({ error: "Data kupon tidak valid" }, { status: 400 });
+  }
 
+  try {
     // Fast status toggle
     if (body.toggleOnly) {
-      const updated = toggleCouponActive(params.id, body.isActive);
+      const updated = await toggleCouponActive(params.id, body.isActive);
       if (!updated) {
         return NextResponse.json({ error: "Kupon tidak ditemukan" }, { status: 404 });
       }
@@ -42,20 +50,15 @@ export async function PUT(
       });
     }
 
-    const updated = saveCoupon({
-      id: params.id,
-      code: body.code,
-      name: body.name,
-      description: body.description,
-      discountType: body.discountType,
-      discountValue: Number(body.discountValue),
-      minSpend: Number(body.minSpend) || 0,
-      maxDiscount: body.maxDiscount ? Number(body.maxDiscount) : null,
-      usageLimit: body.usageLimit ? Number(body.usageLimit) : null,
-      startDate: body.startDate,
-      endDate: body.endDate,
-      isActive: body.isActive !== undefined ? Boolean(body.isActive) : true,
-    });
+    const validated = validateCouponBody(body);
+    if ("error" in validated) {
+      return NextResponse.json({ error: validated.error }, { status: 400 });
+    }
+
+    const updated = await saveCoupon({ ...validated.input, id: params.id });
+    if (!updated) {
+      return NextResponse.json({ error: "Kupon tidak ditemukan" }, { status: 404 });
+    }
 
     return NextResponse.json({
       success: true,
@@ -63,8 +66,14 @@ export async function PUT(
       message: "Kupon berhasil diperbarui",
     });
   } catch (error) {
+    if (error instanceof DuplicateCouponCodeError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
     console.error("[AdminCouponsAPI] Failed to update coupon:", error);
-    return NextResponse.json({ error: "Gagal memperbarui kupon" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Gagal memperbarui kupon: database tidak tersedia" },
+      { status: 503 }
+    );
   }
 }
 
@@ -73,13 +82,16 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const success = deleteCoupon(params.id);
+    const success = await deleteCoupon(params.id);
     if (!success) {
       return NextResponse.json({ error: "Kupon tidak ditemukan" }, { status: 404 });
     }
     return NextResponse.json({ success: true, message: "Kupon berhasil dihapus" });
   } catch (error) {
     console.error("[AdminCouponsAPI] Failed to delete coupon:", error);
-    return NextResponse.json({ error: "Gagal menghapus kupon" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Gagal menghapus kupon: database tidak tersedia" },
+      { status: 503 }
+    );
   }
 }

@@ -6,6 +6,7 @@ import {
   type AdminCategory,
   type AdminCustomer,
   type AdminOrder,
+  type AdminOrderItem,
   type AdminProduct,
   type AdminProductSeries,
 } from "@/lib/admin-data";
@@ -129,11 +130,32 @@ export async function persistOrder(order: AdminOrder): Promise<void> {
   }
 }
 
+export type CheckoutOrderPayload = Omit<AdminOrder, "items"> & {
+  /** Coupon code the customer applied; the server re-validates it. */
+  couponCode?: string | null;
+  items: (AdminOrderItem & { isGift?: boolean })[];
+};
+
+export type CheckoutOrderPricing = {
+  subtotal: number;
+  bundleDiscount: number;
+  bundleName: string | null;
+  couponCode: string | null;
+  couponDiscount: number;
+  discountAmount: number;
+  shippingCost: number;
+  totalAmount: number;
+};
+
 /**
  * Creates a NEW order from the storefront checkout via the public endpoint.
- * The server forces all statuses to PENDING. Throws when it was not saved.
+ * The server forces all statuses to PENDING and recomputes every price and
+ * total from the database. Returns the order as saved by the server (use its
+ * totals, not the cart's). Throws when it was not saved.
  */
-export async function createCheckoutOrder(order: AdminOrder): Promise<void> {
+export async function createCheckoutOrder(
+  order: CheckoutOrderPayload
+): Promise<{ order: AdminOrder; pricing: CheckoutOrderPricing }> {
   let res: Response;
   try {
     res = await fetch("/api/orders", {
@@ -153,6 +175,38 @@ export async function createCheckoutOrder(order: AdminOrder): Promise<void> {
         : `Gagal menyimpan pesanan (HTTP ${res.status}).`
     );
   }
+  const data = (await res.json().catch(() => ({}))) as {
+    order?: Partial<AdminOrder>;
+    pricing?: CheckoutOrderPricing;
+  };
+  if (!data.order || !data.pricing || !Array.isArray(data.order.items)) {
+    throw new Error("Gagal menyimpan pesanan: respons server tidak lengkap.");
+  }
+  const items: AdminOrderItem[] = data.order.items.map((it, idx) => ({
+    id: it.id || `oi-${idx}`,
+    productId: it.productId,
+    productName: it.productName,
+    sku: it.sku,
+    image: it.image || "",
+    size: it.size,
+    color: it.color,
+    unitPrice: Number(it.unitPrice) || 0,
+    quantity: Number(it.quantity) || 0,
+    subtotal: Number(it.subtotal) || 0,
+  }));
+  return {
+    order: {
+      ...order,
+      ...data.order,
+      id: data.order.id || order.id,
+      items,
+      subtotal: data.pricing.subtotal,
+      shippingCost: data.pricing.shippingCost,
+      discountAmount: data.pricing.discountAmount,
+      totalAmount: data.pricing.totalAmount,
+    } as AdminOrder,
+    pricing: data.pricing,
+  };
 }
 
 /**

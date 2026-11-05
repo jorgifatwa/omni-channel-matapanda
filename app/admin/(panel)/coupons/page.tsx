@@ -30,7 +30,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { formatIDR } from "@/lib/products";
-import { type Coupon, type CouponDiscountType } from "@/lib/coupon-store";
+import { type Coupon, type CouponDiscountType } from "@/lib/coupon-types";
+import { adminFetchJson, adminRequestJson, errorMessage as readError } from "@/lib/admin-request";
 
 export default function AdminCouponsPage() {
   const [coupons, setCoupons] = React.useState<Coupon[]>([]);
@@ -56,6 +57,8 @@ export default function AdminCouponsPage() {
   const [endDate, setEndDate] = React.useState("");
   const [isActive, setIsActive] = React.useState(true);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+  const [loadError, setLoadError] = React.useState<string | null>(null);
+  const [actionError, setActionError] = React.useState<string | null>(null);
 
   // Delete State
   const [deleteConfirmId, setDeleteConfirmId] = React.useState<string | null>(null);
@@ -67,13 +70,13 @@ export default function AdminCouponsPage() {
   const fetchCoupons = React.useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/admin/coupons");
-      const data = await res.json();
-      if (data.coupons) {
-        setCoupons(data.coupons);
-      }
+      setLoadError(null);
+      const data = await adminFetchJson<{ coupons?: Coupon[] }>("/api/admin/coupons", "kupon");
+      setCoupons(Array.isArray(data.coupons) ? data.coupons : []);
     } catch (err) {
       console.error("Failed to load coupons:", err);
+      setCoupons([]);
+      setLoadError(readError(err, "Gagal memuat kupon dari database."));
     } finally {
       setLoading(false);
     }
@@ -178,18 +181,19 @@ export default function AdminCouponsPage() {
   // Toggle Active Status
   const handleToggleStatus = async (id: string, current: boolean) => {
     try {
-      const res = await fetch(`/api/admin/coupons/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ toggleOnly: true, isActive: !current }),
-      });
-      if (res.ok) {
-        setCoupons((prev) =>
-          prev.map((c) => (c.id === id ? { ...c, isActive: !current } : c))
-        );
-      }
+      setActionError(null);
+      await adminRequestJson(
+        `/api/admin/coupons/${id}`,
+        "PUT",
+        { toggleOnly: true, isActive: !current },
+        "status kupon"
+      );
+      setCoupons((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, isActive: !current } : c))
+      );
     } catch (err) {
       console.error("Failed to toggle coupon status:", err);
+      setActionError(readError(err, "Gagal mengubah status kupon."));
     }
   };
 
@@ -235,23 +239,13 @@ export default function AdminCouponsPage() {
       const url = editingId ? `/api/admin/coupons/${editingId}` : "/api/admin/coupons";
       const method = editingId ? "PUT" : "POST";
 
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        setErrorMessage(data.error || "Gagal menyimpan kupon.");
-        return;
-      }
+      await adminRequestJson(url, method, payload, "kupon");
 
       setModalOpen(false);
       fetchCoupons();
     } catch (err) {
       console.error("Submit error:", err);
-      setErrorMessage("Terjadi kesalahan saat menyimpan kupon.");
+      setErrorMessage(readError(err, "Terjadi kesalahan saat menyimpan kupon."));
     } finally {
       setIsSubmitting(false);
     }
@@ -262,15 +256,19 @@ export default function AdminCouponsPage() {
     if (!deleteConfirmId) return;
     try {
       setIsDeleting(true);
-      const res = await fetch(`/api/admin/coupons/${deleteConfirmId}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        setCoupons((prev) => prev.filter((c) => c.id !== deleteConfirmId));
-        setDeleteConfirmId(null);
-      }
+      setActionError(null);
+      await adminRequestJson(
+        `/api/admin/coupons/${deleteConfirmId}`,
+        "DELETE",
+        null,
+        "perubahan (hapus kupon)"
+      );
+      setCoupons((prev) => prev.filter((c) => c.id !== deleteConfirmId));
+      setDeleteConfirmId(null);
     } catch (err) {
       console.error("Delete error:", err);
+      setDeleteConfirmId(null);
+      setActionError(readError(err, "Gagal menghapus kupon."));
     } finally {
       setIsDeleting(false);
     }
@@ -309,6 +307,17 @@ export default function AdminCouponsPage() {
           <span>Buat Kupon Baru</span>
         </Button>
       </div>
+
+      {loadError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+          {loadError} Data yang tampil mungkin tidak lengkap. Coba muat ulang halaman.
+        </div>
+      )}
+      {actionError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+          {actionError}
+        </div>
+      )}
 
       {/* KPI Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

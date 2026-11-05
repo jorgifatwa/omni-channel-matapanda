@@ -14,7 +14,21 @@ export async function POST(req: Request) {
     }
 
     const currentSubtotal = typeof subtotal === "number" ? subtotal : Number(subtotal) || 0;
-    const result = validateAndApplyCoupon(code, currentSubtotal);
+    let result;
+    try {
+      result = await validateAndApplyCoupon(code, currentSubtotal);
+    } catch (dbErr) {
+      console.error("[CouponValidateAPI] Database error:", dbErr);
+      return NextResponse.json(
+        {
+          valid: false,
+          error: "Kupon tidak dapat diperiksa karena database tidak tersedia. Silakan coba lagi.",
+          message: "Kupon tidak dapat diperiksa karena database tidak tersedia. Silakan coba lagi.",
+          discountAmount: 0,
+        },
+        { status: 503 }
+      );
+    }
 
     if (!result.valid) {
       return NextResponse.json(result, { status: 400 });

@@ -8,6 +8,7 @@ import { decryptToken } from "@/lib/marketplace-crypto";
 import { buildShopeeSign, SHOPEE_BASE_URL } from "@/lib/shopee-oauth";
 import { updateTikTokShopStock } from "@/lib/tiktokshop-products";
 import { prisma } from "@/lib/prisma";
+import { verifyShopeePush } from "@/lib/webhook-signature";
 
 /**
  * POST /api/integrations/shopee/webhook
@@ -41,6 +42,14 @@ interface ShopeeWebhookPayload {
 export async function POST(request: Request) {
   try {
     const rawBody = await request.text();
+
+    // Reject anything not signed by the marketplace BEFORE touching the payload / DB.
+    const verification = verifyShopeePush(rawBody, request.headers.get("authorization"));
+    if (!verification.ok) {
+      console.warn(`[Shopee Webhook] Rejected push: ${verification.reason}`);
+      return NextResponse.json({ error: "Signature tidak valid" }, { status: verification.status });
+    }
+
     let body: ShopeeWebhookPayload = {};
     try {
       body = JSON.parse(rawBody);

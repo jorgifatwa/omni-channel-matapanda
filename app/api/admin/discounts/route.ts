@@ -7,6 +7,13 @@ import {
   type DiscountCampaign,
 } from "@/lib/discount-store";
 
+function isUuid(id: unknown): id is string {
+  return (
+    typeof id === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+  );
+}
+
 /**
  * GET /api/admin/discounts
  * List all promotional discount campaigns
@@ -18,7 +25,7 @@ export async function GET() {
   }
 
   try {
-    const discounts = getAllDiscounts();
+    const discounts = await getAllDiscounts();
     const nowIso = new Date().toISOString();
 
     const activeCount = discounts.filter(
@@ -40,7 +47,10 @@ export async function GET() {
     });
   } catch (error) {
     console.error("[Admin Discounts GET] Error:", error);
-    return NextResponse.json({ error: "Gagal mengambil data diskon" }, { status: 500 });
+    return NextResponse.json(
+      { discounts: [], error: "Gagal memuat data diskon dari database" },
+      { status: 503 }
+    );
   }
 }
 
@@ -54,8 +64,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const body = (await request.json().catch(() => null)) as Partial<DiscountCampaign> | null;
+  if (!body || typeof body !== "object") {
+    return NextResponse.json({ error: "Data diskon tidak valid" }, { status: 400 });
+  }
+
   try {
-    const body = (await request.json()) as Partial<DiscountCampaign>;
 
     const isGift = body.campaignType === "GIFT_PACKAGE";
 
@@ -66,9 +80,16 @@ export async function POST(request: Request) {
       );
     }
 
-    if (isGift && !body.giftProductId) {
+    if (isGift && !isUuid(body.giftProductId)) {
       return NextResponse.json(
-        { error: "Pilih produk hadiah untuk Paket Hadiah" },
+        { error: "Pilih produk hadiah (dari database) untuk Paket Hadiah" },
+        { status: 400 }
+      );
+    }
+
+    if (body.startDate && body.endDate && new Date(body.endDate) < new Date(body.startDate)) {
+      return NextResponse.json(
+        { error: "Tanggal berakhir harus setelah tanggal mulai" },
         { status: 400 }
       );
     }
@@ -96,7 +117,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const saved = saveDiscount({
+    const saved = await saveDiscount({
       id: body.id,
       name: body.name,
       description: body.description || "",
@@ -118,6 +139,10 @@ export async function POST(request: Request) {
       isActive: body.isActive !== undefined ? body.isActive : true,
     });
 
+    if (!saved) {
+      return NextResponse.json({ error: "Diskon tidak ditemukan" }, { status: 404 });
+    }
+
     return NextResponse.json({
       success: true,
       message: `Kampanye diskon "${saved.name}" berhasil disimpan!`,
@@ -125,6 +150,9 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("[Admin Discounts POST] Error:", error);
-    return NextResponse.json({ error: "Gagal menyimpan kampanye diskon" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Gagal menyimpan kampanye diskon: database tidak tersedia" },
+      { status: 503 }
+    );
   }
 }

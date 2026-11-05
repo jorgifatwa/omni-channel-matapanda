@@ -22,12 +22,19 @@ export async function GET(request: Request, { params }: Params) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const discount = getDiscountById(params.id);
-  if (!discount) {
-    return NextResponse.json({ error: "Diskon tidak ditemukan" }, { status: 404 });
+  try {
+    const discount = await getDiscountById(params.id);
+    if (!discount) {
+      return NextResponse.json({ error: "Diskon tidak ditemukan" }, { status: 404 });
+    }
+    return NextResponse.json({ success: true, discount });
+  } catch (error) {
+    console.error("[Admin Discounts GET id] Error:", error);
+    return NextResponse.json(
+      { error: "Gagal memuat data diskon dari database" },
+      { status: 503 }
+    );
   }
-
-  return NextResponse.json({ success: true, discount });
 }
 
 /**
@@ -39,12 +46,18 @@ export async function PUT(request: Request, { params }: Params) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const body = (await request.json().catch(() => null)) as
+    | (Partial<DiscountCampaign> & { toggleOnly?: boolean })
+    | null;
+  if (!body || typeof body !== "object") {
+    return NextResponse.json({ error: "Data diskon tidak valid" }, { status: 400 });
+  }
+
   try {
-    const body = (await request.json()) as Partial<DiscountCampaign> & { toggleOnly?: boolean };
 
     // If quick toggle active state
     if (body.toggleOnly) {
-      const toggled = toggleDiscountActive(params.id, body.isActive);
+      const toggled = await toggleDiscountActive(params.id, body.isActive);
       if (!toggled) {
         return NextResponse.json({ error: "Diskon tidak ditemukan" }, { status: 404 });
       }
@@ -55,16 +68,19 @@ export async function PUT(request: Request, { params }: Params) {
       });
     }
 
-    const existing = getDiscountById(params.id);
+    const existing = await getDiscountById(params.id);
     if (!existing) {
       return NextResponse.json({ error: "Diskon tidak ditemukan" }, { status: 404 });
     }
 
-    const updated = saveDiscount({
+    const updated = await saveDiscount({
       ...existing,
       ...body,
       id: params.id,
     });
+    if (!updated) {
+      return NextResponse.json({ error: "Diskon tidak ditemukan" }, { status: 404 });
+    }
 
     return NextResponse.json({
       success: true,
@@ -73,7 +89,10 @@ export async function PUT(request: Request, { params }: Params) {
     });
   } catch (error) {
     console.error("[Admin Discounts PUT] Error:", error);
-    return NextResponse.json({ error: "Gagal memperbarui kampanye diskon" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Gagal memperbarui kampanye diskon: database tidak tersedia" },
+      { status: 503 }
+    );
   }
 }
 
@@ -87,7 +106,7 @@ export async function DELETE(request: Request, { params }: Params) {
   }
 
   try {
-    const success = deleteDiscount(params.id);
+    const success = await deleteDiscount(params.id);
     if (!success) {
       return NextResponse.json({ error: "Diskon tidak ditemukan" }, { status: 404 });
     }
@@ -98,6 +117,9 @@ export async function DELETE(request: Request, { params }: Params) {
     });
   } catch (error) {
     console.error("[Admin Discounts DELETE] Error:", error);
-    return NextResponse.json({ error: "Gagal menghapus diskon" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Gagal menghapus diskon: database tidak tersedia" },
+      { status: 503 }
+    );
   }
 }

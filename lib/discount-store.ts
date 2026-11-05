@@ -1,139 +1,150 @@
 /**
  * discount-store.ts
  *
- * Resilient JSON-backed storage for it's matapanda promotional discount campaigns.
- * Persists to data/discounts.json.
+ * Database-backed (Prisma) storage for promotional discount campaigns.
+ * Server-only. There is no file fallback and no sample data: an empty table
+ * means there are no campaigns, and database errors are thrown to the caller.
  */
 
-import fs from "fs";
-import path from "path";
+import { type DiscountCampaign as DbDiscountCampaign, type Prisma } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 
 export * from "@/lib/discount-types";
-import { type DiscountCampaign } from "@/lib/discount-types";
+import {
+  type CampaignType,
+  type DiscountCampaign,
+  type DiscountTargetType,
+  type DiscountType,
+} from "@/lib/discount-types";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const DISCOUNTS_FILE = path.join(DATA_DIR, "discounts.json");
+export type DiscountCampaignInput = Omit<DiscountCampaign, "id" | "createdAt" | "updatedAt"> & {
+  id?: string;
+};
 
-function ensureFileExists(): void {
-  try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-    if (!fs.existsSync(DISCOUNTS_FILE)) {
-      // Seed with initial example campaign if desired
-      fs.writeFileSync(DISCOUNTS_FILE, JSON.stringify([], null, 2), "utf-8");
-    }
-  } catch (err) {
-    console.warn("[DiscountStore] Failed to ensure discounts file:", err);
-  }
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isUuid(id: unknown): id is string {
+  return typeof id === "string" && UUID_RE.test(id);
 }
 
-export function getAllDiscounts(): DiscountCampaign[] {
-  ensureFileExists();
-  try {
-    const raw = fs.readFileSync(DISCOUNTS_FILE, "utf-8");
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+function toStringArray(value: Prisma.JsonValue | unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
 }
 
-export function getActiveDiscounts(now = new Date()): DiscountCampaign[] {
-  const all = getAllDiscounts();
-  const nowIso = now.toISOString();
+function toCampaign(row: DbDiscountCampaign): DiscountCampaign {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description || "",
+    bannerText: row.bannerText || "",
+    campaignType: row.campaignType as CampaignType,
+    discountType: row.discountType as DiscountType,
+    discountValue: Number(row.discountValue),
+    minSpend: row.minSpend !== null ? Number(row.minSpend) : undefined,
+    maxDiscountAmount: row.maxDiscountAmount !== null ? Number(row.maxDiscountAmount) : null,
+    giftProductId: row.giftProductId,
+    giftProductName: row.giftProductName,
+    giftProductImage: row.giftProductImage,
+    giftQuantity: row.giftQuantity,
+    targetType: row.targetType as DiscountTargetType,
+    targetCategoryIds: toStringArray(row.targetCategoryIds),
+    targetProductIds: toStringArray(row.targetProductIds),
+    startDate: row.startDate.toISOString(),
+    endDate: row.endDate.toISOString(),
+    isActive: row.isActive,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
 
-  return all.filter((d) => {
-    if (!d.isActive) return false;
-    if (d.startDate && d.startDate > nowIso) return false;
-    if (d.endDate && d.endDate < nowIso) return false;
-    return true;
+function toDate(value: string | undefined | null, fallback: Date): Date {
+  if (!value) return fallback;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? fallback : d;
+}
+
+export async function getAllDiscounts(): Promise<DiscountCampaign[]> {
+  const rows = await prisma.discountCampaign.findMany({ orderBy: { createdAt: "desc" } });
+  return rows.map(toCampaign);
+}
+
+/** Campaigns that are switched on and inside their schedule right now. */
+export async function getActiveDiscounts(now = new Date()): Promise<DiscountCampaign[]> {
+  const rows = await prisma.discountCampaign.findMany({
+    where: {
+      isActive: true,
+      startDate: { lte: now },
+      endDate: { gte: now },
+    },
+    orderBy: { createdAt: "desc" },
   });
+  return rows.map(toCampaign);
 }
 
-export function getDiscountById(id: string): DiscountCampaign | null {
-  const all = getAllDiscounts();
-  return all.find((d) => d.id === id) || null;
+export async function getDiscountById(id: string): Promise<DiscountCampaign | null> {
+  if (!isUuid(id)) return null;
+  const row = await prisma.discountCampaign.findUnique({ where: { id } });
+  return row ? toCampaign(row) : null;
 }
 
-export function saveDiscount(
-  campaign: Omit<DiscountCampaign, "id" | "createdAt" | "updatedAt"> & { id?: string }
-): DiscountCampaign {
-  ensureFileExists();
-  const all = getAllDiscounts();
-  const nowIso = new Date().toISOString();
-  const id = campaign.id || `disc-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-
-  const existingIdx = all.findIndex((d) => d.id === id);
-
-  const newEntry: DiscountCampaign = {
-    id,
+/**
+ * Create (no id) or update (id) a campaign.
+ * Returns null when updating a campaign id that does not exist.
+ */
+export async function saveDiscount(campaign: DiscountCampaignInput): Promise<DiscountCampaign | null> {
+  const now = new Date();
+  const data = {
     name: campaign.name.trim(),
-    description: campaign.description?.trim() || "",
-    bannerText: campaign.bannerText?.trim() || "",
+    description: campaign.description?.trim() || null,
+    bannerText: campaign.bannerText?.trim() || null,
     campaignType: campaign.campaignType || "CATALOG_DISCOUNT",
-    discountType: campaign.discountType,
+    discountType: campaign.discountType || "PERCENTAGE",
     discountValue: Number(campaign.discountValue) || 0,
-    minSpend: campaign.minSpend !== undefined ? Number(campaign.minSpend) : undefined,
+    minSpend:
+      campaign.minSpend !== undefined && campaign.minSpend !== null && !Number.isNaN(Number(campaign.minSpend))
+        ? Number(campaign.minSpend)
+        : null,
     maxDiscountAmount: campaign.maxDiscountAmount ? Number(campaign.maxDiscountAmount) : null,
-    giftProductId: campaign.giftProductId || null,
+    giftProductId: isUuid(campaign.giftProductId) ? campaign.giftProductId : null,
     giftProductName: campaign.giftProductName || null,
     giftProductImage: campaign.giftProductImage || null,
-    giftQuantity: campaign.giftQuantity ? Number(campaign.giftQuantity) : 1,
-    targetType: campaign.targetType,
-    targetCategoryIds: Array.isArray(campaign.targetCategoryIds) ? campaign.targetCategoryIds : [],
-    targetProductIds: Array.isArray(campaign.targetProductIds) ? campaign.targetProductIds : [],
-    startDate: campaign.startDate || nowIso,
-    endDate: campaign.endDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-    isActive: campaign.isActive !== undefined ? campaign.isActive : true,
-    createdAt: existingIdx >= 0 ? all[existingIdx].createdAt : nowIso,
-    updatedAt: nowIso,
+    giftQuantity: campaign.giftQuantity ? Math.max(1, Math.floor(Number(campaign.giftQuantity))) : 1,
+    targetType: campaign.targetType || "ALL_PRODUCTS",
+    targetCategoryIds: toStringArray(campaign.targetCategoryIds),
+    targetProductIds: toStringArray(campaign.targetProductIds),
+    startDate: toDate(campaign.startDate, now),
+    endDate: toDate(campaign.endDate, new Date(now.getTime() + 30 * 86400000)),
+    isActive: campaign.isActive !== undefined ? Boolean(campaign.isActive) : true,
   };
 
-  if (existingIdx >= 0) {
-    all[existingIdx] = newEntry;
-  } else {
-    all.unshift(newEntry);
+  if (campaign.id) {
+    if (!isUuid(campaign.id)) return null;
+    const existing = await prisma.discountCampaign.findUnique({ where: { id: campaign.id } });
+    if (!existing) return null;
+    const row = await prisma.discountCampaign.update({ where: { id: campaign.id }, data });
+    return toCampaign(row);
   }
 
-  try {
-    fs.writeFileSync(DISCOUNTS_FILE, JSON.stringify(all, null, 2), "utf-8");
-  } catch (err) {
-    console.error("[DiscountStore] Failed to write discounts:", err);
-  }
-
-  return newEntry;
+  const row = await prisma.discountCampaign.create({ data });
+  return toCampaign(row);
 }
 
-export function deleteDiscount(id: string): boolean {
-  ensureFileExists();
-  const all = getAllDiscounts();
-  const filtered = all.filter((d) => d.id !== id);
-  if (filtered.length === all.length) return false;
-
-  try {
-    fs.writeFileSync(DISCOUNTS_FILE, JSON.stringify(filtered, null, 2), "utf-8");
-    return true;
-  } catch (err) {
-    console.error("[DiscountStore] Failed to delete discount:", err);
-    return false;
-  }
+export async function deleteDiscount(id: string): Promise<boolean> {
+  if (!isUuid(id)) return false;
+  const result = await prisma.discountCampaign.deleteMany({ where: { id } });
+  return result.count > 0;
 }
 
-export function toggleDiscountActive(id: string, isActive?: boolean): DiscountCampaign | null {
-  ensureFileExists();
-  const all = getAllDiscounts();
-  const item = all.find((d) => d.id === id);
-  if (!item) return null;
-
-  item.isActive = isActive !== undefined ? isActive : !item.isActive;
-  item.updatedAt = new Date().toISOString();
-
-  try {
-    fs.writeFileSync(DISCOUNTS_FILE, JSON.stringify(all, null, 2), "utf-8");
-  } catch (err) {
-    console.error("[DiscountStore] Failed to update discount status:", err);
-  }
-
-  return item;
+export async function toggleDiscountActive(
+  id: string,
+  isActive?: boolean
+): Promise<DiscountCampaign | null> {
+  if (!isUuid(id)) return null;
+  const existing = await prisma.discountCampaign.findUnique({ where: { id } });
+  if (!existing) return null;
+  const row = await prisma.discountCampaign.update({
+    where: { id },
+    data: { isActive: isActive !== undefined ? Boolean(isActive) : !existing.isActive },
+  });
+  return toCampaign(row);
 }

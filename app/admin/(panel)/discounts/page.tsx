@@ -39,7 +39,8 @@ import {
   type DiscountType,
   type DiscountTargetType,
   type CampaignType,
-} from "@/lib/discount-store";
+} from "@/lib/discount-types";
+import { adminFetchJson, adminRequestJson, errorMessage } from "@/lib/admin-request";
 
 export default function AdminDiscountsPage() {
   const { products, categories } = useAdminStore();
@@ -86,19 +87,22 @@ export default function AdminDiscountsPage() {
     setTimeout(() => setToast(null), 4000);
   };
 
+  const [loadError, setLoadError] = React.useState<string | null>(null);
+  const [formError, setFormError] = React.useState<string | null>(null);
+
   // Load Discounts
   const loadDiscounts = React.useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/admin/discounts");
-      if (res.ok) {
-        const json = await res.json();
-        setDiscounts(json.discounts || []);
-      } else {
-        showToast("error", "Gagal memuat daftar diskon");
-      }
-    } catch {
-      showToast("error", "Koneksi terputus saat mengambil data");
+      setLoadError(null);
+      const json = await adminFetchJson<{ discounts?: DiscountCampaign[] }>(
+        "/api/admin/discounts",
+        "kampanye diskon"
+      );
+      setDiscounts(Array.isArray(json.discounts) ? json.discounts : []);
+    } catch (err) {
+      setDiscounts([]);
+      setLoadError(errorMessage(err, "Gagal memuat kampanye diskon dari database."));
     } finally {
       setLoading(false);
     }
@@ -111,6 +115,7 @@ export default function AdminDiscountsPage() {
   // Open Create Modal
   const handleOpenCreate = () => {
     setEditingId(null);
+    setFormError(null);
     setCampaignType("CATALOG_DISCOUNT");
     setName("");
     setDescription("");
@@ -140,6 +145,7 @@ export default function AdminDiscountsPage() {
   // Open Edit Modal
   const handleOpenEdit = (d: DiscountCampaign) => {
     setEditingId(d.id);
+    setFormError(null);
     setCampaignType(d.campaignType || "CATALOG_DISCOUNT");
     setName(d.name);
     setDescription(d.description || "");
@@ -166,21 +172,18 @@ export default function AdminDiscountsPage() {
   // Quick Toggle Active
   const handleToggleActive = async (id: string, current: boolean) => {
     try {
-      const res = await fetch(`/api/admin/discounts/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ toggleOnly: true, isActive: !current }),
-      });
-      if (res.ok) {
-        setDiscounts((prev) =>
-          prev.map((item) => (item.id === id ? { ...item, isActive: !current } : item))
-        );
-        showToast("success", `Status promo berhasil diubah menjadi ${!current ? "Aktif" : "Nonaktif"}.`);
-      } else {
-        showToast("error", "Gagal memperbarui status diskon");
-      }
-    } catch {
-      showToast("error", "Terjadi kesalahan jaringan");
+      await adminRequestJson(
+        `/api/admin/discounts/${id}`,
+        "PUT",
+        { toggleOnly: true, isActive: !current },
+        "status diskon"
+      );
+      setDiscounts((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, isActive: !current } : item))
+      );
+      showToast("success", `Status promo berhasil diubah menjadi ${!current ? "Aktif" : "Nonaktif"}.`);
+    } catch (err) {
+      showToast("error", errorMessage(err, "Gagal memperbarui status diskon"));
     }
   };
 
@@ -188,15 +191,11 @@ export default function AdminDiscountsPage() {
   const handleDelete = async (id: string, campaignName: string) => {
     if (!confirm(`Hapus kampanye diskon "${campaignName}"?`)) return;
     try {
-      const res = await fetch(`/api/admin/discounts/${id}`, { method: "DELETE" });
-      if (res.ok) {
-        setDiscounts((prev) => prev.filter((d) => d.id !== id));
-        showToast("info", `Kampanye diskon "${campaignName}" telah dihapus.`);
-      } else {
-        showToast("error", "Gagal menghapus diskon");
-      }
-    } catch {
-      showToast("error", "Terjadi kesalahan jaringan");
+      await adminRequestJson(`/api/admin/discounts/${id}`, "DELETE", null, "perubahan (hapus diskon)");
+      setDiscounts((prev) => prev.filter((d) => d.id !== id));
+      showToast("info", `Kampanye diskon "${campaignName}" telah dihapus.`);
+    } catch (err) {
+      showToast("error", errorMessage(err, "Gagal menghapus diskon"));
     }
   };
 
@@ -248,6 +247,7 @@ export default function AdminDiscountsPage() {
 
     try {
       setIsSubmitting(true);
+      setFormError(null);
       const payload = {
         id: editingId || undefined,
         name: name.trim(),
@@ -270,22 +270,19 @@ export default function AdminDiscountsPage() {
         isActive,
       };
 
-      const res = await fetch("/api/admin/discounts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const json = await res.json();
-      if (res.ok) {
-        showToast("success", json.message || "Diskon berhasil disimpan!");
-        setModalOpen(false);
-        await loadDiscounts();
-      } else {
-        showToast("error", json.error || "Gagal menyimpan diskon");
-      }
-    } catch {
-      showToast("error", "Gagal menghubungi server");
+      const json = await adminRequestJson<{ message?: string }>(
+        "/api/admin/discounts",
+        "POST",
+        payload,
+        "kampanye diskon"
+      );
+      showToast("success", json.message || "Diskon berhasil disimpan!");
+      setModalOpen(false);
+      await loadDiscounts();
+    } catch (err) {
+      const message = errorMessage(err, "Gagal menyimpan diskon");
+      setFormError(message);
+      showToast("error", message);
     } finally {
       setIsSubmitting(false);
     }
@@ -365,6 +362,12 @@ export default function AdminDiscountsPage() {
             <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
           )}
           <span>{toast.message}</span>
+        </div>
+      )}
+
+      {loadError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+          {loadError} Data yang tampil mungkin tidak lengkap. Coba muat ulang halaman.
         </div>
       )}
 
@@ -1300,6 +1303,11 @@ export default function AdminDiscountsPage() {
               <Switch checked={isActive} onCheckedChange={setIsActive} />
             </div>
 
+            {formError && (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+                {formError}
+              </div>
+            )}
             <DialogFooter className="gap-2 sm:gap-0 pt-2">
               <Button type="button" variant="outline" size="sm" onClick={() => setModalOpen(false)}>
                 Batal

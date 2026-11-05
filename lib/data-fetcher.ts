@@ -6,7 +6,21 @@ import {
 } from "@/lib/discount-engine";
 import { getActiveDiscounts } from "@/lib/discount-store";
 
-function applyDiscountsToProducts<
+/**
+ * Active campaigns for storefront display. If the campaign table cannot be
+ * read, products are still shown (at their regular database price) and the
+ * error is logged; checkout recomputes prices server-side and fails loudly.
+ */
+async function loadActiveDiscountsForDisplay() {
+  try {
+    return await getActiveDiscounts();
+  } catch (error) {
+    console.error("[Storefront] Failed to load discount campaigns from database:", error);
+    return [];
+  }
+}
+
+async function applyDiscountsToProducts<
   T extends {
     id: string;
     price: number | string;
@@ -15,10 +29,10 @@ function applyDiscountsToProducts<
     category?: { id: string } | null;
   }
 >(products: T[]) {
-  return applyDiscountsPure(products, getActiveDiscounts());
+  return applyDiscountsPure(products, await loadActiveDiscountsForDisplay());
 }
 
-function applyDiscountToSingleProduct<
+async function applyDiscountToSingleProduct<
   T extends {
     id: string;
     price: number | string;
@@ -27,7 +41,7 @@ function applyDiscountToSingleProduct<
     category?: { id: string } | null;
   }
 >(product: T) {
-  return applyDiscountSinglePure(product, getActiveDiscounts());
+  return applyDiscountSinglePure(product, await loadActiveDiscountsForDisplay());
 }
 
 export type StorefrontBrand = {
@@ -228,7 +242,7 @@ export async function getNewArrivalProducts(): Promise<StorefrontProduct[]> {
     });
 
     if (products && products.length > 0) {
-      return applyDiscountsToProducts(products.map((p) => formatPrismaProduct(p)));
+      return await applyDiscountsToProducts(products.map((p) => formatPrismaProduct(p)));
     }
   } catch (error) {
     console.error("[Storefront] Failed to load new arrivals from database:", error);
@@ -255,7 +269,7 @@ export async function getAllStorefrontProducts(): Promise<StorefrontProduct[]> {
     });
 
     if (products && products.length > 0) {
-      return applyDiscountsToProducts(products.map((p) => formatPrismaProduct(p)));
+      return await applyDiscountsToProducts(products.map((p) => formatPrismaProduct(p)));
     }
   } catch (error) {
     console.error("[Storefront] Failed to load all products from database:", error);
@@ -292,7 +306,7 @@ export async function getProductsByBrandSlug(
           slug: brand.slug,
           logoUrl: brand.logoUrl,
         },
-        products: applyDiscountsToProducts(brand.products.map((p) => formatPrismaProduct(p))),
+        products: await applyDiscountsToProducts(brand.products.map((p) => formatPrismaProduct(p))),
       };
     }
   } catch (error) {
@@ -338,7 +352,7 @@ export async function getProductsByCategorySlug(
           slug: category.slug,
           parentId: category.parentId,
         },
-        products: applyDiscountsToProducts(products.map((p) => formatPrismaProduct(p))),
+        products: await applyDiscountsToProducts(products.map((p) => formatPrismaProduct(p))),
       };
     }
   } catch (error) {
@@ -412,7 +426,7 @@ export async function getProductBySlugOrId(
         }));
       }
 
-      return applyDiscountToSingleProduct(
+      return await applyDiscountToSingleProduct(
         formatPrismaProduct(product, seriesProducts)
       );
     }

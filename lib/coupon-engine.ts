@@ -5,7 +5,18 @@
  * Supports stacking on top of already discounted catalog items (double discount).
  */
 
-import { type Coupon, getCouponByCode } from "@/lib/coupon-store";
+import { getCouponByCode } from "@/lib/coupon-store";
+import { type Coupon } from "@/lib/coupon-types";
+
+/** Why a coupon was rejected (undefined when valid). */
+export type CouponRejectReason =
+  | "EMPTY"
+  | "NOT_FOUND"
+  | "INACTIVE"
+  | "NOT_STARTED"
+  | "EXPIRED"
+  | "QUOTA_EXHAUSTED"
+  | "MIN_SPEND";
 
 export interface CouponValidationResult {
   valid: boolean;
@@ -21,12 +32,32 @@ export interface CouponValidationResult {
   };
   discountAmount: number;
   subtotalAfterCoupon: number;
+  reason?: CouponRejectReason;
 }
 
-export function validateAndApplyCoupon(
+/**
+ * Looks the coupon up in the database and evaluates it against the subtotal.
+ * Throws when the database cannot be reached.
+ */
+export async function validateAndApplyCoupon(
+  rawCode: string,
+  subtotal: number
+): Promise<CouponValidationResult> {
+  const coupon = rawCode && rawCode.trim() ? await getCouponByCode(rawCode) : null;
+  return evaluateCoupon(rawCode, subtotal, coupon);
+}
+
+/**
+ * Pure coupon evaluation.
+ * - `subtotal` is used for the minimum-spend check.
+ * - `discountBase` (defaults to `subtotal`) is the amount the coupon discount is
+ *   calculated on, e.g. the subtotal after a bundle discount (mirrors the cart).
+ */
+export function evaluateCoupon(
   rawCode: string,
   subtotal: number,
-  customCoupon?: Coupon | null
+  coupon: Coupon | null,
+  discountBase: number = subtotal
 ): CouponValidationResult {
   if (!rawCode || !rawCode.trim()) {
     return {
@@ -34,10 +65,9 @@ export function validateAndApplyCoupon(
       message: "Silakan masukkan kode kupon.",
       discountAmount: 0,
       subtotalAfterCoupon: subtotal,
+      reason: "EMPTY",
     };
   }
-
-  const coupon = customCoupon !== undefined ? customCoupon : getCouponByCode(rawCode);
 
   if (!coupon) {
     return {
@@ -45,6 +75,7 @@ export function validateAndApplyCoupon(
       message: `Kode kupon "${rawCode.trim().toUpperCase()}" tidak ditemukan atau tidak valid.`,
       discountAmount: 0,
       subtotalAfterCoupon: subtotal,
+      reason: "NOT_FOUND",
     };
   }
 
@@ -55,6 +86,7 @@ export function validateAndApplyCoupon(
       message: `Kupon "${coupon.code}" saat ini sedang dinonaktifkan.`,
       discountAmount: 0,
       subtotalAfterCoupon: subtotal,
+      reason: "INACTIVE",
     };
   }
 
@@ -73,6 +105,7 @@ export function validateAndApplyCoupon(
       message: `Kupon "${coupon.code}" belum berlaku (mulai aktif ${startStr}).`,
       discountAmount: 0,
       subtotalAfterCoupon: subtotal,
+      reason: "NOT_STARTED",
     };
   }
 
@@ -82,6 +115,7 @@ export function validateAndApplyCoupon(
       message: `Kupon "${coupon.code}" sudah kedaluwarsa.`,
       discountAmount: 0,
       subtotalAfterCoupon: subtotal,
+      reason: "EXPIRED",
     };
   }
 
@@ -93,6 +127,7 @@ export function validateAndApplyCoupon(
         message: `Kuota penggunaan kupon "${coupon.code}" sudah habis.`,
         discountAmount: 0,
         subtotalAfterCoupon: subtotal,
+      reason: "QUOTA_EXHAUSTED",
       };
     }
   }
@@ -110,24 +145,27 @@ export function validateAndApplyCoupon(
       message: `Minimal belanja untuk menggunakan kupon ini adalah ${formattedMin}.`,
       discountAmount: 0,
       subtotalAfterCoupon: subtotal,
+      reason: "MIN_SPEND",
     };
   }
 
   // 5. Calculate Discount Amount
   let discountAmount = 0;
 
+  const base = Math.max(0, discountBase);
+
   if (coupon.discountType === "PERCENTAGE") {
-    discountAmount = Math.round(subtotal * (coupon.discountValue / 100));
+    discountAmount = Math.round(base * (coupon.discountValue / 100));
     if (coupon.maxDiscount && coupon.maxDiscount > 0) {
       discountAmount = Math.min(discountAmount, coupon.maxDiscount);
     }
   } else if (coupon.discountType === "FIXED_AMOUNT") {
-    discountAmount = Math.min(subtotal, coupon.discountValue);
+    discountAmount = Math.min(base, coupon.discountValue);
   }
 
-  // Ensure discount doesn't exceed subtotal
-  discountAmount = Math.min(discountAmount, subtotal);
-  const subtotalAfterCoupon = Math.max(0, subtotal - discountAmount);
+  // Ensure discount doesn't exceed the amount it is applied to
+  discountAmount = Math.min(discountAmount, base);
+  const subtotalAfterCoupon = Math.max(0, base - discountAmount);
 
   return {
     valid: true,
