@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendAdminInquiryNotification } from "@/lib/mail";
+import { TOO_MANY_MESSAGE, clientIp, rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,9 @@ function isRecordNotFound(err: unknown): boolean {
 
 // 1. POST: Handle customer contact message submission
 export async function POST(request: Request) {
+  if (!(await rateLimit("contact-ip", clientIp(request), 5, 600))) {
+    return NextResponse.json({ error: TOO_MANY_MESSAGE }, { status: 429 });
+  }
   try {
     const body = await request.json();
     const { name, email, phone, message } = body;

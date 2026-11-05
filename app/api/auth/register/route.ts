@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { createPasswordToken } from "@/lib/password-reset";
+import { sendPasswordLinkEmail } from "@/lib/mail";
+import { TOO_MANY_MESSAGE, clientIp, rateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   try {
+    if (!(await rateLimit("register-ip", clientIp(request), 10, 3600))) {
+      return NextResponse.json({ error: TOO_MANY_MESSAGE }, { status: 429 });
+    }
     const body = await request.json();
     const { name, email, phone, password } = body;
 
@@ -47,8 +53,26 @@ export async function POST(request: Request) {
       });
 
       if (existingUser) {
+        // A guest buyer (order placed without an account) has no password yet.
+        // Prove ownership of the email before letting anyone set one, so a
+        // stranger can't take over that buyer's order history.
+        if (!existingUser.passwordHash && !existingUser.email.endsWith("@customer.itsmatapanda.com")) {
+          const appUrl = (process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
+          const link = `${appUrl}/account/reset-password?token=${encodeURIComponent(createPasswordToken(existingUser.id, null))}`;
+          if (await rateLimit("claim-email", existingUser.email, 3, 3600)) {
+            await sendPasswordLinkEmail({ to: existingUser.email, name: existingUser.name, link, purpose: "claim" });
+          }
+          return NextResponse.json(
+            {
+              error:
+                "Email ini sudah pernah dipakai untuk belanja. Kami sudah mengirim link ke email tersebut untuk membuat password. Cek inbox atau folder spam.",
+              claimLinkSent: true,
+            },
+            { status: 409 }
+          );
+        }
         return NextResponse.json(
-          { error: "Email atau No. Handphone ini sudah terdaftar. Silakan login." },
+          { error: "Email atau No. Handphone ini sudah terdaftar. Silakan login atau gunakan Lupa Password." },
           { status: 409 }
         );
       }

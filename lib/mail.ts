@@ -428,3 +428,47 @@ export async function sendAdminInquiryNotification(
     };
   }
 }
+
+/**
+ * Sends a set/reset password link. `purpose: "claim"` is used when a guest
+ * buyer (order placed without an account) wants to create a password.
+ */
+export async function sendPasswordLinkEmail(data: {
+  to: string;
+  name: string;
+  link: string;
+  purpose: "reset" | "claim";
+}): Promise<{ success: boolean; error?: string }> {
+  const name = escapeHtml(data.name || "Customer");
+  const title = data.purpose === "claim" ? "Buat password akun it'smatapanda" : "Reset password akun it'smatapanda";
+  const intro =
+    data.purpose === "claim"
+      ? "Email ini sudah pernah dipakai untuk berbelanja di it'smatapanda. Klik tombol di bawah untuk membuat password, lalu kamu bisa login dan melihat semua pesananmu."
+      : "Kami menerima permintaan untuk mengatur ulang password akunmu. Klik tombol di bawah untuk membuat password baru.";
+  const html = `<!doctype html><html lang="id"><body style="margin:0;padding:24px;background:#f7f7f7;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#fff;border-radius:16px;border:1px solid #eee;">
+    <tr><td style="background:#396254;padding:20px 24px;border-radius:16px 16px 0 0;color:#dcf58d;font-weight:900;font-size:18px;">it'smatapanda</td></tr>
+    <tr><td style="padding:24px;color:#1f2937;font-size:14px;line-height:1.6;">
+      <p style="margin:0 0 12px;font-weight:800;font-size:16px;">Halo ${name},</p>
+      <p style="margin:0 0 20px;">${intro}</p>
+      <p style="margin:0 0 20px;"><a href="${escapeHtml(data.link)}" style="display:inline-block;background:#396254;color:#dcf58d;padding:12px 20px;border-radius:12px;font-weight:800;text-decoration:none;">${data.purpose === "claim" ? "Buat Password" : "Reset Password"}</a></p>
+      <p style="margin:0;color:#6b7280;font-size:12px;">Link berlaku 1 jam dan hanya bisa dipakai sekali. Abaikan email ini jika kamu tidak memintanya.</p>
+    </td></tr>
+  </table></td></tr></table></body></html>`;
+
+  try {
+    const transporter = getTransporter();
+    if (!transporter) {
+      console.log(`[Nodemailer Simulation] ${title} -> ${data.to}: ${data.link}`);
+      return { success: true };
+    }
+    const from = process.env.SMTP_FROM || `"it'smatapanda" <${process.env.SMTP_USER || "no-reply@itsmatapanda.com"}>`;
+    await transporter.sendMail({ from, to: data.to, subject: title, html });
+    return { success: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[Nodemailer] Gagal mengirim link password ke ${data.to}:`, msg);
+    return { success: false, error: msg };
+  }
+}

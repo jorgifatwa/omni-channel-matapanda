@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { buildShopeeAuthUrl } from "@/lib/shopee-oauth";
+import { newOAuthState, setOAuthStateCookie } from "@/lib/oauth-state";
 
 /**
  * GET /api/integrations/shopee/connect
@@ -34,7 +35,9 @@ export async function GET() {
     process.env.SHOPEE_REDIRECT_URI ||
     `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/api/integrations/shopee/callback`;
 
-  const authUrl = buildShopeeAuthUrl(redirectUri);
-
-  return NextResponse.redirect(authUrl);
+  const state = newOAuthState();
+  const redirectWithState = `${redirectUri}${redirectUri.includes("?") ? "&" : "?"}state=${state}`;
+  const res = NextResponse.redirect(buildShopeeAuthUrl(redirectWithState));
+  setOAuthStateCookie(res, "shopee", state);
+  return res;
 }

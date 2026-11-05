@@ -105,6 +105,8 @@ function IntegrationsContent() {
       });
     } else if (error) {
       const errorMessages: Record<string, string> = {
+        oauth_state_invalid:
+          "Link koneksi tidak valid atau sudah kedaluwarsa. Mulai ulang dengan klik tombol Hubungkan di halaman ini (dalam 15 menit).",
         unauthorized: "Sesi admin tidak ditemukan. Login ke admin dulu di browser yang sama, lalu klik Hubungkan lagi.",
         shopee_missing_params: "Shopee tidak mengirimkan kode otorisasi yang valid.",
         shopee_token_error: "Gagal menukar kode Shopee menjadi token. Coba hubungkan ulang.",

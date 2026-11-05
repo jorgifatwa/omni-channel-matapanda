@@ -39,7 +39,11 @@ function LoginForm() {
       });
 
       if (res?.error) {
-        setError("Email/No. HP atau kata sandi tidak sesuai. Silakan coba lagi.");
+        setError(
+          res.error.includes("Terlalu banyak")
+            ? res.error
+            : "Email/No. HP atau kata sandi tidak sesuai. Silakan coba lagi."
+        );
         setLoading(false);
       } else if (!res?.ok) {
         setError("Server login sedang bermasalah. Silakan coba beberapa saat lagi.");
@@ -107,6 +111,12 @@ function LoginForm() {
                   <Lock className="h-3.5 w-3.5" />
                   <span>Kata Sandi</span>
                 </label>
+                <Link
+                  href="/account/forgot-password"
+                  className="text-xs font-bold text-[#396254] underline underline-offset-4 hover:opacity-80"
+                >
+                  Lupa password?
+                </Link>
               </div>
               <div className="relative">
                 <input

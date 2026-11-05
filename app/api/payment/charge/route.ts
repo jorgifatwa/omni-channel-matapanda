@@ -17,6 +17,7 @@ import {
 } from "@/lib/midtrans";
 import { applyMidtransStatus } from "@/lib/midtrans-payment";
 import { cancelOrder } from "@/lib/order-lifecycle";
+import { TOO_MANY_MESSAGE, clientIp, rateLimit } from "@/lib/rate-limit";
 
 /**
  * POST /api/payment/charge  { orderNumber, checkoutToken, method }
@@ -29,6 +30,9 @@ import { cancelOrder } from "@/lib/order-lifecycle";
  * a different method expires the old charge and creates a new one.
  */
 export async function POST(request: Request) {
+  if (!(await rateLimit("charge-ip", clientIp(request), 40, 600))) {
+    return NextResponse.json({ error: TOO_MANY_MESSAGE }, { status: 429 });
+  }
   const body = (await request.json().catch(() => ({}))) as {
     orderNumber?: unknown;
     checkoutToken?: unknown;

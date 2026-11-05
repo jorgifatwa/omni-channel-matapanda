@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { paymentMethodLabel } from "@/lib/payment-methods";
+import { TOO_MANY_MESSAGE, clientIp, rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export async function POST(request: Request) {
+  if (!(await rateLimit("tracking-ip", clientIp(request), 30, 600))) {
+    return NextResponse.json({ error: TOO_MANY_MESSAGE }, { status: 429 });
+  }
   try {
     const body = await request.json();
     const { orderId, waybill, email, phone } = body;

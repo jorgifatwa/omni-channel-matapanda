@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { addSubscriber } from "@/lib/newsletter-store";
+import { TOO_MANY_MESSAGE, clientIp, rateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: Request) {
+  if (!(await rateLimit("newsletter-ip", clientIp(req), 10, 3600))) {
+    return NextResponse.json({ error: TOO_MANY_MESSAGE }, { status: 429 });
+  }
   try {
     const body = await req.json();
     const { email } = body;

@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { timingSafeEqual } from "crypto";
 import { prisma } from "@/lib/prisma";
+import { rateLimit } from "@/lib/rate-limit";
 import { getAuthSecret } from "@/lib/auth-secret";
 
 function safeEqual(a: string, b: string): boolean {
@@ -36,9 +37,18 @@ export const authOptions: NextAuthOptions = {
         identifier: { label: "Email or Phone", type: "text" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.identifier || !credentials?.password) {
           return null;
+        }
+        // Brute-force protection: per account and per IP
+        const fwd = (req?.headers as Record<string, string | undefined> | undefined)?.["x-forwarded-for"];
+        const ip = (fwd || "unknown").split(",")[0].trim();
+        if (
+          !(await rateLimit("login-id", credentials.identifier.trim().toLowerCase(), 10, 900)) ||
+          !(await rateLimit("login-ip", ip, 30, 900))
+        ) {
+          throw new Error("Terlalu banyak percobaan masuk. Coba lagi dalam 15 menit.");
         }
 
         const identifier = credentials.identifier.trim();
@@ -185,6 +195,28 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         token.role = (user as { role?: string }).role ?? "CUSTOMER";
+        token.checkedAt = Date.now();
+        return token;
+      }
+      // Re-check the account every minute so a deactivated, deleted or
+      // demoted user loses access in server routes (getServerSession) too.
+      const id = typeof token.id === "string" ? token.id : "";
+      const last = typeof token.checkedAt === "number" ? token.checkedAt : 0;
+      if (id && token.role !== "REVOKED" && Date.now() - last > 60_000) {
+        if (id.startsWith("00000000-0000-4000-8000-")) {
+          if (process.env.VERCEL_ENV === "production") token.role = "REVOKED";
+        } else {
+          try {
+            const dbUser = await prisma.user.findUnique({
+              where: { id },
+              select: { role: true, isActive: true, deletedAt: true },
+            });
+            token.role = dbUser && dbUser.isActive && !dbUser.deletedAt ? dbUser.role : "REVOKED";
+          } catch (err) {
+            console.warn("[Auth] Session re-check failed:", err);
+          }
+        }
+        token.checkedAt = Date.now();
       }
       return token;
     },

@@ -60,7 +60,7 @@ async function loginAsAdmin(browser: Browser): Promise<APIRequestContext> {
   await passwordInput.fill(ADMIN_PASSWORD);
   await expect(passwordInput).toHaveValue(ADMIN_PASSWORD);
   await page.getByRole("button", { name: /Masuk ke Dashboard|Login/i }).click();
-  await page.waitForURL("**/admin/dashboard", { timeout: 30_000 });
+  await page.waitForURL("**/admin/dashboard", { timeout: 30_000, waitUntil: "commit" });
   // Reuse the admin session cookies for API calls.
   return context.request;
 }

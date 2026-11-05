@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { buildTikTokShopAuthUrl } from "@/lib/tiktokshop-oauth";
+import { newOAuthState, setOAuthStateCookie } from "@/lib/oauth-state";
 
 /**
  * GET /api/integrations/tiktokshop/connect
@@ -33,7 +34,8 @@ export async function GET() {
     process.env.TIKTOK_SHOP_REDIRECT_URI ||
     `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/api/integrations/tiktokshop/callback`;
 
-  const authUrl = buildTikTokShopAuthUrl(redirectUri);
-
-  return NextResponse.redirect(authUrl);
+  const state = newOAuthState();
+  const res = NextResponse.redirect(buildTikTokShopAuthUrl(redirectUri, state));
+  setOAuthStateCookie(res, "tiktokshop", state);
+  return res;
 }

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { shopeeExchangeToken, shopeeGetShopInfo } from "@/lib/shopee-oauth";
 import { encryptToken } from "@/lib/marketplace-crypto";
 import { upsertMarketplaceAccount } from "@/lib/marketplace-store";
+import { verifyOAuthState } from "@/lib/oauth-state";
 
 /**
  * GET /api/integrations/shopee/callback?code=<code>&shop_id=<shop_id>
@@ -25,6 +26,11 @@ export async function GET(request: NextRequest) {
     (session?.user as { role?: string } | undefined)?.role === "ADMIN" ? session?.user?.email : null;
   if (!adminEmail) {
     return NextResponse.redirect(`${adminUrl}?error=unauthorized`);
+  }
+
+  // CSRF: the connection must have been started from this browser via /connect
+  if (!verifyOAuthState(request, "shopee")) {
+    return NextResponse.redirect(`${adminUrl}?error=oauth_state_invalid`);
   }
 
   if (!code || !shopId) {

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { tikTokShopExchangeToken, tikTokShopGetAuthorizedShops } from "@/lib/tiktokshop-oauth";
 import { encryptToken } from "@/lib/marketplace-crypto";
 import { upsertMarketplaceAccount } from "@/lib/marketplace-store";
+import { verifyOAuthState } from "@/lib/oauth-state";
 
 /**
  * GET /api/integrations/tiktokshop/callback?code=<code>&shop_cipher=<shop_cipher>
@@ -37,6 +38,11 @@ export async function GET(request: NextRequest) {
     (session?.user as { role?: string } | undefined)?.role === "ADMIN" ? session?.user?.email : null;
   if (!adminEmail) {
     return NextResponse.redirect(`${adminUrl}?error=unauthorized`);
+  }
+
+  // CSRF: the connection must have been started from this browser via /connect
+  if (!verifyOAuthState(request, "tiktokshop")) {
+    return NextResponse.redirect(`${adminUrl}?error=oauth_state_invalid`);
   }
 
   if (!code) {

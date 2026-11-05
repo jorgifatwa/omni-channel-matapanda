@@ -64,7 +64,11 @@ export default function AdminLoginPage() {
       });
 
       if (result?.error) {
-        setAuthError("Email atau password salah. Silakan coba lagi.");
+        setAuthError(
+          result.error.includes("Terlalu banyak")
+            ? result.error
+            : "Email atau password salah. Silakan coba lagi."
+        );
         setIsLoading(false);
         return;
       }

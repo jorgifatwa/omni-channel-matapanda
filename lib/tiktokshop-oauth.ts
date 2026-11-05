@@ -34,7 +34,7 @@ const TIKTOK_REFRESH_URL = "https://auth.tiktok-shops.com/api/v2/token/refresh";
  * The seller will grant your app access to their TikTok Shop (Tokopedia)
  * account, then be redirected back with a `code` and `shop_cipher`.
  */
-export function buildTikTokShopAuthUrl(redirectUri?: string): string {
+export function buildTikTokShopAuthUrl(redirectUri?: string, state?: string): string {
   const serviceId =
     process.env.TIKTOK_SHOP_SERVICE_ID || process.env.TIKTOK_SHOP_APP_KEY || "";
 
@@ -44,6 +44,9 @@ export function buildTikTokShopAuthUrl(redirectUri?: string): string {
 
   if (redirectUri) {
     params.set("redirect_uri", redirectUri);
+  }
+  if (state) {
+    params.set("state", state);
   }
 
   return `${TIKTOK_AUTH_BASE}/open/authorize?${params.toString()}`;

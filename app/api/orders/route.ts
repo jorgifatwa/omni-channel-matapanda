@@ -3,6 +3,7 @@ import { createHash, randomBytes } from "crypto";
 import { POST as createOrderInDatabase } from "@/app/api/admin/orders/route";
 import { priceCheckoutOrder, OrderPricingError, type OrderPricing } from "@/lib/order-pricing";
 import { incrementCouponUsage, releaseCouponUsage } from "@/lib/coupon-store";
+import { TOO_MANY_MESSAGE, clientIp, rateLimit } from "@/lib/rate-limit";
 
 /**
  * Public endpoint used by checkout to create a NEW order.
@@ -21,6 +22,9 @@ import { incrementCouponUsage, releaseCouponUsage } from "@/lib/coupon-store";
  *   order is saved, and given back if saving fails.
  */
 export async function POST(request: Request) {
+  if (!(await rateLimit("orders-ip", clientIp(request), 20, 600))) {
+    return NextResponse.json({ error: TOO_MANY_MESSAGE }, { status: 429 });
+  }
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     return NextResponse.json({ error: "Data pesanan tidak valid." }, { status: 400 });
