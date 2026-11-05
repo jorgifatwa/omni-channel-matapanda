@@ -69,6 +69,14 @@ export default function AdminLoginPage() {
         return;
       }
 
+      if (!result?.ok) {
+        setAuthError(
+          "Server login sedang bermasalah (konfigurasi server). Silakan hubungi pengelola website."
+        );
+        setIsLoading(false);
+        return;
+      }
+
       // Hard redirect ensures auth cookies are cleanly committed by browser
       window.location.href = "/admin/dashboard";
     } catch {

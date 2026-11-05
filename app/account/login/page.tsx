@@ -41,6 +41,9 @@ function LoginForm() {
       if (res?.error) {
         setError("Email/No. HP atau kata sandi tidak sesuai. Silakan coba lagi.");
         setLoading(false);
+      } else if (!res?.ok) {
+        setError("Server login sedang bermasalah. Silakan coba beberapa saat lagi.");
+        setLoading(false);
       } else {
         router.push(callbackUrl);
         router.refresh();
