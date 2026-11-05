@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { tikTokShopExchangeToken, tikTokShopGetSellerInfo } from "@/lib/tiktokshop-oauth";
+import { tikTokShopExchangeToken, tikTokShopGetAuthorizedShops } from "@/lib/tiktokshop-oauth";
 import { encryptToken } from "@/lib/marketplace-crypto";
 import { upsertMarketplaceAccount } from "@/lib/marketplace-store";
 
@@ -20,9 +20,11 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get("code") || searchParams.get("auth_code");
   const adminUrl = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/admin/integrations`;
 
-  // Admin yang menghubungkan akun: utamakan session login, lalu ADMIN_DEFAULT_EMAIL
+  // Hanya admin yang sedang login yang boleh menghubungkan toko. Tanpa ini,
+  // siapa pun bisa menyambungkan tokonya sendiri ke website ini.
   const session = await getServerSession(authOptions);
-  const adminEmail = session?.user?.email || process.env.ADMIN_DEFAULT_EMAIL || null;
+  const adminEmail =
+    (session?.user as { role?: string } | undefined)?.role === "ADMIN" ? session?.user?.email : null;
   if (!adminEmail) {
     return NextResponse.redirect(`${adminUrl}?error=unauthorized`);
   }
@@ -50,12 +52,14 @@ export async function GET(request: NextRequest) {
 
     const expiresAt = new Date(access_token_expire_in * 1000);
 
-    // 2. Fetch seller info for display name
-    const sellerInfo = await tikTokShopGetSellerInfo(access_token);
-    const shopName =
-      sellerInfo?.seller_name ||
-      tokenData.data.seller_name ||
-      `TikTok Shop ${open_id.slice(0, 8)}`;
+    // 2. Get the authorized shop and its cipher (required by every shop API)
+    const { shops, error: shopsError } = await tikTokShopGetAuthorizedShops(access_token);
+    const shop = shops.find((s) => s.region === "ID") || shops[0];
+    if (!shop?.cipher) {
+      console.error("[TikTok Shop Callback] No authorized shop returned:", shopsError);
+      return NextResponse.redirect(`${adminUrl}?error=tiktokshop_no_shop`);
+    }
+    const shopName = shop.name || `TikTok Shop ${shop.id}`;
 
     // 3. Encrypt tokens
     const encryptedAccessToken = encryptToken(access_token);
@@ -74,7 +78,7 @@ export async function GET(request: NextRequest) {
     // 5. Upsert MarketplaceAccount
     await upsertMarketplaceAccount({
       platform: "TIKTOK_SHOP",
-      shopId: open_id,
+      shopId: shop.cipher,
       shopName,
       accessToken: encryptedAccessToken,
       refreshToken: encryptedRefreshToken,
@@ -83,7 +87,7 @@ export async function GET(request: NextRequest) {
       connectedById: adminUserId,
     });
 
-    console.log(`[TikTok Shop Callback] Connected: ${shopName} (open_id: ${open_id})`);
+    console.log(`[TikTok Shop Callback] Connected: ${shopName} (shop id: ${shop.id}, open_id: ${open_id})`);
     return NextResponse.redirect(
       `${adminUrl}?success=tiktokshop_connected&shop=${encodeURIComponent(shopName)}`
     );

@@ -17,6 +17,8 @@
 // ─── Environment ──────────────────────────────────────────────────────────────
 
 /** Authorization base URL — for Indonesia & other non-US markets */
+import crypto from "crypto";
+
 const TIKTOK_AUTH_BASE = "https://services.tiktokshop.com";
 /** Token & API base URL */
 const TIKTOK_API_BASE = "https://open-api.tiktokglobalshop.com";
@@ -137,31 +139,57 @@ export async function tikTokShopRefreshToken(
 // ─── Seller Info ──────────────────────────────────────────────────────────────
 
 /**
- * Fetch basic seller info after connecting, to display in the admin UI.
- * Uses the TikTok Shop Get Seller Shops endpoint.
+ * Lists the shops this seller authorized, using
+ * GET /authorization/202309/shops (API version 202309).
+ *
+ * Every shop-level API (products, inventory, orders) needs the shop's
+ * `cipher` as the `shop_cipher` query param, so the callback stores it as
+ * the account's shopId.
  */
-export async function tikTokShopGetSellerInfo(
+export interface TikTokAuthorizedShop {
+  id: string;
+  name: string;
+  region: string;
+  cipher: string;
+  code?: string;
+}
+
+export async function tikTokShopGetAuthorizedShops(
   accessToken: string
-): Promise<{ seller_name?: string; region?: string } | null> {
+): Promise<{ shops: TikTokAuthorizedShop[]; error?: string }> {
+  const appKey = process.env.TIKTOK_SHOP_APP_KEY || "";
+  const appSecret = process.env.TIKTOK_SHOP_APP_SECRET || "";
+  const path = "/authorization/202309/shops";
+  const params: Record<string, string> = {
+    app_key: appKey,
+    timestamp: String(Math.floor(Date.now() / 1000)),
+  };
+  const paramString = Object.keys(params)
+    .sort()
+    .map((k) => `${k}${params[k]}`)
+    .join("");
+  params.sign = crypto
+    .createHmac("sha256", appSecret)
+    .update(`${appSecret}${path}${paramString}${appSecret}`)
+    .digest("hex");
+
   try {
-    const appKey = process.env.TIKTOK_SHOP_APP_KEY || "";
-    const res = await fetch(
-      `${TIKTOK_API_BASE}/api/seller/202309/shops/get_authorized_shop`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          "x-tts-access-token": accessToken,
-          "x-app-key": appKey,
-        },
-      }
-    );
-    const data = await res.json() as {
-      data?: { name?: string; region?: string };
+    const res = await fetch(`${TIKTOK_API_BASE}${path}?${new URLSearchParams(params)}`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json", "x-tts-access-token": accessToken },
+      cache: "no-store",
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      code?: number;
+      message?: string;
+      data?: { shops?: TikTokAuthorizedShop[] };
     };
-    return data.data ? { seller_name: data.data.name, region: data.data.region } : null;
-  } catch {
-    return null;
+    if (data.code !== 0) {
+      return { shops: [], error: data.message || `HTTP ${res.status}` };
+    }
+    return { shops: data.data?.shops ?? [] };
+  } catch (err) {
+    return { shops: [], error: err instanceof Error ? err.message : "network error" };
   }
 }
 

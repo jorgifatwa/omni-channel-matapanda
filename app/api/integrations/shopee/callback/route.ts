@@ -18,9 +18,11 @@ export async function GET(request: NextRequest) {
   const shopId = searchParams.get("shop_id");
   const adminUrl = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/admin/integrations`;
 
-  // Admin yang menghubungkan akun: utamakan session login, lalu ADMIN_DEFAULT_EMAIL
+  // Hanya admin yang sedang login yang boleh menghubungkan toko. Tanpa ini,
+  // siapa pun bisa menyambungkan tokonya sendiri ke website ini.
   const session = await getServerSession(authOptions);
-  const adminEmail = session?.user?.email || process.env.ADMIN_DEFAULT_EMAIL || null;
+  const adminEmail =
+    (session?.user as { role?: string } | undefined)?.role === "ADMIN" ? session?.user?.email : null;
   if (!adminEmail) {
     return NextResponse.redirect(`${adminUrl}?error=unauthorized`);
   }

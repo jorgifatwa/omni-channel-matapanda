@@ -105,13 +105,15 @@ function IntegrationsContent() {
       });
     } else if (error) {
       const errorMessages: Record<string, string> = {
-        unauthorized: "Sesi tidak valid. Silahkan login ulang.",
+        unauthorized: "Sesi admin tidak ditemukan. Login ke admin dulu di browser yang sama, lalu klik Hubungkan lagi.",
         shopee_missing_params: "Shopee tidak mengirimkan kode otorisasi yang valid.",
         shopee_token_error: "Gagal menukar kode Shopee menjadi token. Coba hubungkan ulang.",
         shopee_callback_failed: "Terjadi kesalahan saat menyimpan koneksi Shopee.",
         tiktokshop_missing_code: "TikTok Shop tidak mengirimkan kode otorisasi.",
         tiktokshop_token_error: "Gagal menukar kode TikTok Shop menjadi token.",
         tiktokshop_callback_failed: "Terjadi kesalahan saat menyimpan koneksi TikTok Shop.",
+        tiktokshop_no_shop:
+          "TikTok Shop tidak mengembalikan data toko. Pastikan app sudah di-authorize oleh akun seller dan izin \"Shop\" aktif, lalu coba lagi.",
         admin_not_found: "Admin user tidak ditemukan di database.",
       };
       setToast({
