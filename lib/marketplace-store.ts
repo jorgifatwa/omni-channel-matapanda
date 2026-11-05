@@ -65,6 +65,13 @@ export async function upsertMarketplaceAccount(account: {
 }
 
 export async function getActiveMarketplaceAccounts(): Promise<StoredMarketplaceAccount[]> {
+  // Shopee access tokens expire every ~4 hours: refresh any that expire within
+  // 10 minutes before handing them to API callers.
+  const { refreshExpiringMarketplaceTokens } = await import("@/lib/marketplace-token-refresh");
+  await refreshExpiringMarketplaceTokens(10 * 60 * 1000).catch((err) =>
+    console.error("[Marketplace] Token refresh before API call failed:", err)
+  );
+
   const dbAccounts = await prisma.marketplaceAccount.findMany({
     where: { isActive: true },
     select: {

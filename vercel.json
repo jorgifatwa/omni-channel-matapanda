@@ -1,0 +1,5 @@
+{
+  "crons": [
+    { "path": "/api/integrations/refresh-tokens", "schedule": "0 20 * * *" }
+  ]
+}
