@@ -116,16 +116,19 @@ function IntegrationsContent() {
           "TikTok Shop tidak mengembalikan data toko. Pastikan app sudah di-authorize oleh akun seller dan izin \"Shop\" aktif, lalu coba lagi.",
         admin_not_found: "Admin user tidak ditemukan di database.",
       };
+      const detail = searchParams.get("detail");
       setToast({
         type: "error",
-        message: errorMessages[error] || `Terjadi kesalahan: ${error}`,
+        message:
+          (errorMessages[error] || `Terjadi kesalahan: ${error}`) +
+          (detail ? `\n\nDetail: ${detail}` : ""),
       });
     }
   }, [searchParams]);
 
-  // Auto-dismiss toast after 6 seconds
+  // Auto-dismiss success/info toasts after 6 seconds; errors stay until closed
   React.useEffect(() => {
-    if (!toast) return;
+    if (!toast || toast.type === "error") return;
     const t = setTimeout(() => setToast(null), 6000);
     return () => clearTimeout(t);
   }, [toast]);
@@ -223,7 +226,15 @@ function IntegrationsContent() {
           ) : (
             <Info className="h-4 w-4 mt-0.5 shrink-0" />
           )}
-          <span>{toast.message}</span>
+          <span className="flex-1 whitespace-pre-line break-words">{toast.message}</span>
+          <button
+            type="button"
+            onClick={() => setToast(null)}
+            className="shrink-0 rounded px-1 leading-none opacity-60 hover:opacity-100"
+            aria-label="Tutup"
+          >
+            ×
+          </button>
         </div>
       )}
 

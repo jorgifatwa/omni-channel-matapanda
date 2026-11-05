@@ -15,6 +15,16 @@ import { upsertMarketplaceAccount } from "@/lib/marketplace-store";
  * Note: shop_cipher is TikTok's encrypted shop identifier; the actual
  * shop/seller ID comes from the token exchange response (open_id).
  */
+/** Short, token-free description of an error, safe to show to the admin. */
+function describeError(step: string, error: unknown): string {
+  const raw = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+  const clean = raw
+    .replace(/(access_token|refresh_token|app_secret|auth_code)=[^&\s"]+/gi, "$1=***")
+    .replace(/\s+/g, " ")
+    .trim();
+  return `[${step}] ${clean}`.slice(0, 300);
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const code = searchParams.get("code") || searchParams.get("auth_code");
@@ -34,13 +44,19 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${adminUrl}?error=tiktokshop_missing_code`);
   }
 
+  const fail = (error: string, detail?: string) =>
+    NextResponse.redirect(
+      `${adminUrl}?error=${error}${detail ? `&detail=${encodeURIComponent(detail)}` : ""}`
+    );
+
+  let step = "token_exchange";
   try {
     // 1. Exchange code for tokens
     const tokenData = await tikTokShopExchangeToken(code);
 
-    if (tokenData.code !== 0) {
-      console.error("[TikTok Shop Callback] Token exchange error:", tokenData.message);
-      return NextResponse.redirect(`${adminUrl}?error=tiktokshop_token_error`);
+    if (tokenData.code !== 0 || !tokenData.data?.access_token) {
+      console.error("[TikTok Shop Callback] Token exchange error:", tokenData.code, tokenData.message);
+      return fail("tiktokshop_token_error", `[token_exchange] code ${tokenData.code}: ${tokenData.message}`);
     }
 
     const {
@@ -52,19 +68,22 @@ export async function GET(request: NextRequest) {
 
     const expiresAt = new Date(access_token_expire_in * 1000);
 
+    step = "get_authorized_shops";
     // 2. Get the authorized shop and its cipher (required by every shop API)
     const { shops, error: shopsError } = await tikTokShopGetAuthorizedShops(access_token);
     const shop = shops.find((s) => s.region === "ID") || shops[0];
     if (!shop?.cipher) {
       console.error("[TikTok Shop Callback] No authorized shop returned:", shopsError);
-      return NextResponse.redirect(`${adminUrl}?error=tiktokshop_no_shop`);
+      return fail("tiktokshop_no_shop", `[get_authorized_shops] ${shopsError || "no shops returned"}`);
     }
     const shopName = shop.name || `TikTok Shop ${shop.id}`;
 
+    step = "encrypt_tokens";
     // 3. Encrypt tokens
     const encryptedAccessToken = encryptToken(access_token);
     const encryptedRefreshToken = encryptToken(refresh_token);
 
+    step = "find_admin_user";
     // 4. Find admin user id (must exist in the database)
     const adminUser = await prisma.user.findFirst({
       where: { email: adminEmail, role: "ADMIN" },
@@ -75,6 +94,7 @@ export async function GET(request: NextRequest) {
     }
     const adminUserId = adminUser.id;
 
+    step = "save_to_database";
     // 5. Upsert MarketplaceAccount
     await upsertMarketplaceAccount({
       platform: "TIKTOK_SHOP",
@@ -92,7 +112,7 @@ export async function GET(request: NextRequest) {
       `${adminUrl}?success=tiktokshop_connected&shop=${encodeURIComponent(shopName)}`
     );
   } catch (error) {
-    console.error("[TikTok Shop Callback] Error:", error);
-    return NextResponse.redirect(`${adminUrl}?error=tiktokshop_callback_failed`);
+    console.error(`[TikTok Shop Callback] Error at step ${step}:`, error);
+    return fail("tiktokshop_callback_failed", describeError(step, error));
   }
 }
