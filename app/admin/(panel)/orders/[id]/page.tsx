@@ -11,7 +11,6 @@ import {
   Clock,
   CheckCircle2,
   Package,
-  ExternalLink,
   Printer,
   FileText,
 } from "lucide-react";
@@ -42,9 +41,43 @@ import { PackingSlipModal } from "@/components/admin/PackingSlipModal";
 
 export default function AdminOrderDetailPage() {
   const params = useParams();
-  const { orders, updateOrder } = useAdminStore();
+  const { orders, updateOrder, isLoading, ordersLoadError } = useAdminStore();
 
-  const order = orders.find((o) => o.id === params.id) ?? orders[0];
+  const order = orders.find((o) => o.id === params.id);
+
+  if (!order) {
+    let message = "Pesanan tidak ditemukan di database.";
+    if (isLoading) message = "Memuat data pesanan dari database...";
+    else if (ordersLoadError) message = ordersLoadError;
+    return (
+      <div className="space-y-4 max-w-6xl">
+        <Button variant="outline" size="sm" asChild className="gap-1.5">
+          <Link href="/admin/orders">
+            <ArrowLeft className="h-4 w-4" />
+            Kembali ke daftar pesanan
+          </Link>
+        </Button>
+        <p
+          className={`text-sm ${
+            ordersLoadError && !isLoading ? "text-red-600" : "text-neutral-500"
+          }`}
+        >
+          {message}
+        </p>
+      </div>
+    );
+  }
+
+  return <OrderDetail key={order.id} order={order} updateOrder={updateOrder} />;
+}
+
+function OrderDetail({
+  order,
+  updateOrder,
+}: {
+  order: AdminOrder;
+  updateOrder: (order: AdminOrder) => Promise<void>;
+}) {
 
   const [orderStatus, setOrderStatus] = React.useState(order.orderStatus);
   const [paymentStatus, setPaymentStatus] = React.useState(order.paymentStatus);
@@ -55,13 +88,15 @@ export default function AdminOrderDetailPage() {
     order.trackingNumber === "-" ? "" : order.trackingNumber
   );
   const [saveMessage, setSaveMessage] = React.useState(false);
+  const [saveError, setSaveError] = React.useState<string | null>(null);
+  const [isSaving, setIsSaving] = React.useState(false);
   const [isShippingLabelOpen, setIsShippingLabelOpen] = React.useState(false);
   const [isPackingSlipOpen, setIsPackingSlipOpen] = React.useState(false);
 
-  const handleUpdateStatus = (e: React.FormEvent) => {
+  const handleUpdateStatus = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const updated = {
+    const updated: AdminOrder = {
       ...order,
       orderStatus,
       paymentStatus,
@@ -77,6 +112,21 @@ export default function AdminOrderDetailPage() {
         },
       ],
     };
+
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      await updateOrder(updated);
+    } catch (err) {
+      setSaveError(
+        err instanceof Error && err.message
+          ? err.message
+          : "Gagal menyimpan status pesanan ke database."
+      );
+      return;
+    } finally {
+      setIsSaving(false);
+    }
 
     if (paymentStatus === "SETTLEMENT" && order.paymentStatus !== "SETTLEMENT") {
       fetch("/api/payment/send-receipt", {
@@ -102,7 +152,6 @@ export default function AdminOrderDetailPage() {
       }).catch((err) => console.warn("Admin trigger email error:", err));
     }
 
-    updateOrder(updated);
     setSaveMessage(true);
     setTimeout(() => setSaveMessage(false), 3000);
   };
@@ -136,6 +185,9 @@ export default function AdminOrderDetailPage() {
               <CheckCircle2 className="h-4 w-4" />
               Status berhasil diperbarui!
             </span>
+          )}
+          {saveError && (
+            <span className="text-xs text-red-600 font-medium mr-2">{saveError}</span>
           )}
           <Button
             type="button"
@@ -187,12 +239,14 @@ export default function AdminOrderDetailPage() {
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <div className="h-12 w-12 rounded bg-neutral-100 overflow-hidden shrink-0 border">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={item.image}
-                              alt={item.productName}
-                              className="h-full w-full object-cover"
-                            />
+                            {item.image ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={item.image}
+                                alt={item.productName}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : null}
                           </div>
                           <div>
                             <p className="font-semibold text-xs sm:text-sm">
@@ -273,20 +327,7 @@ export default function AdminOrderDetailPage() {
                   <Printer className="h-3 w-3 text-[#396254]" />
                   <span>Cetak Resi</span>
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  asChild
-                  className="h-8 text-xs gap-1.5"
-                >
-                  <Link
-                    href={`/api/shipping/tracking?courier=${order.courier}&waybill=${order.trackingNumber}`}
-                    target="_blank"
-                  >
-                    <span>API Cek Resi</span>
-                    <ExternalLink className="h-3 w-3" />
-                  </Link>
-                </Button>
+
               </div>
             </CardHeader>
             <CardContent>
@@ -407,8 +448,8 @@ export default function AdminOrderDetailPage() {
                   />
                 </div>
 
-                <Button type="submit" className="w-full h-9 text-xs">
-                  Simpan Perubahan
+                <Button type="submit" disabled={isSaving} className="w-full h-9 text-xs">
+                  {isSaving ? "Menyimpan..." : "Simpan Perubahan"}
                 </Button>
               </form>
             </CardContent>

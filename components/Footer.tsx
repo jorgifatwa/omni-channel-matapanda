@@ -10,20 +10,12 @@ import {
   Loader2,
 } from "lucide-react";
 
-const DEFAULT_FOOTER_CATEGORIES = [
-  { name: "Tote Bags", slug: "tote-bags" },
-  { name: "Sling & Crossbody", slug: "sling-crossbody" },
-  { name: "Shoulder Bags", slug: "shoulder-bags" },
-  { name: "Backpacks", slug: "backpacks" },
-  { name: "Pouches & Small Goods", slug: "pouches-small-goods" },
-];
-
 export default function Footer() {
   const [email, setEmail] = React.useState("");
   const [status, setStatus] = React.useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = React.useState("");
   const [categoriesList, setCategoriesList] = React.useState<{ name: string; slug: string }[]>(
-    DEFAULT_FOOTER_CATEGORIES
+    []
   );
 
   React.useEffect(() => {
@@ -38,9 +30,7 @@ export default function Footer() {
             slug: c.slug,
           })
         );
-        if (catItems.length > 0) {
-          setCategoriesList(catItems);
-        }
+        setCategoriesList(catItems);
       })
       .catch(() => {});
 

@@ -21,9 +21,10 @@ export async function POST(req: Request) {
     return NextResponse.json(result);
   } catch (error) {
     console.error("[NewsletterAPI] Error:", error);
+    const message = "Gagal menyimpan langganan newsletter. Silakan coba lagi nanti.";
     return NextResponse.json(
-      { success: false, message: "Terjadi kesalahan internal." },
-      { status: 500 }
+      { success: false, message, error: message },
+      { status: 503 }
     );
   }
 }

@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAdminStore } from "@/context/AdminStoreContext";
-import { INITIAL_ORDERS, type AdminOrder } from "@/lib/admin-data";
+import { type AdminOrder } from "@/lib/admin-data";
 import { generatePackingSlipPDF } from "@/lib/shipping-label-pdf";
 import { formatIDR } from "@/lib/products";
 import { Printer, Download, ArrowLeft } from "lucide-react";
@@ -13,17 +13,12 @@ export default function StandalonePackingSlipPage() {
   const params = useParams();
   const router = useRouter();
   const orderId = params?.id as string;
-  const { orders } = useAdminStore();
+  const { orders, isLoading, ordersLoadError } = useAdminStore();
   const [order, setOrder] = useState<AdminOrder | null>(null);
 
   useEffect(() => {
     if (!orderId) return;
-    const found =
-      orders.find((o) => o.id === orderId) ||
-      INITIAL_ORDERS.find((o) => o.id === orderId);
-    if (found) {
-      setOrder(found);
-    }
+    setOrder(orders.find((o) => o.id === orderId) ?? null);
   }, [orderId, orders]);
 
   const handlePrint = () => {
@@ -37,7 +32,11 @@ export default function StandalonePackingSlipPage() {
   if (!order) {
     return (
       <div className="min-h-screen flex items-center justify-center font-sans text-neutral-600">
-        <p>Memuat data packing slip...</p>
+        <p className={ordersLoadError && !isLoading ? "text-red-600" : undefined}>
+          {isLoading
+            ? "Memuat data packing slip..."
+            : ordersLoadError || "Pesanan tidak ditemukan di database."}
+        </p>
       </div>
     );
   }

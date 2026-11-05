@@ -18,11 +18,11 @@ export async function GET(request: NextRequest) {
   const shopId = searchParams.get("shop_id");
   const adminUrl = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/admin/integrations`;
 
-  // Cari data admin user (utamakan session, fallback ke default admin)
+  // Admin yang menghubungkan akun: utamakan session login, lalu ADMIN_DEFAULT_EMAIL
   const session = await getServerSession(authOptions);
-  let adminEmail = session?.user?.email;
+  const adminEmail = session?.user?.email || process.env.ADMIN_DEFAULT_EMAIL || null;
   if (!adminEmail) {
-    adminEmail = process.env.ADMIN_DEFAULT_EMAIL || "jorgifatwaambia@gmail.com";
+    return NextResponse.redirect(`${adminUrl}?error=unauthorized`);
   }
 
   if (!code || !shopId) {
@@ -49,22 +49,15 @@ export async function GET(request: NextRequest) {
     const encryptedAccessToken = encryptToken(tokenData.access_token);
     const encryptedRefreshToken = encryptToken(tokenData.refresh_token);
 
-    // 4. Find admin user id (with fallback)
-    let adminUserId = "00000000-0000-0000-0000-000000000001";
-    try {
-      const adminUser = await prisma.user.findFirst({
-        where: {
-          OR: [
-            { email: adminEmail },
-            { role: "ADMIN" },
-          ],
-        },
-        select: { id: true },
-      });
-      if (adminUser) adminUserId = adminUser.id;
-    } catch {
-      // Database offline, use default id
+    // 4. Find admin user id (must exist in the database)
+    const adminUser = await prisma.user.findFirst({
+      where: { email: adminEmail, role: "ADMIN" },
+      select: { id: true },
+    });
+    if (!adminUser) {
+      return NextResponse.redirect(`${adminUrl}?error=admin_not_found`);
     }
+    const adminUserId = adminUser.id;
 
     // 5. Upsert (create or update) the MarketplaceAccount record
     await upsertMarketplaceAccount({

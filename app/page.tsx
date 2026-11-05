@@ -1,3 +1,4 @@
+import Link from "next/link";
 import AnnouncementBar from "@/components/AnnouncementBar";
 import Navbar from "@/components/Navbar";
 import HeroBanner from "@/components/HeroBanner";
@@ -45,6 +46,9 @@ export default async function HomePage() {
     favouriteProducts = newInProducts;
   }
 
+  const hasAnyProducts =
+    newInProducts.length > 0 || bagProducts.length > 0 || favouriteProducts.length > 0;
+
   return (
     <div className="min-h-dvh flex flex-col bg-[#fafaf8] dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 font-sans transition-colors duration-200 max-w-full overflow-x-clip">
       {/* Top Announcement Bar */}
@@ -59,6 +63,30 @@ export default async function HomePage() {
 
         {/* 2. Secondary Promo Banner: Dynamic promotional slides directly beneath with no gap */}
         <SecondaryBanner banners={secondaryBanners} />
+
+        {/* Empty catalog: friendly placeholder instead of empty product rows */}
+        {!hasAnyProducts && (
+          <section className="w-full bg-[#d5c6ff]/40 dark:bg-neutral-900 px-6 py-16 sm:py-20 text-center">
+            <div className="mx-auto max-w-xl flex flex-col items-center gap-4">
+              <span className="inline-flex items-center rounded-full bg-[#dcf58d] px-4 py-1.5 text-xs font-black uppercase tracking-wider text-[#396254]">
+                Segera Hadir
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-black uppercase tracking-tight text-[#396254] dark:text-[#dcf58d] font-heading">
+                Koleksi baru sedang disiapkan
+              </h2>
+              <p className="text-sm sm:text-base text-neutral-700 dark:text-neutral-300">
+                Produk it&apos;smatapanda akan segera tersedia di sini. Hubungi kami
+                kalau ada pertanyaan atau ingin pesan lebih dulu.
+              </p>
+              <Link
+                href="/contact"
+                className="mt-2 inline-flex items-center rounded-full bg-[#396254] px-7 py-3 text-sm font-bold uppercase tracking-wider text-white hover:opacity-90 transition-opacity"
+              >
+                Hubungi Kami
+              </Link>
+            </div>
+          </section>
+        )}
 
         {/* 3. Lavender Purple Section Banner ("New Arrivals") */}
         <HomeProductSection

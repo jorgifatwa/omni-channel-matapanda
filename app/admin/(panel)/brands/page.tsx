@@ -28,7 +28,7 @@ import { useAdminStore } from "@/context/AdminStoreContext";
 import { type AdminBrand, slugify } from "@/lib/admin-data";
 
 export default function AdminBrandsPage() {
-  const { brands, saveBrand, deleteBrand } = useAdminStore();
+  const { brands, saveBrand, deleteBrand, isLoading, loadError } = useAdminStore();
 
   const [modalOpen, setModalOpen] = React.useState(false);
   const [editingBrand, setEditingBrand] = React.useState<AdminBrand | null>(
@@ -224,9 +224,16 @@ export default function AdminBrandsPage() {
         </Button>
       </div>
 
+      {loadError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+          {loadError} Data yang tampil mungkin tidak lengkap. Coba muat ulang halaman.
+        </div>
+      )}
       <DataTable
         columns={columns}
         data={brands}
+        isLoading={isLoading}
+        emptyMessage="Belum ada brand. Klik Tambah Brand untuk menambahkan brand pertama."
         searchPlaceholder="Cari nama brand, slug..."
         filterOptions={[
           {

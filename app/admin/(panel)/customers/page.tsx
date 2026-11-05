@@ -33,7 +33,7 @@ import { type AdminCustomer } from "@/lib/admin-data";
 import { formatIDR } from "@/lib/products";
 
 export default function AdminCustomersPage() {
-  const { customers, orders } = useAdminStore();
+  const { customers, orders, isLoading, ordersLoadError } = useAdminStore();
   const [selectedCustomer, setSelectedCustomer] =
     React.useState<AdminCustomer | null>(null);
 
@@ -145,6 +145,12 @@ export default function AdminCustomersPage() {
           Daftar seluruh pelanggan terdaftar, riwayat belanja, dan kontak.
         </p>
       </div>
+
+      {ordersLoadError && !isLoading && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+          {ordersLoadError}
+        </div>
+      )}
 
       <DataTable
         columns={columns}

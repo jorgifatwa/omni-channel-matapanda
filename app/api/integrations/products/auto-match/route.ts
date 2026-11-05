@@ -9,7 +9,6 @@ import {
 import { fetchUnifiedShopeeProducts, type ShopeeProductItem } from "@/lib/shopee-products";
 import { fetchUnifiedTikTokShopProducts, type TikTokShopProductItem } from "@/lib/tiktokshop-products";
 import { decryptToken } from "@/lib/marketplace-crypto";
-import { INITIAL_PRODUCTS } from "@/lib/admin-data";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(request: NextRequest) {
@@ -70,67 +69,34 @@ export async function POST(request: NextRequest) {
       image: string;
     }> = [];
 
-    try {
-      const dbProducts = await prisma.product.findMany({
-        where: { isActive: true },
-        include: { variants: true, images: { take: 1 } },
-      });
-      if (dbProducts.length > 0) {
-        for (const p of dbProducts) {
-          const img = p.images?.[0]?.url || "";
-          if (p.variants?.length) {
-            for (const v of p.variants) {
-              websiteItems.push({
-                productId: p.id,
-                variantId: v.id,
-                productName: p.name,
-                sku: v.sku || `${p.sku}-${v.size}`,
-                size: v.size,
-                color: v.color,
-                stock: v.stock,
-                image: img,
-              });
-            }
-          } else {
-            websiteItems.push({
-              productId: p.id,
-              variantId: null,
-              productName: p.name,
-              sku: p.sku,
-              stock: p.stock,
-              image: img,
-            });
-          }
-        }
-      }
-    } catch {}
-
-    if (websiteItems.length === 0) {
-      for (const p of INITIAL_PRODUCTS) {
-        const mainImg = p.images?.[0] || "";
-        if (p.variants?.length) {
-          for (const v of p.variants) {
-            websiteItems.push({
-              productId: p.id,
-              variantId: v.id,
-              productName: p.name,
-              sku: v.sku,
-              size: v.size,
-              color: v.color,
-              stock: v.stock,
-              image: mainImg,
-            });
-          }
-        } else {
+    const dbProducts = await prisma.product.findMany({
+      where: { isActive: true },
+      include: { variants: true, images: { take: 1 } },
+    });
+    for (const p of dbProducts) {
+      const img = p.images?.[0]?.url || "";
+      if (p.variants?.length) {
+        for (const v of p.variants) {
           websiteItems.push({
             productId: p.id,
-            variantId: null,
+            variantId: v.id,
             productName: p.name,
-            sku: p.sku,
-            stock: p.stock,
-            image: mainImg,
+            sku: v.sku || `${p.sku}-${v.size}`,
+            size: v.size,
+            color: v.color,
+            stock: v.stock,
+            image: img,
           });
         }
+      } else {
+        websiteItems.push({
+          productId: p.id,
+          variantId: null,
+          productName: p.name,
+          sku: p.sku,
+          stock: p.stock,
+          image: img,
+        });
       }
     }
 

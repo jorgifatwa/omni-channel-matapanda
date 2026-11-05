@@ -21,7 +21,7 @@ import {
 import { useSession } from "next-auth/react";
 import { useCart } from "@/context/CartContext";
 import { type CurrencyCode } from "@/lib/products";
-import { saveOrderLocally } from "@/context/AdminStoreContext";
+import { persistOrder, saveOrderLocally } from "@/context/AdminStoreContext";
 import { type AdminOrder } from "@/lib/admin-data";
 
 interface ShippingOption {
@@ -110,6 +110,7 @@ export default function CheckoutPage() {
 
   const [discountCode, setDiscountCode] = React.useState("");
   const [couponError, setCouponError] = React.useState<string | null>(null);
+  const [orderError, setOrderError] = React.useState<string | null>(null);
   const [isApplyingCoupon, setIsApplyingCoupon] = React.useState(false);
 
   const handleApplyCheckoutCoupon = async () => {
@@ -284,6 +285,22 @@ export default function CheckoutPage() {
       createdAt: new Date().toISOString().slice(0, 10),
     };
 
+    setOrderError(null);
+
+    // 0. Simpan pesanan ke database dulu. Kalau gagal, jangan lanjut ke pembayaran.
+    try {
+      await persistOrder(newOrder);
+    } catch (err) {
+      console.error("[Checkout] Failed to save order:", err);
+      setOrderError(
+        err instanceof Error
+          ? `${err.message} Jika masalah berlanjut, kosongkan keranjang lalu tambahkan produk lagi.`
+          : "Pesanan gagal disimpan. Silakan coba lagi."
+      );
+      setIsProcessingPayment(false);
+      return;
+    }
+
     try {
       // 1. Inisiasi Transaksi Midtrans Snap
       const res = await fetch("/api/payment/create-transaction", {
@@ -345,8 +362,7 @@ export default function CheckoutPage() {
         }),
       });
 
-      // 2. Simpan order ke local store (Status awal PENDING - Belum Kirim Email Bukti Lunas)
-      saveOrderLocally(newOrder);
+      // 2. Pesanan sudah tersimpan di database (status awal PENDING)
       setCreatedOrder(newOrder);
 
       // 3. Catat pemakaian kupon jika ada
@@ -379,8 +395,8 @@ export default function CheckoutPage() {
       setOrderSuccess(true);
       clearCart();
     } catch (err) {
+      // Pesanan sudah tersimpan; hanya inisiasi pembayaran yang gagal
       console.error("Payment submission error:", err);
-      saveOrderLocally(newOrder);
       setCreatedOrder(newOrder);
       setOrderSuccess(true);
       clearCart();
@@ -1047,6 +1063,14 @@ export default function CheckoutPage() {
 
                 {/* Pay Now Submit Button */}
                 <div className="mt-8 space-y-2.5">
+                  {orderError && (
+                    <div
+                      role="alert"
+                      className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs sm:text-sm font-bold text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300"
+                    >
+                      {orderError}
+                    </div>
+                  )}
                   <button
                     type="submit"
                     disabled={isPayDisabled}

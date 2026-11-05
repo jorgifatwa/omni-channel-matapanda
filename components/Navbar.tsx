@@ -116,14 +116,6 @@ function CurrencyFlag({ code }: { code: CurrencyCode }) {
   );
 }
 
-const DEFAULT_BAG_CATEGORIES = [
-  { name: "Tote Bags", slug: "tote-bags" },
-  { name: "Sling & Crossbody", slug: "sling-crossbody" },
-  { name: "Shoulder Bags", slug: "shoulder-bags" },
-  { name: "Backpacks", slug: "backpacks" },
-  { name: "Pouches & Small Goods", slug: "pouches-small-goods" },
-];
-
 const NON_BAG_KEYWORDS = [
   "apparel",
   "t-shirt",
@@ -144,7 +136,7 @@ export default function Navbar() {
   const { data: session, status } = useSession();
   const isAuthenticated = status === "authenticated";
 
-  const [categoriesList, setCategoriesList] = React.useState<{ name: string; slug: string }[]>(DEFAULT_BAG_CATEGORIES);
+  const [categoriesList, setCategoriesList] = React.useState<{ name: string; slug: string }[]>([]);
 
   // Slide-from-Left Partial Menu Panel (Header turns royal blue & panel slides from left)
   const [menuOpen, setMenuOpen] = React.useState(false);
@@ -249,9 +241,7 @@ export default function Navbar() {
             slug: c.slug,
           }));
 
-        if (catItems.length > 0) {
-          setCategoriesList(catItems);
-        }
+        setCategoriesList(catItems);
       })
       .catch(() => {});
 

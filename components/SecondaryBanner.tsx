@@ -3,6 +3,7 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { normalizeLink } from "@/lib/normalize-link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export interface SecondarySlide {
@@ -16,63 +17,17 @@ export interface SecondarySlide {
   ctaLink?: string;
 }
 
-const SECONDARY_SLIDES: SecondarySlide[] = [
-  {
-    id: "free-shipping-promo",
-    title: "Free shipping",
-    subtitle: "With minimum spend inclusive of custom duties and taxes",
-    description: "Nikmati pengiriman gratis ke seluruh Indonesia untuk setiap pembelian koleksi it'smatapanda",
-    image:
-      "https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=2000&q=85",
-    ctaText: "Shop The Collection",
-    ctaLink: "/new-arrivals",
-  },
-  {
-    id: "everyday-carryalls",
-    title: "Everyday carryalls",
-    subtitle: "Lightweight, water-resistant & made for modern living",
-    description: "Eksplorasi koleksi tas fungsional dengan palet warna vibran dan material premium tahan air",
-    image:
-      "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?auto=format&fit=crop&w=2000&q=85",
-    ctaText: "Explore Bags",
-    ctaLink: "/categories/bags-totes",
-  },
-  {
-    id: "colourblock-series",
-    title: "Colourblock Series",
-    subtitle: "Playful tones designed for your everyday adventures",
-    description: "Temukan perpaduan warna kontras yang ceria dan material nilon tahan lama khas it'smatapanda",
-    image:
-      "https://images.unsplash.com/photo-1575032617751-6ddec2089882?auto=format&fit=crop&w=2000&q=85",
-    ctaText: "Discover Colours",
-    ctaLink: "/categories/bags-totes",
-  },
-  {
-    id: "urban-utility",
-    title: "Urban Utility",
-    subtitle: "Modular pouches, straps & versatile commuter bags",
-    description: "Aksesoris modular dan tas kompartemen praktis untuk aktivitas harianmu yang dinamis",
-    image:
-      "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=2000&q=85",
-    ctaText: "Shop Urban Gear",
-    ctaLink: "/categories/backpacks",
-  },
-];
-
 import { type AdminBannerItem } from "@/lib/banner-store";
 
 interface SecondaryBannerProps {
   banners?: AdminBannerItem[];
-  slides?: SecondarySlide[];
 }
 
-export default function SecondaryBanner({
-  banners,
-  slides = SECONDARY_SLIDES,
-}: SecondaryBannerProps) {
-  const activeSlides: SecondarySlide[] = React.useMemo(() => {
-    if (banners && banners.length > 0) {
-      return banners.map((b) => ({
+export default function SecondaryBanner({ banners = [] }: SecondaryBannerProps) {
+  // Slides come only from active database banners; nothing renders when empty.
+  const activeSlides: SecondarySlide[] = React.useMemo(
+    () =>
+      banners.map((b) => ({
         id: b.id,
         title: b.title,
         subtitle: b.subtitle || undefined,
@@ -80,11 +35,10 @@ export default function SecondaryBanner({
         image: b.imageUrl,
         mobileImage: b.mobileImageUrl || undefined,
         ctaText: b.ctaText || undefined,
-        ctaLink: b.ctaLink || undefined,
-      }));
-    }
-    return slides;
-  }, [banners, slides]);
+        ctaLink: b.ctaLink ? normalizeLink(b.ctaLink) : undefined,
+      })),
+    [banners]
+  );
 
   const [currentIndex, setCurrentIndex] = React.useState(0);
   const [isPaused, setIsPaused] = React.useState(false);

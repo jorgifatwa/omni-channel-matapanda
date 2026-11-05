@@ -490,7 +490,25 @@ export default function ProductGrid({
       </div>
 
       {/* 2. Products Grid with Embedded Editorial Campaign Tiles */}
-      {currentProducts.length === 0 ? (
+      {products.length === 0 ? (
+        <div className="py-20 sm:py-24 flex flex-col items-center justify-center text-center bg-[#d5c6ff]/20 rounded-3xl border border-dashed border-[#396254]/20 p-8 sm:p-12 my-6">
+          <span className="inline-flex items-center rounded-full bg-[#dcf58d] px-4 py-1.5 text-[11px] font-black uppercase tracking-wider text-[#396254] mb-4">
+            Segera Hadir
+          </span>
+          <h2 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-[#396254] mb-2">
+            Produk belum tersedia
+          </h2>
+          <p className="text-xs sm:text-sm text-neutral-600 max-w-md mb-6 leading-relaxed">
+            Koleksi di halaman ini sedang disiapkan. Cek lagi nanti, atau hubungi kami kalau ada pertanyaan.
+          </p>
+          <Link
+            href="/contact"
+            className="inline-flex items-center justify-center bg-[#396254] hover:bg-[#2b4c41] text-white px-7 py-3.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all hover:-translate-y-0.5 active:scale-95 shadow-sm"
+          >
+            Hubungi Kami
+          </Link>
+        </div>
+      ) : currentProducts.length === 0 ? (
         <div className="py-20 sm:py-24 flex flex-col items-center justify-center text-center bg-neutral-50/60 rounded-3xl border border-dashed border-neutral-200 p-8 sm:p-12 my-6">
           <div className="h-20 w-20 rounded-full bg-[#d5c6ff]/50 text-[#396254] flex items-center justify-center mb-4 shadow-sm">
             <RotateCcw className="h-8 w-8" />

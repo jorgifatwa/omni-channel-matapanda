@@ -21,6 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { adminFetchJson, adminRequestJson, errorMessage } from "@/lib/admin-request";
 
 interface ContactInquiryItem {
   id: string;
@@ -35,6 +36,7 @@ interface ContactInquiryItem {
 export default function AdminInquiriesPage() {
   const [inquiries, setInquiries] = React.useState<ContactInquiryItem[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [errorText, setErrorText] = React.useState<string | null>(null);
   const [search, setSearch] = React.useState("");
   const [selectedInquiry, setSelectedInquiry] =
     React.useState<ContactInquiryItem | null>(null);
@@ -42,13 +44,14 @@ export default function AdminInquiriesPage() {
   const fetchInquiries = React.useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/contact");
-      if (res.ok) {
-        const data = await res.json();
-        setInquiries(data.inquiries || []);
-      }
+      const data = await adminFetchJson<{ inquiries?: ContactInquiryItem[] }>(
+        "/api/contact",
+        "pesan masuk"
+      );
+      setInquiries(Array.isArray(data.inquiries) ? data.inquiries : []);
+      setErrorText(null);
     } catch (err) {
-      console.error("Failed to fetch contact inquiries:", err);
+      setErrorText(errorMessage(err, "Gagal memuat pesan masuk dari database."));
     } finally {
       setLoading(false);
     }
@@ -68,30 +71,33 @@ export default function AdminInquiriesPage() {
     }
 
     try {
-      await fetch("/api/contact", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, isRead: nextStatus }),
-      });
+      await adminRequestJson("/api/contact", "PATCH", { id, isRead: nextStatus }, "status pesan");
     } catch (err) {
-      console.error("Failed to update read status:", err);
+      // Revert optimistic update and show the real failure
+      setInquiries((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, isRead: currentStatus } : item))
+      );
+      setSelectedInquiry((prev) => (prev && prev.id === id ? { ...prev, isRead: currentStatus } : prev));
+      setErrorText(errorMessage(err, "Gagal memperbarui status pesan."));
     }
   };
 
   const deleteInquiry = async (id: string) => {
     if (!confirm("Apakah Anda yakin ingin menghapus pesan ini?")) return;
 
-    setInquiries((prev) => prev.filter((item) => item.id !== id));
-    if (selectedInquiry?.id === id) {
-      setSelectedInquiry(null);
-    }
-
     try {
-      await fetch(`/api/contact?id=${id}`, {
-        method: "DELETE",
-      });
+      await adminRequestJson(
+        `/api/contact?id=${encodeURIComponent(id)}`,
+        "DELETE",
+        null,
+        "perubahan (hapus pesan)"
+      );
+      setInquiries((prev) => prev.filter((item) => item.id !== id));
+      if (selectedInquiry?.id === id) {
+        setSelectedInquiry(null);
+      }
     } catch (err) {
-      console.error("Failed to delete inquiry:", err);
+      setErrorText(errorMessage(err, "Gagal menghapus pesan."));
     }
   };
 
@@ -141,6 +147,12 @@ export default function AdminInquiriesPage() {
           </Button>
         </div>
       </div>
+
+      {errorText && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs font-medium text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+          {errorText}
+        </div>
+      )}
 
       {/* Summary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

@@ -3,38 +3,42 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { normalizeLink, isExternalLink } from "@/lib/normalize-link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { HERO_CATEGORIES, HERO_SLIDES, type HeroCategoryLink, type HeroSlide } from "@/lib/hero-config";
 import { type AdminBannerItem } from "@/lib/banner-store";
+
+interface HeroCategoryLink {
+  id: string;
+  ctaText?: string;
+  label: string;
+  href: string;
+  image: string;
+  mobileImage?: string;
+}
 
 interface HeroBannerProps {
   banners?: AdminBannerItem[];
-  slides?: HeroSlide[];
-  categories?: HeroCategoryLink[];
 }
 
-export default function HeroBanner({
-  banners,
-  slides = HERO_SLIDES,
-  categories = HERO_CATEGORIES,
-}: HeroBannerProps) {
-  // If dynamic banners provided from admin / database, convert to category links
-  const activeCategories: HeroCategoryLink[] = React.useMemo(() => {
-    if (banners && banners.length > 0) {
-      return banners.map((b) => ({
+export default function HeroBanner({ banners = [] }: HeroBannerProps) {
+  // Slides come only from active database banners; nothing renders when empty.
+  const activeCategories: HeroCategoryLink[] = React.useMemo(
+    () =>
+      banners.map((b) => ({
+        id: b.id,
+        ctaText: b.ctaText?.trim() || undefined,
         label: b.title,
-        href: b.ctaLink || "/new-arrivals",
+        href: normalizeLink(b.ctaLink),
         image: b.imageUrl,
         mobileImage: b.mobileImageUrl || undefined,
-      }));
-    }
-    return categories;
-  }, [banners, categories]);
+      })),
+    [banners]
+  );
 
   const [currentIndex, setCurrentIndex] = React.useState(0);
   const [isPaused, setIsPaused] = React.useState(false);
 
-  const total = activeCategories.length > 0 ? activeCategories.length : slides.length;
+  const total = activeCategories.length;
 
   const nextSlide = React.useCallback(() => {
     setCurrentIndex((prev) => (prev + 1) % total);
@@ -235,9 +239,10 @@ export default function HeroBanner({
             {activeCategories.map((cat, cIdx) => {
               const isActive = currentIndex === cIdx;
               return (
-                <span key={cat.label} className="inline-block whitespace-nowrap pointer-events-auto">
+                <span key={cat.id} className="inline-block whitespace-nowrap pointer-events-auto">
                   <Link
                     href={cat.href}
+                    {...(isExternalLink(cat.href) ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                     onClick={() => setCurrentIndex(cIdx)}
                     className={`transition-colors duration-200 no-underline hover:no-underline ${
                       isActive
@@ -254,9 +259,10 @@ export default function HeroBanner({
             <div className="mt-3 sm:mt-8 block pointer-events-auto">
               <Link
                 href={currentCategory.href}
+                {...(isExternalLink(currentCategory.href) ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                 className="inline-flex items-center gap-2 bg-[#396254] text-white hover:bg-[#2d4e44] px-5 sm:px-9 py-2.5 sm:py-3.5 rounded-full text-xs sm:text-sm font-bold sm:font-black font-heading uppercase tracking-wider transition-all hover:-translate-y-0.5 active:scale-95 shadow-lg hover:shadow-xl"
               >
-                <span>Discover {currentCategory.label}</span>
+                <span>{currentCategory.ctaText || `Discover ${currentCategory.label}`}</span>
                 <span>&rarr;</span>
               </Link>
             </div>

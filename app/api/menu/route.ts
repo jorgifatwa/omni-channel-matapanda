@@ -39,7 +39,7 @@ export async function GET() {
   } catch (error) {
     console.error("Failed to fetch menu items:", error);
     return NextResponse.json(
-      { error: "Failed to fetch menu items" },
+      { error: "Gagal memuat menu." },
       { status: 500 }
     );
   }

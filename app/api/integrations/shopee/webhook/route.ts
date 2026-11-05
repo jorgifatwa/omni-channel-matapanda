@@ -130,19 +130,17 @@ export async function POST(request: Request) {
             });
 
             // 2. Update Website Database (Prisma)
-            try {
-              if (match.variantId) {
-                await prisma.productVariant.update({
-                  where: { id: match.variantId },
-                  data: { stock: newStock },
-                });
-              } else if (match.productId) {
-                await prisma.product.update({
-                  where: { id: match.productId },
-                  data: { stock: newStock },
-                });
-              }
-            } catch {}
+            if (match.variantId) {
+              await prisma.productVariant.update({
+                where: { id: match.variantId },
+                data: { stock: newStock },
+              });
+            } else if (match.productId) {
+              await prisma.product.update({
+                where: { id: match.productId },
+                data: { stock: newStock },
+              });
+            }
 
             // 3. Propagate to TikTok Shop (Tokopedia) if product is mapped there!
             if (tiktokAccount) {
@@ -183,6 +181,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ code: 0, message: "success" });
   } catch (error) {
     console.error("[Shopee Webhook] Error:", error);
-    return NextResponse.json({ code: 0, message: "handled with error" });
+    // Non-2xx so the marketplace retries the push instead of the event being lost
+    return NextResponse.json({ code: 1, message: "internal error" }, { status: 500 });
   }
 }

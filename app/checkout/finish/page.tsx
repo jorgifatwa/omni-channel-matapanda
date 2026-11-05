@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useCart } from "@/context/CartContext";
-import { saveOrderLocally } from "@/context/AdminStoreContext";
+import { persistOrder } from "@/context/AdminStoreContext";
 import { type AdminOrder } from "@/lib/admin-data";
 
 function FinishContent() {
@@ -24,16 +24,17 @@ function FinishContent() {
   const searchParams = useSearchParams();
   const { clearCart } = useCart();
 
-  const orderId = searchParams.get("order_id") || "ZDC-ORDER";
-  const statusCode = searchParams.get("status_code") || "200";
-  const transactionStatus =
-    (searchParams.get("transaction_status") || "settlement").toLowerCase();
+  const orderId = searchParams.get("order_id") || "";
+  const statusCode = searchParams.get("status_code") || "";
+  const transactionStatus = (searchParams.get("transaction_status") || "").toLowerCase();
 
+  // Only treat the payment as successful when Midtrans actually reported it
   const isSuccess =
-    statusCode === "200" ||
-    transactionStatus === "settlement" ||
-    transactionStatus === "capture";
-  const isPending = transactionStatus === "pending";
+    !!orderId &&
+    (transactionStatus === "settlement" ||
+      transactionStatus === "capture" ||
+      (!transactionStatus && statusCode === "200"));
+  const isPending = !!orderId && transactionStatus === "pending";
 
   React.useEffect(() => {
     if (isSuccess) {
@@ -51,95 +52,40 @@ function FinishContent() {
         // sessionStorage tidak tersedia atau data corrupt — lanjut dengan fallback
       }
 
-      // Buat completed order: gunakan data asli jika ada, fallback ke generic jika tidak
-      const completedOrder: AdminOrder = savedOrder
-        ? {
-            ...savedOrder,
-            orderNumber: orderId || savedOrder.orderNumber,
-            paymentStatus: "SETTLEMENT",
-            orderStatus: "PAID",
-          }
-        : {
-            id: `ord-${orderId}`,
-            orderNumber: orderId,
-            customerId: `cust-web-${Date.now().toString().slice(-4)}`,
-            customerName: "Customer it's matapanda (Online)",
-            customerEmail: "customer@itsmatapanda.com",
-            customerPhone: "+62 812-3456-7890",
-            shippingAddress: {
-              recipient: "Customer it's matapanda",
-              phone: "+62 812-3456-7890",
-              street: "Jl. Senopati No. 64, Kebayoran Baru",
-              city: "Jakarta Selatan",
-              province: "DKI Jakarta",
-              postalCode: "12190",
-              country: "Indonesia",
-            },
-            subtotal: 10,
-            shippingCost: 12000,
-            discountAmount: 0,
-            totalAmount: 12010,
-            paymentMethod: "Midtrans Snap (QRIS / VA / GoPay)",
-            midtransTransactionId: `MT-${orderId}`,
-            paymentStatus: "SETTLEMENT",
-            orderStatus: "PAID",
-            shipmentStatus: "PENDING",
-            courier: "JNE",
-            courierService: "JNE Reguler (REG)",
-            trackingNumber: `JNE0098${Math.floor(10000000 + Math.random() * 90000000)}`,
-            items: [
-              {
-                id: `oi-${Date.now()}`,
-                productId: "dawn-gong-sunburn-01-t-shirt",
-                productName: "Dawn Gong Sunburn 01 T-shirt",
-                sku: "DG-SB01-WHT-M",
-                image:
-                  "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1200&q=85",
-                size: "M",
-                color: "White",
-                unitPrice: 10,
-                quantity: 1,
-                subtotal: 10,
-              },
-            ],
-            trackingHistory: [
-              {
-                timestamp: new Date().toISOString().replace("T", " ").slice(0, 16),
-                status: "PENDING",
-                description: "Pembayaran terverifikasi via Midtrans. Menunggu pickup JNE.",
-                location: "Jakarta Selatan (Origin)",
-              },
-            ],
-            createdAt: new Date().toISOString().slice(0, 10),
-          };
+      const sendReceipt = () =>
+        fetch("/api/payment/send-receipt", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          // Email content is read from the order stored in the database
+          body: JSON.stringify({ orderId, paymentStatus: "SETTLEMENT" }),
+        })
+          .then(async (r) => {
+            const d = await r.json().catch(() => ({}));
+            if (!r.ok) console.error("[Finish] Email receipt gagal:", d.error || r.status);
+            else console.log("[Finish] Email receipt sent:", d);
+          })
+          .catch((err) => console.warn("[Finish] Email receipt error:", err));
 
-      saveOrderLocally(completedOrder);
+      if (!savedOrder) {
+        // No order data from this browser: the order was already saved to the
+        // database at checkout; only send the receipt for it.
+        sendReceipt();
+        return;
+      }
 
-      // Kirim email konfirmasi dengan data order asli pembeli
-      fetch("/api/payment/send-receipt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orderId: completedOrder.orderNumber,
-          email: completedOrder.customerEmail,
-          customerName: completedOrder.customerName,
-          customerPhone: completedOrder.customerPhone,
-          shippingAddress: completedOrder.shippingAddress,
-          items: completedOrder.items,
-          subtotal: completedOrder.subtotal,
-          shippingCost: completedOrder.shippingCost,
-          discountAmount: completedOrder.discountAmount,
-          totalAmount: completedOrder.totalAmount,
-          courier: completedOrder.courier,
-          courierService: completedOrder.courierService,
-          trackingNumber: completedOrder.trackingNumber,
-          paymentMethod: completedOrder.paymentMethod,
-          paymentStatus: "SETTLEMENT",
-        }),
-      })
-        .then((r) => r.json())
-        .then((d) => console.log("[Finish] Email receipt sent:", d))
-        .catch((err) => console.warn("[Finish] Email receipt error:", err));
+      const completedOrder: AdminOrder = {
+        ...savedOrder,
+        orderNumber: orderId || savedOrder.orderNumber,
+        paymentStatus: "SETTLEMENT",
+        orderStatus: "PAID",
+      };
+
+      // Simpan status lunas ke database, lalu kirim email konfirmasi dari data database
+      persistOrder(completedOrder)
+        .catch((err) => {
+          console.error("[Finish] Gagal menyimpan status pesanan ke database:", err);
+        })
+        .finally(sendReceipt);
 
       // Otomatis potong stok di Shopee & marketplace yang terhubung secara real-time
       fetch("/api/integrations/products/deduct-stock", {
@@ -211,7 +157,7 @@ function FinishContent() {
                 <div className="flex items-center justify-between border-b border-[#396254]/10 dark:border-neutral-700/60 pb-3">
                   <span className="text-neutral-500 dark:text-neutral-400 font-medium">Nomor Order ID</span>
                   <span className="font-mono font-black text-[#396254] dark:text-[#dcf58d] text-sm bg-[#396254]/5 dark:bg-white/5 px-2.5 py-1 rounded-lg">
-                    {orderId}
+                    {orderId || "-"}
                   </span>
                 </div>
 

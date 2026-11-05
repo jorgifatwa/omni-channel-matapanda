@@ -49,6 +49,10 @@ interface DataTableProps<TData, TValue> {
   data: TData[];
   searchPlaceholder?: string;
   filterOptions?: DataTableFilterOption[];
+  /** Shown when there is no data at all (before any search/filter) */
+  emptyMessage?: string;
+  /** Shows a loading row instead of the empty message */
+  isLoading?: boolean;
 }
 
 export function DataTable<TData, TValue>({
@@ -56,6 +60,8 @@ export function DataTable<TData, TValue>({
   data,
   searchPlaceholder = "Cari data...",
   filterOptions = [],
+  emptyMessage = "Belum ada data.",
+  isLoading = false,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -244,7 +250,11 @@ export function DataTable<TData, TValue>({
                   colSpan={numberedColumns.length}
                   className="h-28 text-center text-sm text-neutral-500 dark:text-neutral-400"
                 >
-                  Tidak ada data ditemukan.
+                  {isLoading && data.length === 0
+                    ? "Memuat data dari database..."
+                    : data.length === 0
+                      ? emptyMessage
+                      : "Tidak ada data yang cocok dengan pencarian atau filter."}
                 </TableCell>
               </TableRow>
             )}

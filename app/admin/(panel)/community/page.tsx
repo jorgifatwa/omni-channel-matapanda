@@ -31,14 +31,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { AlertDialog } from "@/components/ui/alert-dialog";
-import {
-  type CommunityPost,
-  INITIAL_COMMUNITY_POSTS,
-} from "@/lib/community-store";
+import { type CommunityPost } from "@/lib/community-store";
+import { adminFetchJson, adminRequestJson, errorMessage } from "@/lib/admin-request";
 
 export default function AdminCommunityPage() {
   const [posts, setPosts] = React.useState<CommunityPost[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [loadError, setLoadError] = React.useState<string | null>(null);
   const [filterStatus, setFilterStatus] = React.useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
   const [searchQuery, setSearchQuery] = React.useState("");
 
@@ -77,18 +76,14 @@ export default function AdminCommunityPage() {
       if (typeof window !== "undefined") {
         window.localStorage.removeItem("itspanda_admin_community_v1");
       }
-      const res = await fetch("/api/admin/community");
-      if (res.ok) {
-        const json = await res.json();
-        if (json.posts && Array.isArray(json.posts)) {
-          setPosts(json.posts);
-          return;
-        }
-      }
-      setPosts(INITIAL_COMMUNITY_POSTS);
+      const json = await adminFetchJson<{ posts?: CommunityPost[] }>(
+        "/api/admin/community",
+        "postingan community"
+      );
+      setPosts(Array.isArray(json.posts) ? json.posts : []);
+      setLoadError(null);
     } catch (err) {
-      console.warn("Failed to load community posts from server:", err);
-      setPosts(INITIAL_COMMUNITY_POSTS);
+      setLoadError(errorMessage(err, "Gagal memuat postingan community dari database."));
     } finally {
       setLoading(false);
     }
@@ -98,19 +93,9 @@ export default function AdminCommunityPage() {
     loadPosts();
   }, [loadPosts]);
 
-  // Reset to default
-  const handleResetDefaults = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch("/api/admin/community");
-      if (res.ok) {
-        const json = await res.json();
-        if (json.posts) setPosts(json.posts);
-      }
-      showToast("info", "Postingan Community dimuat ulang dari server.");
-    } finally {
-      setLoading(false);
-    }
+  // Reload from database
+  const handleReload = async () => {
+    await loadPosts();
   };
 
   // Open Create Modal
@@ -156,22 +141,13 @@ export default function AdminCommunityPage() {
         body: formData,
       });
 
-      if (res.ok) {
-        const json = await res.json();
-        if (json.url) {
-          setImage(json.url);
-          showToast("success", "Gambar berhasil diunggah.");
-        }
-      } else {
-        // Mock preview fallback with object URL
-        const previewUrl = URL.createObjectURL(file);
-        setImage(previewUrl);
-        showToast("info", "Gambar dimuat untuk preview lokal.");
-      }
+      if (!res.ok) throw new Error("Upload gagal");
+      const json = await res.json();
+      if (!json.url) throw new Error("Upload gagal");
+      setImage(json.url);
+      showToast("success", "Gambar berhasil diunggah.");
     } catch {
-      const previewUrl = URL.createObjectURL(file);
-      setImage(previewUrl);
-      showToast("info", "Gambar dimuat untuk preview lokal.");
+      showToast("error", "Gagal mengunggah gambar. Silakan coba lagi atau masukkan URL gambar.");
     } finally {
       setIsUploading(false);
     }
@@ -204,45 +180,33 @@ export default function AdminCommunityPage() {
 
     try {
       if (editingPost) {
-        // PUT update
-        const res = await fetch(`/api/admin/community/${editingPost.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        if (res.ok) {
-          const json = await res.json();
-          const updatedItem = json.post || { ...editingPost, ...payload };
-          setPosts((prev) =>
-            prev.map((p) => (p.id === editingPost.id ? updatedItem : p))
-          );
-          showToast("success", "Postingan berhasil diperbarui.");
-        } else {
-          showToast("error", "Gagal memperbarui postingan di server.");
-        }
+        const json = await adminRequestJson<{ post?: CommunityPost }>(
+          `/api/admin/community/${editingPost.id}`,
+          "PUT",
+          payload,
+          "postingan"
+        );
+        const updatedItem = json.post || { ...editingPost, ...payload };
+        setPosts((prev) =>
+          prev.map((p) => (p.id === editingPost.id ? updatedItem : p))
+        );
+        showToast("success", "Postingan berhasil diperbarui.");
       } else {
-        // POST create
-        const res = await fetch("/api/admin/community", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        if (res.ok) {
-          const json = await res.json();
-          if (json.post) {
-            setPosts((prev) => [...prev, json.post]);
-          }
-          showToast("success", "Postingan baru berhasil ditambahkan.");
-        } else {
-          showToast("error", "Gagal menambahkan postingan di server.");
+        const json = await adminRequestJson<{ post?: CommunityPost }>(
+          "/api/admin/community",
+          "POST",
+          payload,
+          "postingan"
+        );
+        if (json.post) {
+          setPosts((prev) => [...prev, json.post as CommunityPost]);
         }
+        showToast("success", "Postingan baru berhasil ditambahkan.");
       }
 
       setModalOpen(false);
-    } catch {
-      showToast("error", "Terjadi kesalahan jaringan saat menyimpan postingan.");
+    } catch (err) {
+      setFormError(errorMessage(err, "Terjadi kesalahan saat menyimpan postingan."));
     } finally {
       setIsSubmitting(false);
     }
@@ -256,22 +220,22 @@ export default function AdminCommunityPage() {
     );
 
     try {
-      const res = await fetch(`/api/admin/community/${post.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: nextActive }),
-      });
-      if (!res.ok) throw new Error("Gagal update");
+      await adminRequestJson(
+        `/api/admin/community/${post.id}`,
+        "PUT",
+        { isActive: nextActive },
+        "status postingan"
+      );
       showToast(
         "info",
         `Postingan ${nextActive ? "diaktifkan" : "dinonaktifkan"}.`
       );
-    } catch {
+    } catch (err) {
       // Revert on error
       setPosts((prev) =>
         prev.map((p) => (p.id === post.id ? { ...p, isActive: !nextActive } : p))
       );
-      showToast("error", "Gagal memperbarui status di server.");
+      showToast("error", errorMessage(err, "Gagal memperbarui status di server."));
     }
   };
 
@@ -291,15 +255,22 @@ export default function AdminCommunityPage() {
 
     setPosts(reorderedList);
 
-    reorderedList.forEach((item) => {
-      fetch(`/api/admin/community/${item.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sortOrder: item.sortOrder }),
-      }).catch(() => {});
-    });
-
-    showToast("info", "Urutan postingan diperbarui.");
+    try {
+      await Promise.all(
+        reorderedList.map((item) =>
+          adminRequestJson(
+            `/api/admin/community/${item.id}`,
+            "PUT",
+            { sortOrder: item.sortOrder },
+            "urutan postingan"
+          )
+        )
+      );
+      showToast("info", "Urutan postingan diperbarui.");
+    } catch (err) {
+      showToast("error", errorMessage(err, "Gagal menyimpan urutan postingan."));
+      await loadPosts();
+    }
   };
 
   // Delete Confirmation
@@ -307,17 +278,16 @@ export default function AdminCommunityPage() {
     if (!deleteTarget) return;
 
     try {
-      const res = await fetch(`/api/admin/community/${deleteTarget.id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        setPosts((prev) => prev.filter((p) => p.id !== deleteTarget.id));
-        showToast("success", "Postingan berhasil dihapus.");
-      } else {
-        showToast("error", "Gagal menghapus postingan dari server.");
-      }
-    } catch {
-      showToast("error", "Gagal menghapus postingan dari server.");
+      await adminRequestJson(
+        `/api/admin/community/${deleteTarget.id}`,
+        "DELETE",
+        null,
+        "perubahan (hapus postingan)"
+      );
+      setPosts((prev) => prev.filter((p) => p.id !== deleteTarget.id));
+      showToast("success", "Postingan berhasil dihapus.");
+    } catch (err) {
+      showToast("error", errorMessage(err, "Gagal menghapus postingan dari server."));
     } finally {
       setDeleteTarget(null);
     }
@@ -382,12 +352,12 @@ export default function AdminCommunityPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={handleResetDefaults}
+            onClick={handleReload}
             className="text-xs text-neutral-600 dark:text-neutral-300"
-            title="Reset ke data default"
+            title="Muat ulang postingan dari database"
           >
             <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
-            Reset Default
+            Muat Ulang
           </Button>
           <Button
             onClick={handleOpenCreate}
@@ -398,6 +368,12 @@ export default function AdminCommunityPage() {
           </Button>
         </div>
       </div>
+
+      {loadError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs font-medium text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+          {loadError}
+        </div>
+      )}
 
       {/* Live Storefront Carousel Preview */}
       <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-sm space-y-3">

@@ -2,7 +2,6 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { INITIAL_PRODUCTS } from "@/lib/admin-data";
 import {
   getActiveMarketplaceAccounts,
   getProductMappings,
@@ -50,81 +49,43 @@ export async function GET(request: NextRequest) {
     const shopeeMappedCount = allMappings.filter((m) => m.platform === "SHOPEE").length;
     const tiktokMappedCount = allMappings.filter((m) => m.platform === "TIKTOK_SHOP").length;
 
-    // 3. Get website products (Prisma with fallback to INITIAL_PRODUCTS)
+    // 3. Get website products (database only; empty catalog → empty list)
     const websiteProducts: FlatWebsiteProduct[] = [];
-    try {
-      const dbProducts = await prisma.product.findMany({
-        where: { isActive: true },
-        include: {
-          variants: true,
-          images: { take: 1, orderBy: { isPrimary: "desc" } },
-        },
-      });
+    const dbProducts = await prisma.product.findMany({
+      where: { isActive: true },
+      include: {
+        variants: true,
+        images: { take: 1, orderBy: { isPrimary: "desc" } },
+      },
+    });
 
-      if (dbProducts && dbProducts.length > 0) {
-        for (const p of dbProducts) {
-          const mainImg = p.images?.[0]?.url || "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=800&q=80";
-          if (p.variants && p.variants.length > 0) {
-            for (const v of p.variants) {
-              const sku = v.sku || `${p.sku}-${v.size}`;
-              websiteProducts.push({
-                productId: p.id,
-                variantId: v.id,
-                productName: p.name,
-                sku,
-                size: v.size,
-                color: v.color,
-                price: Number(p.price),
-                stock: v.stock,
-                image: mainImg,
-              });
-            }
-          } else {
-            websiteProducts.push({
-              productId: p.id,
-              variantId: null,
-              productName: p.name,
-              sku: p.sku,
-              price: Number(p.price),
-              stock: p.stock,
-              image: mainImg,
-            });
-          }
-        }
-      }
-    } catch {
-      // DB offline, use INITIAL_PRODUCTS
-    }
-
-    // Fallback if DB was empty
-    if (websiteProducts.length === 0) {
-      for (const p of INITIAL_PRODUCTS) {
-        const mainImg = p.images?.[0] || "";
-        if (p.variants && p.variants.length > 0) {
-          for (const v of p.variants) {
-            websiteProducts.push({
-              productId: p.id,
-              variantId: v.id,
-              productName: p.name,
-              sku: v.sku,
-              size: v.size,
-              color: v.color,
-              price: p.price,
-              stock: v.stock,
-              image: mainImg,
-            });
-          }
-        } else {
+    for (const p of dbProducts) {
+      const mainImg = p.images?.[0]?.url || "";
+      if (p.variants && p.variants.length > 0) {
+        for (const v of p.variants) {
+          const sku = v.sku || `${p.sku}-${v.size}`;
           websiteProducts.push({
             productId: p.id,
-            variantId: null,
+            variantId: v.id,
             productName: p.name,
-            sku: p.sku,
-            price: p.price,
-            stock: p.stock,
+            sku,
+            size: v.size,
+            color: v.color,
+            price: Number(p.price),
+            stock: v.stock,
             image: mainImg,
           });
         }
+      } else {
+        websiteProducts.push({
+          productId: p.id,
+          variantId: null,
+          productName: p.name,
+          sku: p.sku,
+          price: Number(p.price),
+          stock: p.stock,
+          image: mainImg,
+        });
       }
     }
 
@@ -217,6 +178,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("[Mappings API] Error:", error);
-    return NextResponse.json({ error: "Gagal memuat data pemetaan produk" }, { status: 500 });
+    return NextResponse.json({ error: "Gagal memuat data pemetaan produk dari database" }, { status: 503 });
   }
 }

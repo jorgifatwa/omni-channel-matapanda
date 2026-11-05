@@ -16,11 +16,11 @@ export async function PATCH(
       });
       return NextResponse.json({ success: true, notification: updated });
     } catch (dbError) {
-      console.warn("Database update failed for notification:", dbError);
-      return NextResponse.json({
-        success: true,
-        notification: { id: params.id, isRead },
-      });
+      console.error("Database update failed for notification:", dbError);
+      return NextResponse.json(
+        { error: "Gagal menyimpan status notifikasi ke database." },
+        { status: 500 }
+      );
     }
   } catch (error) {
     console.error("PATCH /api/admin/notifications/[id] error:", error);
@@ -42,8 +42,11 @@ export async function DELETE(
       });
       return NextResponse.json({ success: true, message: "Notifikasi berhasil dihapus." });
     } catch (dbError) {
-      console.warn("Database delete failed for notification:", dbError);
-      return NextResponse.json({ success: true, message: "Notifikasi berhasil dihapus." });
+      console.error("Database delete failed for notification:", dbError);
+      return NextResponse.json(
+        { error: "Gagal menghapus notifikasi dari database." },
+        { status: 500 }
+      );
     }
   } catch (error) {
     console.error("DELETE /api/admin/notifications/[id] error:", error);

@@ -567,7 +567,14 @@ export async function getStorefrontBanners(): Promise<{
   heroBanners: AdminBannerItem[];
   secondaryBanners: AdminBannerItem[];
 }> {
-  const { heroBanners, secondaryBanners } = await getActiveStorefrontBanners();
-  return { heroBanners, secondaryBanners };
+  // Banners come only from the database. If the database is unreachable the
+  // homepage still renders, just without banner sections (no sample banners).
+  try {
+    const { heroBanners, secondaryBanners } = await getActiveStorefrontBanners();
+    return { heroBanners, secondaryBanners };
+  } catch (err) {
+    console.error("[getStorefrontBanners] Gagal memuat banner dari database:", err);
+    return { heroBanners: [], secondaryBanners: [] };
+  }
 }
 

@@ -27,54 +27,6 @@ export interface AdminNotificationItem {
 export const ADMIN_NOTIFICATION_CHANNEL = "itspanda_admin_notifications_channel";
 export const ADMIN_LATEST_NOTIF_KEY = "itspanda_latest_notification_event";
 
-export const INITIAL_NOTIFICATIONS: AdminNotificationItem[] = [
-  {
-    id: "notif-cust-1",
-    type: "NEW_CUSTOMER",
-    title: "Customer Baru Terdaftar",
-    message: "Raya Putra (raya.putra@gmail.com) baru saja mendaftar akun customer it'smatapanda.",
-    link: "/admin/customers",
-    isRead: false,
-    metadata: {
-      customerId: "u4d1a004-4444-4444-8444-000000000001",
-      name: "Raya Putra",
-      email: "raya.putra@gmail.com",
-      phone: "081234567890",
-    },
-    createdAt: new Date(Date.now() - 1000 * 60 * 18).toISOString(), // 18 mins ago
-  },
-  {
-    id: "notif-cust-2",
-    type: "NEW_CUSTOMER",
-    title: "Customer Baru Terdaftar",
-    message: "Amira Salsabila (amira.salsa@yahoo.com) baru saja mendaftar akun customer it'smatapanda.",
-    link: "/admin/customers",
-    isRead: false,
-    metadata: {
-      customerId: "u4d1a004-4444-4444-8444-000000000002",
-      name: "Amira Salsabila",
-      email: "amira.salsa@yahoo.com",
-      phone: "081398765432",
-    },
-    createdAt: new Date(Date.now() - 1000 * 60 * 125).toISOString(), // ~2 hours ago
-  },
-  {
-    id: "notif-cust-3",
-    type: "NEW_CUSTOMER",
-    title: "Customer Baru Terdaftar",
-    message: "Dimas Anggara (dimas.anggara@gmail.com) baru saja mendaftar akun customer it'smatapanda.",
-    link: "/admin/customers",
-    isRead: true,
-    metadata: {
-      customerId: "u4d1a004-4444-4444-8444-000000000003",
-      name: "Dimas Anggara",
-      email: "dimas.anggara@gmail.com",
-      phone: "082155543210",
-    },
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), // 1 day ago
-  },
-];
-
 /**
  * Format timestamp into friendly relative Indonesian time
  */

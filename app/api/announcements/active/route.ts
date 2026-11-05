@@ -5,10 +5,13 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const { announcements, source } = await getActiveStorefrontAnnouncementsStore();
-    return NextResponse.json({ announcements, source });
+    const announcements = await getActiveStorefrontAnnouncementsStore();
+    return NextResponse.json({ announcements, source: "database" });
   } catch (error) {
     console.error("GET /api/announcements/active error:", error);
-    return NextResponse.json({ announcements: [], source: "error" }, { status: 500 });
+    return NextResponse.json(
+      { announcements: [], error: "Gagal memuat announcement dari database." },
+      { status: 503 }
+    );
   }
 }

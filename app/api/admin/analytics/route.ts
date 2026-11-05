@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { INITIAL_ORDERS, INITIAL_PRODUCTS, INITIAL_CUSTOMERS } from "@/lib/admin-data";
 
 export const dynamic = "force-dynamic";
 
@@ -27,236 +26,22 @@ function formatDate(d: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-// Generate realistic deterministic mock orders across multi-years (2024, 2025, 2026) for resilient fallback
-function getMultiYearFallbackOrders() {
-  const orders: Array<{
-    id: string;
-    orderNumber: string;
-    customerId: string;
-    customerName: string;
-    customerEmail: string;
-    subtotal: number;
-    shippingCost: number;
-    totalAmount: number;
-    orderStatus: "PENDING" | "PAID" | "SHIPPED" | "COMPLETED" | "CANCELLED";
-    paymentStatus: "PENDING" | "SETTLEMENT" | "CANCEL" | "EXPIRE";
-    courier: string;
-    createdAt: Date;
-    items: Array<{
-      productId: string;
-      productName: string;
-      sku: string;
-      unitPrice: number;
-      quantity: number;
-      subtotal: number;
-    }>;
-  }> = [];
+function startOfDay(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+}
 
-  const customerPool = INITIAL_CUSTOMERS;
-  const productPool = INITIAL_PRODUCTS;
+function endOfDay(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+}
 
-  let orderIndex = 1;
+function addDays(d: Date, days: number): Date {
+  const next = new Date(d);
+  next.setDate(next.getDate() + days);
+  return next;
+}
 
-  // Generate 2024 orders (approx 60 orders, lower revenue)
-  for (let m = 0; m < 12; m++) {
-    const ordersInMonth = 4 + (m % 3);
-    for (let o = 0; o < ordersInMonth; o++) {
-      const day = Math.min(28, 2 + o * 4 + (m % 4));
-      const date = new Date(2024, m, day, 10 + (o % 8), (o * 17) % 60);
-      const cust = customerPool[orderIndex % customerPool.length];
-      const prod1 = productPool[(orderIndex + 0) % productPool.length];
-      const prod2 = productPool[(orderIndex + 1) % productPool.length];
-      const qty1 = 1 + (orderIndex % 2);
-      const qty2 = orderIndex % 3 === 0 ? 1 : 0;
-      const subtotal = prod1.price * qty1 + (qty2 ? prod2.price * qty2 : 0);
-      const shipping = (orderIndex % 2 === 0 ? 15000 : 25000) + (orderIndex % 5 === 0 ? 300000 : 0);
-      const status: "COMPLETED" | "SHIPPED" | "PAID" | "PENDING" | "CANCELLED" =
-        orderIndex % 15 === 0 ? "CANCELLED" : "COMPLETED";
-
-      const items = [
-        {
-          productId: prod1.id,
-          productName: prod1.name,
-          sku: prod1.sku,
-          unitPrice: prod1.price,
-          quantity: qty1,
-          subtotal: prod1.price * qty1,
-        },
-      ];
-      if (qty2) {
-        items.push({
-          productId: prod2.id,
-          productName: prod2.name,
-          sku: prod2.sku,
-          unitPrice: prod2.price,
-          quantity: qty2,
-          subtotal: prod2.price * qty2,
-        });
-      }
-
-      orders.push({
-        id: `mock-2024-${orderIndex}`,
-        orderNumber: `ZDC-2024${String(m + 1).padStart(2, "0")}${String(day).padStart(2, "0")}-${String(orderIndex).padStart(3, "0")}`,
-        customerId: cust.id,
-        customerName: cust.name,
-        customerEmail: cust.email,
-        subtotal,
-        shippingCost: shipping,
-        totalAmount: subtotal + shipping,
-        orderStatus: status,
-        paymentStatus: status === "CANCELLED" ? "CANCEL" : "SETTLEMENT",
-        courier: shipping > 50000 ? "DHL" : "JNE",
-        createdAt: date,
-        items,
-      });
-      orderIndex++;
-    }
-  }
-
-  // Generate 2025 orders (approx 80 orders, growing revenue)
-  for (let m = 0; m < 12; m++) {
-    const ordersInMonth = 6 + (m % 4) + (m >= 8 ? 2 : 0);
-    for (let o = 0; o < ordersInMonth; o++) {
-      const day = Math.min(28, 1 + o * 3 + (m % 3));
-      const date = new Date(2025, m, day, 9 + (o % 10), (o * 19) % 60);
-      const cust = customerPool[orderIndex % customerPool.length];
-      const prod1 = productPool[(orderIndex + 2) % productPool.length];
-      const prod2 = productPool[(orderIndex + 4) % productPool.length];
-      const qty1 = 1 + (orderIndex % 3);
-      const qty2 = orderIndex % 2 === 0 ? 1 : 0;
-      const subtotal = prod1.price * qty1 + (qty2 ? prod2.price * qty2 : 0);
-      const shipping = (orderIndex % 2 === 0 ? 15000 : 25000) + (orderIndex % 4 === 0 ? 350000 : 0);
-      const status: "COMPLETED" | "SHIPPED" | "PAID" | "PENDING" | "CANCELLED" =
-        orderIndex % 18 === 0 ? "CANCELLED" : "COMPLETED";
-
-      const items = [
-        {
-          productId: prod1.id,
-          productName: prod1.name,
-          sku: prod1.sku,
-          unitPrice: prod1.price,
-          quantity: qty1,
-          subtotal: prod1.price * qty1,
-        },
-      ];
-      if (qty2) {
-        items.push({
-          productId: prod2.id,
-          productName: prod2.name,
-          sku: prod2.sku,
-          unitPrice: prod2.price,
-          quantity: qty2,
-          subtotal: prod2.price * qty2,
-        });
-      }
-
-      orders.push({
-        id: `mock-2025-${orderIndex}`,
-        orderNumber: `ZDC-2025${String(m + 1).padStart(2, "0")}${String(day).padStart(2, "0")}-${String(orderIndex).padStart(3, "0")}`,
-        customerId: cust.id,
-        customerName: cust.name,
-        customerEmail: cust.email,
-        subtotal,
-        shippingCost: shipping,
-        totalAmount: subtotal + shipping,
-        orderStatus: status,
-        paymentStatus: status === "CANCELLED" ? "CANCEL" : "SETTLEMENT",
-        courier: shipping > 50000 ? "DHL" : "JNE",
-        createdAt: date,
-        items,
-      });
-      orderIndex++;
-    }
-  }
-
-  // Generate 2026 orders (Jan - Sep 2026, highest peak in Sep)
-  for (let m = 0; m < 9; m++) {
-    const ordersInMonth = m === 8 ? 32 : 8 + (m % 3);
-    for (let o = 0; o < ordersInMonth; o++) {
-      const day = m === 8 ? (o % 30) + 1 : Math.min(28, 1 + o * 3);
-      const date = new Date(2026, m, day, 8 + (o % 12), (o * 13) % 60);
-      const cust = customerPool[orderIndex % customerPool.length];
-      const prod1 = productPool[(orderIndex + 1) % productPool.length];
-      const prod2 = productPool[(orderIndex + 3) % productPool.length];
-      const qty1 = 1 + (orderIndex % 2);
-      const qty2 = orderIndex % 2 === 0 ? 1 : 0;
-      const subtotal = prod1.price * qty1 + (qty2 ? prod2.price * qty2 : 0);
-      const shipping = (orderIndex % 2 === 0 ? 15000 : 22000) + (orderIndex % 4 === 0 ? 380000 : 0);
-      
-      let status: "COMPLETED" | "SHIPPED" | "PAID" | "PENDING" | "CANCELLED" = "COMPLETED";
-      if (m === 8 && day >= 28) {
-        status = o % 4 === 0 ? "PENDING" : o % 3 === 0 ? "PAID" : "SHIPPED";
-      } else if (orderIndex % 20 === 0) {
-        status = "CANCELLED";
-      }
-
-      const items = [
-        {
-          productId: prod1.id,
-          productName: prod1.name,
-          sku: prod1.sku,
-          unitPrice: prod1.price,
-          quantity: qty1,
-          subtotal: prod1.price * qty1,
-        },
-      ];
-      if (qty2) {
-        items.push({
-          productId: prod2.id,
-          productName: prod2.name,
-          sku: prod2.sku,
-          unitPrice: prod2.price,
-          quantity: qty2,
-          subtotal: prod2.price * qty2,
-        });
-      }
-
-      orders.push({
-        id: `mock-2026-${orderIndex}`,
-        orderNumber: `ZDC-2026${String(m + 1).padStart(2, "0")}${String(day).padStart(2, "0")}-${String(orderIndex).padStart(3, "0")}`,
-        customerId: cust.id,
-        customerName: cust.name,
-        customerEmail: cust.email,
-        subtotal,
-        shippingCost: shipping,
-        totalAmount: subtotal + shipping,
-        orderStatus: status,
-        paymentStatus: status === "CANCELLED" ? "CANCEL" : status === "PENDING" ? "PENDING" : "SETTLEMENT",
-        courier: shipping > 50000 ? "DHL" : "JNE",
-        createdAt: date,
-        items,
-      });
-      orderIndex++;
-    }
-  }
-
-  // Include INITIAL_ORDERS from memory
-  INITIAL_ORDERS.forEach((io) => {
-    orders.push({
-      id: io.id,
-      orderNumber: io.orderNumber,
-      customerId: io.customerId,
-      customerName: io.customerName,
-      customerEmail: io.customerEmail,
-      subtotal: io.subtotal,
-      shippingCost: io.shippingCost,
-      totalAmount: io.totalAmount,
-      orderStatus: io.orderStatus,
-      paymentStatus: io.paymentStatus,
-      courier: io.courier,
-      createdAt: new Date(io.createdAt),
-      items: io.items.map((it) => ({
-        productId: it.productId,
-        productName: it.productName,
-        sku: it.sku,
-        unitPrice: it.unitPrice,
-        quantity: it.quantity,
-        subtotal: it.subtotal,
-      })),
-    });
-  });
-
-  return orders;
+function formatLabelDate(d: Date): string {
+  return `${String(d.getDate()).padStart(2, "0")} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 export async function GET(req: NextRequest) {
@@ -268,7 +53,29 @@ export async function GET(req: NextRequest) {
     const startDateParam = searchParams.get("startDate");
     const endDateParam = searchParams.get("endDate");
 
-    const selectedYear = yearParam ? parseInt(yearParam, 10) : 2026;
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const parsedYear = yearParam ? parseInt(yearParam, 10) : NaN;
+    const selectedYear = Number.isFinite(parsedYear) ? parsedYear : currentYear;
+
+    // Years that actually contain orders in the database (earliest order year .. current year)
+    let firstOrderYear = currentYear;
+    try {
+      const firstOrder = await prisma.order.findFirst({
+        where: { deletedAt: null },
+        orderBy: { createdAt: "asc" },
+        select: { createdAt: true },
+      });
+      if (firstOrder) firstOrderYear = Math.min(currentYear, firstOrder.createdAt.getFullYear());
+    } catch (dbErr) {
+      console.error("[AdminAnalyticsAPI] Database query failed:", dbErr);
+      return NextResponse.json(
+        { success: false, error: "Gagal memuat data analitik dari database" },
+        { status: 503 }
+      );
+    }
+    const availableYears: number[] = [];
+    for (let y = firstOrderYear; y <= currentYear; y++) availableYears.push(y);
 
     let startDate: Date;
     let endDate: Date;
@@ -278,14 +85,17 @@ export async function GET(req: NextRequest) {
 
     // Determine target and previous date ranges based on mode
     if (mode === "yearly") {
-      // All years from 2024 to current
-      startDate = new Date(2024, 0, 1, 0, 0, 0, 0);
-      endDate = new Date(2026, 11, 31, 23, 59, 59, 999);
-      periodLabel = "Multi-Tahun (2024 - 2026)";
+      // All years that contain orders, up to the current year
+      startDate = new Date(firstOrderYear, 0, 1, 0, 0, 0, 0);
+      endDate = new Date(currentYear, 11, 31, 23, 59, 59, 999);
+      periodLabel =
+        firstOrderYear === currentYear
+          ? `Tahun ${currentYear}`
+          : `Multi-Tahun (${firstOrderYear} - ${currentYear})`;
 
-      // Comparison: 2026 vs 2025
-      prevStartDate = new Date(2025, 0, 1, 0, 0, 0, 0);
-      prevEndDate = new Date(2025, 11, 31, 23, 59, 59, 999);
+      // Comparison: previous year
+      prevStartDate = new Date(currentYear - 1, 0, 1, 0, 0, 0, 0);
+      prevEndDate = new Date(currentYear - 1, 11, 31, 23, 59, 59, 999);
     } else if (mode === "monthly") {
       // 1 Full year (Jan 1 to Dec 31)
       startDate = new Date(selectedYear, 0, 1, 0, 0, 0, 0);
@@ -296,19 +106,20 @@ export async function GET(req: NextRequest) {
       prevStartDate = new Date(selectedYear - 1, 0, 1, 0, 0, 0, 0);
       prevEndDate = new Date(selectedYear - 1, 11, 31, 23, 59, 59, 999);
     } else {
-      // Daily Mode
+      // Daily Mode (relative to today)
+      const today = startOfDay(now);
       if (preset === "today") {
-        startDate = new Date(2026, 8, 30, 0, 0, 0, 0);
-        endDate = new Date(2026, 8, 30, 23, 59, 59, 999);
-        prevStartDate = new Date(2026, 8, 29, 0, 0, 0, 0);
-        prevEndDate = new Date(2026, 8, 29, 23, 59, 59, 999);
-        periodLabel = "Hari Ini (30 Sep 2026)";
+        startDate = today;
+        endDate = endOfDay(now);
+        prevStartDate = addDays(today, -1);
+        prevEndDate = endOfDay(prevStartDate);
+        periodLabel = `Hari Ini (${formatLabelDate(today)})`;
       } else if (preset === "7d") {
-        startDate = new Date(2026, 8, 24, 0, 0, 0, 0);
-        endDate = new Date(2026, 8, 30, 23, 59, 59, 999);
-        prevStartDate = new Date(2026, 8, 17, 0, 0, 0, 0);
-        prevEndDate = new Date(2026, 8, 23, 23, 59, 59, 999);
-        periodLabel = "7 Hari Terakhir (24 - 30 Sep 2026)";
+        startDate = addDays(today, -6);
+        endDate = endOfDay(now);
+        prevStartDate = addDays(today, -13);
+        prevEndDate = endOfDay(addDays(today, -7));
+        periodLabel = `7 Hari Terakhir (${formatLabelDate(startDate)} - ${formatLabelDate(today)})`;
       } else if (preset === "custom" && startDateParam && endDateParam) {
         const [sY, sM, sD] = startDateParam.split("-").map(Number);
         const [eY, eM, eD] = endDateParam.split("-").map(Number);
@@ -320,12 +131,12 @@ export async function GET(req: NextRequest) {
         prevStartDate = new Date(prevEndDate.getTime() - durationDays * 24 * 60 * 60 * 1000);
         periodLabel = `${formatDate(startDate)} s/d ${formatDate(endDate)}`;
       } else {
-        // 30 Days (Default: 1 Sep 2026 - 30 Sep 2026)
-        startDate = new Date(2026, 8, 1, 0, 0, 0, 0);
-        endDate = new Date(2026, 8, 30, 23, 59, 59, 999);
-        prevStartDate = new Date(2026, 7, 2, 0, 0, 0, 0);
-        prevEndDate = new Date(2026, 7, 31, 23, 59, 59, 999);
-        periodLabel = "30 Hari Terakhir (01 - 30 Sep 2026)";
+        // Default: last 30 days including today
+        startDate = addDays(today, -29);
+        endDate = endOfDay(now);
+        prevStartDate = addDays(today, -59);
+        prevEndDate = endOfDay(addDays(today, -30));
+        periodLabel = `30 Hari Terakhir (${formatLabelDate(startDate)} - ${formatLabelDate(today)})`;
       }
     }
 
@@ -352,13 +163,12 @@ export async function GET(req: NextRequest) {
       orderStatus: string;
     }> = [];
 
-    let customerCount = 5;
-    let isFromDatabase = false;
+    let customerCount = 0;
 
     try {
-      // Attempt Prisma query with timeout
       const dbOrders = await prisma.order.findMany({
         where: {
+          deletedAt: null,
           createdAt: {
             gte: startDate,
             lte: endDate,
@@ -376,6 +186,7 @@ export async function GET(req: NextRequest) {
 
       const prevDbOrders = await prisma.order.findMany({
         where: {
+          deletedAt: null,
           createdAt: {
             gte: prevStartDate,
             lte: prevEndDate,
@@ -388,7 +199,7 @@ export async function GET(req: NextRequest) {
       });
 
       customerCount = await prisma.user.count({
-        where: { role: "CUSTOMER" },
+        where: { role: "CUSTOMER", deletedAt: null },
       });
 
       rawOrders = dbOrders.map((o) => ({
@@ -399,7 +210,7 @@ export async function GET(req: NextRequest) {
         createdAt: o.createdAt,
         customerName: o.user?.name || "Customer",
         customerEmail: o.user?.email,
-        courier: o.shipment?.courier || "JNE",
+        courier: o.shipment?.courier || "-",
         items: o.items.map((i) => ({
           productId: i.productId,
           productName: i.productName,
@@ -413,34 +224,12 @@ export async function GET(req: NextRequest) {
         totalAmount: Number(o.totalAmount),
         orderStatus: o.status,
       }));
-
-      isFromDatabase = true;
-    } catch {
-      // Fallback if local DB is unreachable
-      const allFallbackOrders = getMultiYearFallbackOrders();
-
-      rawOrders = allFallbackOrders
-        .filter((o) => o.createdAt >= startDate && o.createdAt <= endDate)
-        .map((o) => ({
-          id: o.id,
-          orderNumber: o.orderNumber,
-          totalAmount: o.totalAmount,
-          orderStatus: o.orderStatus,
-          createdAt: o.createdAt,
-          customerName: o.customerName,
-          customerEmail: o.customerEmail,
-          courier: o.courier,
-          items: o.items,
-        }));
-
-      prevRawOrders = allFallbackOrders
-        .filter((o) => o.createdAt >= prevStartDate && o.createdAt <= prevEndDate)
-        .map((o) => ({
-          totalAmount: o.totalAmount,
-          orderStatus: o.orderStatus,
-        }));
-
-      customerCount = INITIAL_CUSTOMERS.length;
+    } catch (dbErr) {
+      console.error("[AdminAnalyticsAPI] Database query failed:", dbErr);
+      return NextResponse.json(
+        { success: false, error: "Gagal memuat data analitik dari database" },
+        { status: 503 }
+      );
     }
 
     // KPI Aggregations
@@ -527,9 +316,7 @@ export async function GET(req: NextRequest) {
     }> = [];
 
     if (mode === "yearly") {
-      // 2024, 2025, 2026
-      const years = [2024, 2025, 2026];
-      chartData = years.map((y) => {
+      chartData = availableYears.map((y) => {
         const yearOrders = rawOrders.filter(
           (o) => o.createdAt.getFullYear() === y && o.orderStatus !== "CANCELLED"
         );
@@ -594,8 +381,8 @@ export async function GET(req: NextRequest) {
       preset,
       selectedYear,
       periodLabel,
-      isFromDatabase,
-      availableYears: [2024, 2025, 2026],
+      isFromDatabase: true,
+      availableYears,
       kpis: {
         totalRevenue,
         totalOrders,
@@ -618,7 +405,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Internal Server Error",
+        error: "Gagal memuat data analitik",
       },
       { status: 500 }
     );

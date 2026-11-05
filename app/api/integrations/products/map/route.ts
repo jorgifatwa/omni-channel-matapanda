@@ -105,7 +105,10 @@ export async function DELETE(request: Request) {
   }
 
   try {
-    await deleteProductMapping(id);
+    const deleted = await deleteProductMapping(id);
+    if (!deleted) {
+      return NextResponse.json({ error: "Pemetaan produk tidak ditemukan" }, { status: 404 });
+    }
     return NextResponse.json({
       success: true,
       message: "Pemetaan produk berhasil diputus.",

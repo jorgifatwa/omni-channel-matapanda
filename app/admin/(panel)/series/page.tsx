@@ -26,7 +26,7 @@ import { useAdminStore } from "@/context/AdminStoreContext";
 import { type AdminProductSeries, slugify } from "@/lib/admin-data";
 
 export default function AdminSeriesPage() {
-  const { series, saveSeries, deleteSeries, products } = useAdminStore();
+  const { series, saveSeries, deleteSeries, products, isLoading, loadError } = useAdminStore();
 
   const [modalOpen, setModalOpen] = React.useState(false);
   const [editingSeries, setEditingSeries] =
@@ -213,9 +213,16 @@ export default function AdminSeriesPage() {
       </div>
 
       {/* Data Table */}
+      {loadError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+          {loadError} Data yang tampil mungkin tidak lengkap. Coba muat ulang halaman.
+        </div>
+      )}
       <DataTable
         columns={columns}
         data={series}
+        isLoading={isLoading}
+        emptyMessage="Belum ada series produk. Klik Tambah Series untuk membuat series pertama."
         searchPlaceholder="Cari nama series, slug..."
       />
 

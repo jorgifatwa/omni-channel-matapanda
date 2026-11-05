@@ -1,42 +1,28 @@
 import { NextResponse } from "next/server";
 import {
-  saveBannerStore,
+  getBannerByIdStore,
+  updateBannerStore,
   deleteBannerStore,
-  readBannersFromFile,
   type BannerType,
 } from "@/lib/banner-store.server";
-import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
-
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    // 1. Try DB
-    if (UUID_REGEX.test(params.id)) {
-      try {
-        const banner = await prisma.banner.findUnique({
-          where: { id: params.id },
-        });
-        if (banner) return NextResponse.json({ banner });
-      } catch {}
+    const banner = await getBannerByIdStore(params.id);
+    if (!banner) {
+      return NextResponse.json({ error: "Banner tidak ditemukan" }, { status: 404 });
     }
-
-    // 2. Try file store
-    const fileBanners = readBannersFromFile();
-    const banner = fileBanners.find((b) => b.id === params.id || b.title === params.id);
-    if (banner) return NextResponse.json({ banner });
-
-    return NextResponse.json({ error: "Banner tidak ditemukan" }, { status: 404 });
+    return NextResponse.json({ banner });
   } catch (error) {
     console.error("GET /api/admin/banners/[id] error:", error);
     return NextResponse.json(
-      { error: "Gagal mengambil data banner." },
-      { status: 500 }
+      { error: "Gagal memuat data banner dari database." },
+      { status: 503 }
     );
   }
 }
@@ -45,45 +31,64 @@ export async function PUT(
   request: Request,
   { params }: { params: { id: string } }
 ) {
+  let body: Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
   try {
-    const body = await request.json();
-    const {
-      type,
-      title,
-      subtitle,
-      description,
-      imageUrl,
-      mobileImageUrl,
-      ctaText,
-      ctaLink,
-      sortOrder,
-      isActive,
-    } = body;
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Format data tidak valid." }, { status: 400 });
+  }
 
-    // Get current item to preserve existing values if not specified
-    const fileBanners = readBannersFromFile();
-    const existing = fileBanners.find((b) => b.id === params.id || b.title === params.id);
+  const {
+    type,
+    title,
+    subtitle,
+    description,
+    imageUrl,
+    mobileImageUrl,
+    ctaText,
+    ctaLink,
+    sortOrder,
+    isActive,
+  } = body;
 
-    const banner = await saveBannerStore({
-      id: existing?.id || params.id,
-      type: (type || existing?.type || "HERO_BANNER") as BannerType,
-      title: title !== undefined ? title.trim() : (existing?.title || "Banner"),
-      subtitle: subtitle !== undefined ? (subtitle?.trim() || null) : existing?.subtitle,
-      description: description !== undefined ? (description?.trim() || null) : existing?.description,
-      imageUrl: imageUrl !== undefined ? imageUrl.trim() : (existing?.imageUrl || ""),
-      mobileImageUrl: mobileImageUrl !== undefined ? (mobileImageUrl?.trim() || null) : existing?.mobileImageUrl,
-      ctaText: ctaText !== undefined ? (ctaText?.trim() || null) : existing?.ctaText,
-      ctaLink: ctaLink !== undefined ? (ctaLink?.trim() || null) : existing?.ctaLink,
-      sortOrder: sortOrder !== undefined ? Number(sortOrder) : (existing?.sortOrder || 0),
-      isActive: isActive !== undefined ? Boolean(isActive) : (existing?.isActive ?? true),
+  try {
+    // Preserve existing values for fields not sent (e.g. toggle / reorder)
+    const existing = await getBannerByIdStore(params.id);
+    if (!existing) {
+      return NextResponse.json({ error: "Banner tidak ditemukan" }, { status: 404 });
+    }
+
+    const nextTitle = title !== undefined ? String(title).trim() : existing.title;
+    const nextImageUrl = imageUrl !== undefined ? String(imageUrl).trim() : existing.imageUrl;
+    if (!nextTitle || !nextImageUrl) {
+      return NextResponse.json(
+        { error: "Judul dan Gambar Banner wajib diisi." },
+        { status: 400 }
+      );
+    }
+
+    const banner = await updateBannerStore(params.id, {
+      type: (type || existing.type) as BannerType,
+      title: nextTitle,
+      subtitle: subtitle !== undefined ? (subtitle?.trim() || null) : existing.subtitle,
+      description: description !== undefined ? (description?.trim() || null) : existing.description,
+      imageUrl: nextImageUrl,
+      mobileImageUrl: mobileImageUrl !== undefined ? (mobileImageUrl?.trim() || null) : existing.mobileImageUrl,
+      ctaText: ctaText !== undefined ? (ctaText?.trim() || null) : existing.ctaText,
+      ctaLink: ctaLink !== undefined ? (ctaLink?.trim() || null) : existing.ctaLink,
+      sortOrder: sortOrder !== undefined ? Number(sortOrder) : existing.sortOrder,
+      isActive: isActive !== undefined ? Boolean(isActive) : existing.isActive,
     });
 
+    if (!banner) {
+      return NextResponse.json({ error: "Banner tidak ditemukan" }, { status: 404 });
+    }
     return NextResponse.json({ banner, success: true });
   } catch (error) {
     console.error("PUT /api/admin/banners/[id] error:", error);
     return NextResponse.json(
-      { error: "Gagal memperbarui banner." },
-      { status: 500 }
+      { error: "Gagal memperbarui banner di database." },
+      { status: 503 }
     );
   }
 }
@@ -93,13 +98,16 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    await deleteBannerStore(params.id);
+    const deleted = await deleteBannerStore(params.id);
+    if (!deleted) {
+      return NextResponse.json({ error: "Banner tidak ditemukan" }, { status: 404 });
+    }
     return NextResponse.json({ success: true, message: "Banner berhasil dihapus." });
   } catch (error) {
     console.error("DELETE /api/admin/banners/[id] error:", error);
     return NextResponse.json(
-      { error: "Gagal menghapus banner." },
-      { status: 500 }
+      { error: "Gagal menghapus banner dari database." },
+      { status: 503 }
     );
   }
 }

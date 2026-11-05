@@ -10,8 +10,11 @@ export async function PATCH() {
       });
       return NextResponse.json({ success: true, message: "Semua notifikasi ditandai dibaca." });
     } catch (dbError) {
-      console.warn("Database updateMany failed for notifications:", dbError);
-      return NextResponse.json({ success: true, message: "Semua notifikasi ditandai dibaca." });
+      console.error("Database updateMany failed for notifications:", dbError);
+      return NextResponse.json(
+        { error: "Gagal menyimpan status notifikasi ke database." },
+        { status: 500 }
+      );
     }
   } catch (error) {
     console.error("PATCH /api/admin/notifications/mark-all-read error:", error);

@@ -1,200 +1,80 @@
-import fs from "fs";
-import path from "path";
-import crypto from "crypto";
 import { revalidatePath } from "next/cache";
+import type { CommunityPost as CommunityPostRow } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import {
-  INITIAL_COMMUNITY_POSTS,
-  type CommunityPost,
-} from "@/lib/community-store";
+import { type CommunityPost } from "@/lib/community-store";
 
 export type { CommunityPost };
-export { INITIAL_COMMUNITY_POSTS };
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const COMMUNITY_FILE = path.join(DATA_DIR, "community.json");
+/**
+ * Community post store backed purely by PostgreSQL (Prisma). No file cache and
+ * no auto-seeding: an empty table yields an empty list, and database errors
+ * are thrown so API routes can respond with an error status.
+ */
 
 function isUuid(str: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 }
 
-function ensureDataDir(): void {
-  try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-  } catch (err) {
-    console.warn("[community.server] Could not create data dir:", err);
-  }
-}
-
-function normalizePost(post: CommunityPost): CommunityPost {
-  if (isUuid(post.id)) return post;
+function toCommunityPost(p: CommunityPostRow): CommunityPost {
   return {
-    ...post,
-    id: crypto.randomUUID(),
+    id: p.id,
+    image: p.image,
+    accountHandle: p.accountHandle,
+    accountAvatarUrl: p.accountAvatarUrl,
+    caption: p.caption,
+    postDate: p.postDate,
+    instagramUrl: p.instagramUrl,
+    sortOrder: p.sortOrder,
+    isActive: p.isActive,
+    createdAt: p.createdAt.toISOString(),
+    updatedAt: p.updatedAt.toISOString(),
   };
 }
 
-export function readCommunityPostsFromFile(): CommunityPost[] {
-  ensureDataDir();
+function revalidateCommunityPaths() {
   try {
-    if (fs.existsSync(COMMUNITY_FILE)) {
-      const raw = fs.readFileSync(COMMUNITY_FILE, "utf-8");
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
-      }
-    }
-  } catch (err) {
-    console.warn("[community.server] Error reading community.json:", err);
-  }
-
-  const initialWithUuids = INITIAL_COMMUNITY_POSTS.map((p) => normalizePost(p));
-  writeCommunityPostsToFile(initialWithUuids);
-  return initialWithUuids;
+    revalidatePath("/");
+    revalidatePath("/admin/community");
+  } catch {}
 }
 
-export function writeCommunityPostsToFile(posts: CommunityPost[]): void {
-  ensureDataDir();
-  try {
-    fs.writeFileSync(COMMUNITY_FILE, JSON.stringify(posts, null, 2), "utf-8");
-  } catch (err) {
-    console.warn("[community.server] Error writing community.json:", err);
-  }
+/** All community posts for the admin panel. Throws on database error. */
+export async function getAllCommunityPostsStore(
+  status?: "active" | "inactive"
+): Promise<CommunityPost[]> {
+  const rows = await prisma.communityPost.findMany({
+    where:
+      status === "active" ? { isActive: true } : status === "inactive" ? { isActive: false } : undefined,
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+  });
+  return rows.map(toCommunityPost);
 }
 
-/**
- * Get all community posts for Admin API with DB + File dual persistence
- */
-export async function getAllCommunityPostsStore(status?: "active" | "inactive"): Promise<{
-  posts: CommunityPost[];
-  source: "database" | "file-cache";
-}> {
-  try {
-    const whereClause: { isActive?: boolean } = {};
-    if (status === "active") whereClause.isActive = true;
-    if (status === "inactive") whereClause.isActive = false;
-
-    const dbPosts = await prisma.communityPost.findMany({
-      where: Object.keys(whereClause).length > 0 ? whereClause : undefined,
-      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
-    });
-
-    if (dbPosts && dbPosts.length > 0) {
-      const formatted: CommunityPost[] = dbPosts.map((p) => ({
-        id: p.id,
-        image: p.image,
-        accountHandle: p.accountHandle,
-        accountAvatarUrl: p.accountAvatarUrl,
-        caption: p.caption,
-        postDate: p.postDate,
-        instagramUrl: p.instagramUrl,
-        sortOrder: p.sortOrder,
-        isActive: p.isActive,
-        createdAt: p.createdAt.toISOString(),
-        updatedAt: p.updatedAt.toISOString(),
-      }));
-
-      if (!status) {
-        writeCommunityPostsToFile(formatted);
-      }
-
-      return { posts: formatted, source: "database" };
-    }
-
-    // If DB is empty, auto-seed DB with initial items
-    const seededList = readCommunityPostsFromFile();
-    try {
-      for (const item of seededList) {
-        await prisma.communityPost.create({
-          data: {
-            id: isUuid(item.id) ? item.id : undefined,
-            image: item.image,
-            accountHandle: item.accountHandle,
-            accountAvatarUrl: item.accountAvatarUrl || null,
-            caption: item.caption,
-            postDate: item.postDate || null,
-            instagramUrl: item.instagramUrl || null,
-            sortOrder: item.sortOrder,
-            isActive: item.isActive,
-          },
-        });
-      }
-    } catch (seedErr) {
-      console.warn("[community.server] Auto-seed DB failed:", seedErr);
-    }
-  } catch (dbError) {
-    console.warn("[community.server] Database unavailable, reading file cache:", dbError);
-  }
-
-  const filePosts = readCommunityPostsFromFile();
-  const filtered = status === "active"
-    ? filePosts.filter((p) => p.isActive)
-    : status === "inactive"
-    ? filePosts.filter((p) => !p.isActive)
-    : filePosts;
-
-  return { posts: filtered, source: "file-cache" };
+/** Single post by id, or null. Throws on database error. */
+export async function getCommunityPostByIdStore(id: string): Promise<CommunityPost | null> {
+  if (!isUuid(id)) return null;
+  const row = await prisma.communityPost.findUnique({ where: { id } });
+  return row ? toCommunityPost(row) : null;
 }
 
-/**
- * Get active community posts for Storefront
- */
-export async function getActiveCommunityPostsStore(): Promise<{
-  posts: CommunityPost[];
-  source: "database" | "file-cache";
-}> {
-  try {
-    const dbPosts = await prisma.communityPost.findMany({
-      where: { isActive: true },
-      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
-    });
-
-    if (dbPosts && dbPosts.length > 0) {
-      const formatted: CommunityPost[] = dbPosts.map((p) => ({
-        id: p.id,
-        image: p.image,
-        accountHandle: p.accountHandle,
-        accountAvatarUrl: p.accountAvatarUrl,
-        caption: p.caption,
-        postDate: p.postDate,
-        instagramUrl: p.instagramUrl,
-        sortOrder: p.sortOrder,
-        isActive: p.isActive,
-        createdAt: p.createdAt.toISOString(),
-        updatedAt: p.updatedAt.toISOString(),
-      }));
-      return { posts: formatted, source: "database" };
-    }
-  } catch (err) {
-    console.warn("[community.server] DB offline for active posts:", err);
-  }
-
-  const filePosts = readCommunityPostsFromFile().filter((p) => p.isActive);
-  return { posts: filePosts, source: "file-cache" };
+/** Active posts for the storefront. Throws on database error. */
+export async function getActiveCommunityPostsStore(): Promise<CommunityPost[]> {
+  return getAllCommunityPostsStore("active");
 }
 
-/**
- * Save community post (create / update) with DB + file dual persistence
- */
-export async function saveCommunityPostStore(data: {
-  id?: string;
+export interface CommunityPostInput {
   image: string;
-  accountHandle?: string;
+  accountHandle?: string | null;
   accountAvatarUrl?: string | null;
   caption: string;
   postDate?: string | null;
   instagramUrl?: string | null;
   sortOrder?: number;
   isActive?: boolean;
-}): Promise<CommunityPost> {
-  const currentPosts = readCommunityPostsFromFile();
-  const id = data.id && isUuid(data.id) ? data.id : crypto.randomUUID();
-  const now = new Date().toISOString();
+}
 
-  const newOrUpdated: CommunityPost = {
-    id,
+function toPostData(data: CommunityPostInput) {
+  return {
     image: data.image.trim(),
     accountHandle: (data.accountHandle || "itsmatapanda").replace(/^@/, "").trim(),
     accountAvatarUrl: data.accountAvatarUrl ? data.accountAvatarUrl.trim() : null,
@@ -203,85 +83,33 @@ export async function saveCommunityPostStore(data: {
     instagramUrl: data.instagramUrl ? data.instagramUrl.trim() : null,
     sortOrder: Number(data.sortOrder) || 0,
     isActive: data.isActive !== undefined ? Boolean(data.isActive) : true,
-    createdAt: now,
-    updatedAt: now,
   };
-
-  // 1. File cache
-  const existingIdx = currentPosts.findIndex((p) => p.id === (data.id || id));
-  let updatedList: CommunityPost[];
-  if (existingIdx >= 0) {
-    newOrUpdated.createdAt = currentPosts[existingIdx].createdAt;
-    updatedList = [...currentPosts];
-    updatedList[existingIdx] = newOrUpdated;
-  } else {
-    updatedList = [...currentPosts, newOrUpdated];
-  }
-  writeCommunityPostsToFile(updatedList);
-
-  // 2. Sync to PostgreSQL
-  try {
-    await prisma.communityPost.upsert({
-      where: { id },
-      create: {
-        id,
-        image: newOrUpdated.image,
-        accountHandle: newOrUpdated.accountHandle,
-        accountAvatarUrl: newOrUpdated.accountAvatarUrl,
-        caption: newOrUpdated.caption,
-        postDate: newOrUpdated.postDate,
-        instagramUrl: newOrUpdated.instagramUrl,
-        sortOrder: newOrUpdated.sortOrder,
-        isActive: newOrUpdated.isActive,
-      },
-      update: {
-        image: newOrUpdated.image,
-        accountHandle: newOrUpdated.accountHandle,
-        accountAvatarUrl: newOrUpdated.accountAvatarUrl,
-        caption: newOrUpdated.caption,
-        postDate: newOrUpdated.postDate,
-        instagramUrl: newOrUpdated.instagramUrl,
-        sortOrder: newOrUpdated.sortOrder,
-        isActive: newOrUpdated.isActive,
-      },
-    });
-  } catch (err) {
-    console.warn("[community.server] PostgreSQL sync skipped:", err);
-  }
-
-  // 3. Invalidate paths
-  try {
-    revalidatePath("/");
-    revalidatePath("/admin/community");
-  } catch {}
-
-  return newOrUpdated;
 }
 
-/**
- * Delete community post
- */
+/** Create a post. Throws on database error. */
+export async function createCommunityPostStore(data: CommunityPostInput): Promise<CommunityPost> {
+  const row = await prisma.communityPost.create({ data: toPostData(data) });
+  revalidateCommunityPaths();
+  return toCommunityPost(row);
+}
+
+/** Update a post. Returns null when it does not exist. Throws on database error. */
+export async function updateCommunityPostStore(
+  id: string,
+  data: CommunityPostInput
+): Promise<CommunityPost | null> {
+  if (!isUuid(id)) return null;
+  const existing = await prisma.communityPost.findUnique({ where: { id }, select: { id: true } });
+  if (!existing) return null;
+  const row = await prisma.communityPost.update({ where: { id }, data: toPostData(data) });
+  revalidateCommunityPaths();
+  return toCommunityPost(row);
+}
+
+/** Delete a post. Returns false when it does not exist. Throws on database error. */
 export async function deleteCommunityPostStore(id: string): Promise<boolean> {
-  const currentPosts = readCommunityPostsFromFile();
-  const updatedList = currentPosts.filter((p) => p.id !== id);
-  writeCommunityPostsToFile(updatedList);
-
-  try {
-    if (isUuid(id)) {
-      await prisma.communityPost.delete({ where: { id } }).catch(() => {});
-    } else {
-      await prisma.communityPost.deleteMany({
-        where: { id },
-      }).catch(() => {});
-    }
-  } catch (err) {
-    console.warn("[community.server] PostgreSQL delete skipped:", err);
-  }
-
-  try {
-    revalidatePath("/");
-    revalidatePath("/admin/community");
-  } catch {}
-
-  return true;
+  if (!isUuid(id)) return false;
+  const result = await prisma.communityPost.deleteMany({ where: { id } });
+  revalidateCommunityPaths();
+  return result.count > 0;
 }

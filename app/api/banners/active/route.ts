@@ -5,18 +5,13 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const { heroBanners, secondaryBanners, source } = await getActiveStorefrontBanners();
-
-    return NextResponse.json({
-      heroBanners,
-      secondaryBanners,
-      source,
-    });
+    const { heroBanners, secondaryBanners } = await getActiveStorefrontBanners();
+    return NextResponse.json({ heroBanners, secondaryBanners, source: "database" });
   } catch (error) {
     console.error("Public active banners error:", error);
     return NextResponse.json(
-      { error: "Gagal mengambil data banner aktif." },
-      { status: 500 }
+      { heroBanners: [], secondaryBanners: [], error: "Gagal memuat banner dari database." },
+      { status: 503 }
     );
   }
 }

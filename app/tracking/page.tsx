@@ -392,7 +392,9 @@ function TrackingContent() {
                     </div>
                   ) : (
                     <p className="text-xs text-neutral-500 italic">
-                      Paket sedang dalam persiapan di pusat logistik it&apos;smatapanda dan segera di-pickup oleh kurir {result.shipment.courier}.
+                      {result.shipment.trackingNumber
+                        ? `Riwayat pelacakan otomatis belum tersedia. Silakan cek nomor resi ${result.shipment.trackingNumber} langsung di situs resmi kurir ${result.shipment.courier}.`
+                        : `Belum ada riwayat pengiriman. Paket akan diserahkan ke kurir ${result.shipment.courier} setelah pesanan diproses.`}
                     </p>
                   )}
                 </div>
@@ -413,13 +415,15 @@ function TrackingContent() {
                     >
                       <div className="flex items-center gap-4 min-w-0">
                         <div className="relative h-18 w-14 shrink-0 rounded-2xl bg-neutral-100 overflow-hidden border border-neutral-200/80">
-                          <Image
-                            src={item.image}
-                            alt={item.productName}
-                            fill
-                            sizes="56px"
-                            className="object-cover"
-                          />
+                          {item.image ? (
+                            <Image
+                              src={item.image}
+                              alt={item.productName}
+                              fill
+                              sizes="56px"
+                              className="object-cover"
+                            />
+                          ) : null}
                         </div>
                         <div className="min-w-0">
                           <h4 className="font-black text-sm text-neutral-900 truncate uppercase">

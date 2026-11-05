@@ -16,29 +16,30 @@ import {
   Loader2,
   HelpCircle,
 } from "lucide-react";
-import { FAQ_CATEGORIES, INITIAL_FAQS, type FaqItem } from "@/lib/faq-data";
+import { FAQ_CATEGORIES, type FaqItem } from "@/lib/faq-data";
 
 export default function FaqPage() {
-  const [faqs, setFaqs] = React.useState<FaqItem[]>(INITIAL_FAQS);
+  // FAQs come only from the database (no built-in sample FAQs)
+  const [faqs, setFaqs] = React.useState<FaqItem[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [loadFailed, setLoadFailed] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [activeCategory, setActiveCategory] = React.useState<string>("All");
   const [openFaqIds, setOpenFaqIds] = React.useState<Set<string>>(
-    new Set(["faq-most-1", "faq-most-2"])
+    new Set()
   );
 
   React.useEffect(() => {
     async function loadFaqs() {
       try {
         const res = await fetch("/api/faqs");
-        if (res.ok) {
-          const data = await res.json();
-          if (data.faqs && Array.isArray(data.faqs) && data.faqs.length > 0) {
-            setFaqs(data.faqs);
-          }
-        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        setFaqs(Array.isArray(data.faqs) ? data.faqs : []);
+        setLoadFailed(false);
       } catch (err) {
-        console.warn("Failed to fetch FAQs, using initial data:", err);
+        console.warn("Failed to fetch FAQs from database:", err);
+        setLoadFailed(true);
       } finally {
         setLoading(false);
       }
@@ -242,6 +243,20 @@ export default function FaqPage() {
           <div className="py-20 flex flex-col items-center justify-center gap-3">
             <Loader2 className="h-7 w-7 animate-spin text-[#396254]" />
             <p className="text-xs text-neutral-500 font-medium">Memuat panduan &amp; FAQs...</p>
+          </div>
+        ) : faqs.length === 0 ? (
+          <div className="py-16 text-center space-y-4 bg-white dark:bg-neutral-900 rounded-3xl border-2 border-dashed border-[#396254]/20 p-8 shadow-sm">
+            <div className="h-16 w-16 rounded-3xl bg-[#d5c6ff]/30 text-[#396254] flex items-center justify-center mx-auto">
+              <HelpCircle className="h-8 w-8 text-[#396254]" />
+            </div>
+            <h3 className="text-base font-black text-[#396254] dark:text-white">
+              {loadFailed ? "FAQ belum dapat dimuat" : "Belum ada FAQ"}
+            </h3>
+            <p className="text-xs sm:text-sm text-neutral-500 max-w-sm mx-auto">
+              {loadFailed
+                ? "Terjadi gangguan saat memuat FAQ. Silakan coba beberapa saat lagi."
+                : "Pertanyaan yang sering diajukan akan segera tersedia."}
+            </p>
           </div>
         ) : filteredFaqs.length === 0 ? (
           <div className="py-16 text-center space-y-4 bg-white dark:bg-neutral-900 rounded-3xl border-2 border-dashed border-[#396254]/20 p-8 shadow-sm">

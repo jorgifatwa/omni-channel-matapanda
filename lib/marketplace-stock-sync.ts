@@ -33,7 +33,8 @@ export async function onWebsiteOrderPlaced(items: OrderItemToDeduct[]): Promise<
     const tiktokAccount = accounts.find((a) => a.platform === "TIKTOK_SHOP");
 
     if (!shopeeAccount && !tiktokAccount) {
-      return { success: false, deductedCount: 0 };
+      // Nothing to propagate; not an error
+      return { success: true, deductedCount: 0 };
     }
 
     let shopeeToken = "";
@@ -118,20 +119,18 @@ export async function onWebsiteOrderPlaced(items: OrderItemToDeduct[]): Promise<
             lastSyncError: null,
           });
 
-          // 4. Update database if Prisma is connected
-          try {
-            if (match.variantId) {
-              await prisma.productVariant.update({
-                where: { id: match.variantId },
-                data: { stock: newStock },
-              });
-            } else if (match.productId) {
-              await prisma.product.update({
-                where: { id: match.productId },
-                data: { stock: newStock },
-              });
-            }
-          } catch {}
+          // 4. Update website stock in the database
+          if (match.variantId) {
+            await prisma.productVariant.update({
+              where: { id: match.variantId },
+              data: { stock: newStock },
+            });
+          } else if (match.productId) {
+            await prisma.product.update({
+              where: { id: match.productId },
+              data: { stock: newStock },
+            });
+          }
 
           deductedCount++;
         }

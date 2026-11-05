@@ -1,56 +1,57 @@
 import { NextResponse } from "next/server";
 import {
   getAllCommunityPostsStore,
-  saveCommunityPostStore,
+  createCommunityPostStore,
 } from "@/lib/community-store.server";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const statusFilter = searchParams.get("status") as "active" | "inactive" | null;
+  const statusFilter = searchParams.get("status");
 
   try {
-    const { posts, source } = await getAllCommunityPostsStore(
+    const posts = await getAllCommunityPostsStore(
       statusFilter === "active" || statusFilter === "inactive" ? statusFilter : undefined
     );
-    return NextResponse.json({ posts, source });
+    return NextResponse.json({ posts, source: "database" });
   } catch (error) {
     console.error("GET /api/admin/community error:", error);
     return NextResponse.json(
-      { error: "Gagal mengambil data community posts." },
-      { status: 500 }
+      { posts: [], error: "Gagal memuat community post dari database." },
+      { status: 503 }
     );
   }
 }
 
 export async function POST(request: Request) {
+  let body;
   try {
-    const body = await request.json();
-    const {
-      image,
-      accountHandle,
-      accountAvatarUrl,
-      caption,
-      postDate,
-      instagramUrl,
-      sortOrder = 0,
-      isActive = true,
-    } = body;
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Format data tidak valid." }, { status: 400 });
+  }
 
-    if (!image || !image.trim()) {
-      return NextResponse.json(
-        { error: "URL gambar wajib diisi." },
-        { status: 400 }
-      );
-    }
+  const {
+    image,
+    accountHandle,
+    accountAvatarUrl,
+    caption,
+    postDate,
+    instagramUrl,
+    sortOrder = 0,
+    isActive = true,
+  } = body ?? {};
 
-    if (!caption || !caption.trim()) {
-      return NextResponse.json(
-        { error: "Caption wajib diisi." },
-        { status: 400 }
-      );
-    }
+  if (typeof image !== "string" || !image.trim()) {
+    return NextResponse.json({ error: "URL gambar wajib diisi." }, { status: 400 });
+  }
+  if (typeof caption !== "string" || !caption.trim()) {
+    return NextResponse.json({ error: "Caption wajib diisi." }, { status: 400 });
+  }
 
-    const saved = await saveCommunityPostStore({
+  try {
+    const saved = await createCommunityPostStore({
       image,
       accountHandle,
       accountAvatarUrl,
@@ -60,13 +61,12 @@ export async function POST(request: Request) {
       sortOrder,
       isActive,
     });
-
     return NextResponse.json({ post: saved, success: true }, { status: 201 });
   } catch (error) {
     console.error("POST /api/admin/community error:", error);
     return NextResponse.json(
-      { error: "Terjadi kesalahan pada server saat menambahkan post." },
-      { status: 500 }
+      { error: "Gagal menyimpan post ke database." },
+      { status: 503 }
     );
   }
 }

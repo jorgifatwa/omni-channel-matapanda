@@ -49,7 +49,7 @@ function getShipmentStatusBadge(status: string) {
 }
 
 export default function AdminOrdersPage() {
-  const { orders } = useAdminStore();
+  const { orders, isLoading, ordersLoadError } = useAdminStore();
   const [selectedOrder, setSelectedOrder] = React.useState<AdminOrder | null>(null);
   const [isShippingLabelOpen, setIsShippingLabelOpen] = React.useState(false);
   const [isPackingSlipOpen, setIsPackingSlipOpen] = React.useState(false);
@@ -188,6 +188,12 @@ export default function AdminOrdersPage() {
           pengiriman JNE / DHL.
         </p>
       </div>
+
+      {ordersLoadError && !isLoading && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+          {ordersLoadError}
+        </div>
+      )}
 
       <DataTable
         columns={columns}

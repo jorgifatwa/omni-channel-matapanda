@@ -36,13 +36,14 @@ import {
 import { AlertDialog } from "@/components/ui/alert-dialog";
 import {
   FAQ_CATEGORIES,
-  INITIAL_FAQS,
   type FaqItem,
 } from "@/lib/faq-data";
+import { adminFetchJson, adminRequestJson, errorMessage } from "@/lib/admin-request";
 
 export default function AdminFaqsPage() {
   const [faqs, setFaqs] = React.useState<FaqItem[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [loadError, setLoadError] = React.useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = React.useState<string>("All");
   const [filterStatus, setFilterStatus] = React.useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -83,18 +84,11 @@ export default function AdminFaqsPage() {
       if (typeof window !== "undefined") {
         window.localStorage.removeItem("itspanda_admin_faqs_v1");
       }
-      const res = await fetch("/api/admin/faqs");
-      if (res.ok) {
-        const json = await res.json();
-        if (json.faqs && Array.isArray(json.faqs)) {
-          setFaqs(json.faqs);
-          return;
-        }
-      }
-      setFaqs(INITIAL_FAQS);
+      const json = await adminFetchJson<{ faqs?: FaqItem[] }>("/api/admin/faqs", "FAQ");
+      setFaqs(Array.isArray(json.faqs) ? json.faqs : []);
+      setLoadError(null);
     } catch (err) {
-      console.warn("Failed to load faqs from server:", err);
-      setFaqs(INITIAL_FAQS);
+      setLoadError(errorMessage(err, "Gagal memuat FAQ dari database."));
     } finally {
       setLoading(false);
     }
@@ -104,18 +98,8 @@ export default function AdminFaqsPage() {
     loadFaqs();
   }, [loadFaqs]);
 
-  const handleResetDefaults = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch("/api/admin/faqs");
-      if (res.ok) {
-        const json = await res.json();
-        if (json.faqs) setFaqs(json.faqs);
-      }
-      showToast("info", "Dataset FAQ dimuat ulang dari server.");
-    } finally {
-      setLoading(false);
-    }
+  const handleReload = async () => {
+    await loadFaqs();
   };
 
   // Open Create Modal
@@ -183,41 +167,26 @@ export default function AdminFaqsPage() {
       };
 
       if (editingItem) {
-        // UPDATE
-        const res = await fetch(`/api/admin/faqs/${editingItem.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        if (res.ok) {
-          const json = await res.json();
-          const updatedItem = json.faq || { ...editingItem, ...payload };
-          setFaqs((prev) => prev.map((f) => (f.id === editingItem.id ? updatedItem : f)));
-          showToast("success", "FAQ berhasil diperbarui!");
-        } else {
-          showToast("error", "Gagal memperbarui FAQ di server.");
-        }
+        const json = await adminRequestJson<{ faq?: FaqItem }>(
+          `/api/admin/faqs/${editingItem.id}`,
+          "PUT",
+          payload,
+          "FAQ"
+        );
+        const updatedItem = json.faq || { ...editingItem, ...payload };
+        setFaqs((prev) => prev.map((f) => (f.id === editingItem.id ? updatedItem : f)));
+        showToast("success", "FAQ berhasil diperbarui!");
       } else {
-        // CREATE
-        const res = await fetch("/api/admin/faqs", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        if (res.ok) {
-          const json = await res.json();
-          if (json.faq) {
-            setFaqs((prev) => [json.faq, ...prev]);
-          }
-          showToast("success", "FAQ baru berhasil ditambahkan!");
-        } else {
-          showToast("error", "Gagal menambahkan FAQ di server.");
+        const json = await adminRequestJson<{ faq?: FaqItem }>("/api/admin/faqs", "POST", payload, "FAQ");
+        if (json.faq) {
+          setFaqs((prev) => [json.faq as FaqItem, ...prev]);
         }
+        showToast("success", "FAQ baru berhasil ditambahkan!");
       }
 
       setModalOpen(false);
-    } catch {
-      setFormError("Gagal menyimpan FAQ. Silakan coba lagi.");
+    } catch (err) {
+      setFormError(errorMessage(err, "Gagal menyimpan FAQ. Silakan coba lagi."));
     } finally {
       setIsSubmitting(false);
     }
@@ -229,16 +198,11 @@ export default function AdminFaqsPage() {
     setFaqs((prev) => prev.map((f) => (f.id === id ? { ...f, isActive: nextStatus } : f)));
 
     try {
-      const res = await fetch(`/api/admin/faqs/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: nextStatus }),
-      });
-      if (!res.ok) throw new Error("Gagal update");
+      await adminRequestJson(`/api/admin/faqs/${id}`, "PUT", { isActive: nextStatus }, "status FAQ");
       showToast("info", `Status FAQ diubah menjadi ${nextStatus ? "Aktif" : "Non-aktif"}.`);
-    } catch {
+    } catch (err) {
       setFaqs((prev) => prev.map((f) => (f.id === id ? { ...f, isActive: currentStatus } : f)));
-      showToast("error", "Gagal memperbarui status di server.");
+      showToast("error", errorMessage(err, "Gagal memperbarui status di server."));
     }
   };
 
@@ -250,38 +214,32 @@ export default function AdminFaqsPage() {
     const currentItem = filteredFaqs[index];
     const targetItem = filteredFaqs[targetIndex];
 
-    const updated = [...faqs];
+    const currentOrder = currentItem.sortOrder || 0;
+    const targetOrder = targetItem.sortOrder || 0;
+
+    // Swap sortOrder (and positions) locally without mutating existing state objects
+    const updated = faqs.map((f) => {
+      if (f.id === currentItem.id) return { ...f, sortOrder: targetOrder };
+      if (f.id === targetItem.id) return { ...f, sortOrder: currentOrder };
+      return f;
+    });
     const idxA = updated.findIndex((f) => f.id === currentItem.id);
     const idxB = updated.findIndex((f) => f.id === targetItem.id);
+    if (idxA === -1 || idxB === -1) return;
+    const temp = updated[idxA];
+    updated[idxA] = updated[idxB];
+    updated[idxB] = temp;
+    setFaqs(updated);
 
-    if (idxA !== -1 && idxB !== -1) {
-      const tempOrder = updated[idxA].sortOrder;
-      updated[idxA].sortOrder = updated[idxB].sortOrder || 0;
-      updated[idxB].sortOrder = tempOrder;
-
-      // Swap in array
-      const temp = updated[idxA];
-      updated[idxA] = updated[idxB];
-      updated[idxB] = temp;
-
-      setFaqs(updated);
-
-      try {
-        await Promise.all([
-          fetch(`/api/admin/faqs/${currentItem.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ sortOrder: updated[idxA].sortOrder }),
-          }),
-          fetch(`/api/admin/faqs/${targetItem.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ sortOrder: updated[idxB].sortOrder }),
-          }),
-        ]);
-      } catch {}
-
+    try {
+      await Promise.all([
+        adminRequestJson(`/api/admin/faqs/${currentItem.id}`, "PUT", { sortOrder: targetOrder }, "urutan FAQ"),
+        adminRequestJson(`/api/admin/faqs/${targetItem.id}`, "PUT", { sortOrder: currentOrder }, "urutan FAQ"),
+      ]);
       showToast("info", "Urutan FAQ berhasil diperbarui.");
+    } catch (err) {
+      showToast("error", errorMessage(err, "Gagal menyimpan urutan FAQ."));
+      await loadFaqs();
     }
   };
 
@@ -290,17 +248,11 @@ export default function AdminFaqsPage() {
     if (!deleteTarget) return;
 
     try {
-      const res = await fetch(`/api/admin/faqs/${deleteTarget.id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        setFaqs((prev) => prev.filter((f) => f.id !== deleteTarget.id));
-        showToast("success", "FAQ berhasil dihapus.");
-      } else {
-        showToast("error", "Gagal menghapus FAQ dari server.");
-      }
-    } catch {
-      showToast("error", "Gagal menghapus FAQ dari server.");
+      await adminRequestJson(`/api/admin/faqs/${deleteTarget.id}`, "DELETE", null, "perubahan (hapus FAQ)");
+      setFaqs((prev) => prev.filter((f) => f.id !== deleteTarget.id));
+      showToast("success", "FAQ berhasil dihapus.");
+    } catch (err) {
+      showToast("error", errorMessage(err, "Gagal menghapus FAQ dari server."));
     } finally {
       setDeleteTarget(null);
     }
@@ -373,11 +325,12 @@ export default function AdminFaqsPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={handleResetDefaults}
+            onClick={handleReload}
             className="text-xs gap-1.5 border-neutral-200 dark:border-neutral-800"
+            title="Muat ulang FAQ dari database"
           >
             <RotateCcw className="h-3.5 w-3.5" />
-            <span>Reset Default</span>
+            <span>Muat Ulang</span>
           </Button>
 
           <Link href="/faq" target="_blank">
@@ -401,6 +354,12 @@ export default function AdminFaqsPage() {
           </Button>
         </div>
       </div>
+
+      {loadError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs font-medium text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+          {loadError}
+        </div>
+      )}
 
       {/* Live Storefront Preview Widget */}
       <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 p-5 shadow-sm space-y-4">

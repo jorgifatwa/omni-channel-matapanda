@@ -9,13 +9,13 @@ export async function GET(request: Request) {
   const search = searchParams.get("search")?.toLowerCase().trim() || undefined;
 
   try {
-    const { faqs, source } = await getActiveFaqsStore({
-      category,
-      search,
-    });
-    return NextResponse.json({ faqs, source });
+    const faqs = await getActiveFaqsStore({ category, search });
+    return NextResponse.json({ faqs, source: "database" });
   } catch (error) {
     console.error("GET /api/faqs error:", error);
-    return NextResponse.json({ faqs: [], source: "error" }, { status: 500 });
+    return NextResponse.json(
+      { faqs: [], error: "Gagal memuat FAQ dari database." },
+      { status: 503 }
+    );
   }
 }

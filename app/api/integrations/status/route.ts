@@ -66,7 +66,10 @@ export async function DELETE(request: Request) {
   }
 
   try {
-    await deactivateMarketplaceAccount(id);
+    const deactivated = await deactivateMarketplaceAccount(id);
+    if (!deactivated) {
+      return NextResponse.json({ error: "Akun marketplace tidak ditemukan" }, { status: 404 });
+    }
     return NextResponse.json({ success: true, message: "Koneksi marketplace berhasil diputus." });
   } catch (error) {
     console.error("[Integrations Disconnect] Error:", error);

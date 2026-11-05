@@ -4,6 +4,8 @@ import {
   addSubscriber,
 } from "@/lib/newsletter-store";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get("search")?.toLowerCase().trim();
@@ -26,8 +28,8 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error("GET /api/admin/subscribers error:", error);
     return NextResponse.json(
-      { error: "Gagal mengambil daftar subscribers" },
-      { status: 500 }
+      { subscribers: [], total: 0, error: "Gagal memuat daftar subscriber dari database." },
+      { status: 503 }
     );
   }
 }
@@ -61,8 +63,8 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("POST /api/admin/subscribers error:", error);
     return NextResponse.json(
-      { error: "Terjadi kesalahan server saat menambahkan subscriber." },
-      { status: 500 }
+      { error: "Gagal menyimpan subscriber ke database." },
+      { status: 503 }
     );
   }
 }

@@ -16,7 +16,6 @@ import {
   Sparkles,
   Layers,
   Loader2,
-  RotateCcw,
   Smartphone,
   Monitor,
 } from "lucide-react";
@@ -38,14 +37,15 @@ import { AlertDialog } from "@/components/ui/alert-dialog";
 import {
   type AdminBannerItem,
   type BannerType,
-  INITIAL_HERO_BANNERS,
-  INITIAL_SECONDARY_BANNERS,
 } from "@/lib/banner-store";
+import { adminFetchJson, adminRequestJson, errorMessage } from "@/lib/admin-request";
+import { normalizeLink } from "@/lib/normalize-link";
 
 export default function AdminBannersPage() {
   const [activeTab, setActiveTab] = React.useState<BannerType>("HERO_BANNER");
   const [banners, setBanners] = React.useState<AdminBannerItem[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [loadError, setLoadError] = React.useState<string | null>(null);
 
   // Clear any legacy local storage on mount to ensure fresh DB sync
   React.useEffect(() => {
@@ -100,25 +100,21 @@ export default function AdminBannersPage() {
     setTimeout(() => setToast(null), 3500);
   };
 
-  // Load Banners directly from database API
+  // Load Banners directly from database API (no sample fallback)
   const loadBanners = React.useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/admin/banners", { cache: "no-store" });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.banners && Array.isArray(json.banners)) {
-          setBanners(json.banners);
-          return;
-        }
-      }
-    } catch {
-      console.warn("Failed fetching banners from API");
+      const json = await adminFetchJson<{ banners?: AdminBannerItem[] }>(
+        "/api/admin/banners",
+        "banner"
+      );
+      setBanners(Array.isArray(json.banners) ? json.banners : []);
+      setLoadError(null);
+    } catch (err) {
+      setLoadError(errorMessage(err, "Gagal memuat data banner dari database."));
     } finally {
       setLoading(false);
     }
-
-    setBanners([...INITIAL_HERO_BANNERS, ...INITIAL_SECONDARY_BANNERS]);
   }, []);
 
   React.useEffect(() => {
@@ -261,55 +257,23 @@ export default function AdminBannersPage() {
       imageUrl: imageUrl.trim(),
       mobileImageUrl: mobileImageUrl.trim() || null,
       ctaText: ctaText.trim() || null,
-      ctaLink: ctaLink.trim() || null,
+      ctaLink: normalizeLink(ctaLink, "") || null,
       sortOrder: Number(sortOrder) || 0,
       isActive,
     };
 
     try {
       if (editingBanner) {
-        // Update via API
-        const res = await fetch(`/api/admin/banners/${editingBanner.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        const updatedItem: AdminBannerItem = {
-          ...editingBanner,
-          ...payload,
-          updatedAt: new Date().toISOString(),
-        };
-
-        if (res.ok) {
-          const data = await res.json();
-          if (data.banner) Object.assign(updatedItem, data.banner);
-          showToast("success", `Banner "${payload.title}" berhasil diperbarui!`);
-        } else {
-          showToast("error", "Gagal memperbarui banner di database.");
-        }
-
-        await loadBanners();
+        await adminRequestJson(`/api/admin/banners/${editingBanner.id}`, "PUT", payload, "banner");
+        showToast("success", `Banner "${payload.title}" berhasil diperbarui!`);
       } else {
-        // Create via API
-        const res = await fetch("/api/admin/banners", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        if (res.ok) {
-          showToast("success", `Banner "${payload.title}" berhasil ditambahkan!`);
-        } else {
-          showToast("error", "Gagal menyimpan banner baru di database.");
-        }
-
-        await loadBanners();
+        await adminRequestJson("/api/admin/banners", "POST", payload, "banner");
+        showToast("success", `Banner "${payload.title}" berhasil ditambahkan!`);
       }
-
+      await loadBanners();
       setModalOpen(false);
-    } catch {
-      showToast("error", "Terjadi kesalahan saat menyimpan banner.");
+    } catch (err) {
+      setFormError(errorMessage(err, "Terjadi kesalahan saat menyimpan banner."));
     } finally {
       setIsSubmitting(false);
     }
@@ -321,20 +285,15 @@ export default function AdminBannersPage() {
     setBanners((prev) => prev.map((b) => (b.id === banner.id ? { ...b, isActive: nextActive } : b)));
 
     try {
-      await fetch(`/api/admin/banners/${banner.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: nextActive }),
-      });
-      await loadBanners();
-    } catch {
-      // Ignore
+      await adminRequestJson(`/api/admin/banners/${banner.id}`, "PUT", { isActive: nextActive }, "banner");
+      showToast(
+        "info",
+        `Banner "${banner.title}" ${nextActive ? "diaktifkan" : "dinonaktifkan"}.`
+      );
+    } catch (err) {
+      showToast("error", errorMessage(err, "Gagal mengubah status banner."));
     }
-
-    showToast(
-      "info",
-      `Banner "${banner.title}" ${nextActive ? "diaktifkan" : "dinonaktifkan"}.`
-    );
+    await loadBanners();
   };
 
   // Move Order Up / Down
@@ -367,23 +326,14 @@ export default function AdminBannersPage() {
     // Sync to API
     try {
       await Promise.all([
-        fetch(`/api/admin/banners/${currentItem.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sortOrder: targetOrder }),
-        }),
-        fetch(`/api/admin/banners/${targetItem.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sortOrder: currentOrder }),
-        }),
+        adminRequestJson(`/api/admin/banners/${currentItem.id}`, "PUT", { sortOrder: targetOrder }, "urutan banner"),
+        adminRequestJson(`/api/admin/banners/${targetItem.id}`, "PUT", { sortOrder: currentOrder }, "urutan banner"),
       ]);
-      await loadBanners();
-    } catch {
-      // Ignore
+      showToast("info", `Urutan banner "${banner.title}" berhasil dipindahkan.`);
+    } catch (err) {
+      showToast("error", errorMessage(err, "Gagal memindahkan urutan banner."));
     }
-
-    showToast("info", `Urutan banner "${banner.title}" berhasil dipindahkan.`);
+    await loadBanners();
   };
 
   // Delete Banner Confirmation
@@ -391,32 +341,13 @@ export default function AdminBannersPage() {
     if (!deleteTarget) return;
 
     try {
-      await fetch(`/api/admin/banners/${deleteTarget.id}`, {
-        method: "DELETE",
-      });
+      await adminRequestJson(`/api/admin/banners/${deleteTarget.id}`, "DELETE", null, "perubahan (hapus banner)");
       await loadBanners();
       showToast("success", `Banner "${deleteTarget.title}" berhasil dihapus.`);
-    } catch {
-      showToast("error", "Gagal menghapus banner.");
+    } catch (err) {
+      showToast("error", errorMessage(err, "Gagal menghapus banner."));
     } finally {
       setDeleteTarget(null);
-    }
-  };
-
-  // Reset to default presets in DB
-  const handleResetDefaults = async () => {
-    try {
-      setLoading(true);
-      for (const b of banners) {
-        await fetch(`/api/admin/banners/${b.id}`, { method: "DELETE" }).catch(() => {});
-      }
-      await fetch("/api/admin/banners");
-      await loadBanners();
-      showToast("success", "Banner beranda berhasil direset ke preset default.");
-    } catch {
-      showToast("error", "Gagal mereset banner.");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -456,17 +387,6 @@ export default function AdminBannersPage() {
 
         <div className="flex items-center gap-2.5">
           <Button
-            variant="outline"
-            size="sm"
-            onClick={handleResetDefaults}
-            className="h-9 gap-1.5 text-xs text-neutral-600 hover:text-black dark:text-neutral-400 dark:hover:text-white"
-            title="Reset ke preset default toko"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Reset Default</span>
-          </Button>
-
-          <Button
             onClick={() => openCreateModal(activeTab)}
             className="h-9 gap-1.5 bg-black hover:bg-neutral-800 text-white dark:bg-white dark:text-black dark:hover:bg-neutral-200 text-xs font-semibold"
           >
@@ -477,6 +397,12 @@ export default function AdminBannersPage() {
           </Button>
         </div>
       </div>
+
+      {loadError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs font-medium text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+          {loadError}
+        </div>
+      )}
 
       {/* Tabs Navigation */}
       <Tabs
@@ -1156,6 +1082,11 @@ export default function AdminBannersPage() {
                     onChange={(e) => setCtaLink(e.target.value)}
                     className="h-9 text-xs font-mono"
                   />
+                  <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+                    Halaman toko: awali dengan <span className="font-mono">/</span> (contoh{" "}
+                    <span className="font-mono">/categories/bags-totes</span>). Link luar: tulis lengkap
+                    dengan <span className="font-mono">https://</span>. Pastikan halaman tujuan sudah ada.
+                  </p>
                 </div>
               </div>
 

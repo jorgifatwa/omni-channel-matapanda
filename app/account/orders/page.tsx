@@ -108,6 +108,7 @@ export default function CustomerOrdersPage() {
 
   const [orders, setOrders] = React.useState<CustomerOrder[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [loadError, setLoadError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (status === "unauthenticated") {
@@ -118,12 +119,21 @@ export default function CustomerOrdersPage() {
   React.useEffect(() => {
     if (status === "authenticated") {
       fetch("/api/account/orders")
-        .then((res) => (res.ok ? res.json() : { orders: [] }))
+        .then(async (res) => {
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || "Gagal memuat daftar pesanan.");
+          return data;
+        })
         .then((data) => {
           setOrders(data.orders || []);
+          setLoadError(null);
           setLoading(false);
         })
-        .catch(() => {
+        .catch((err) => {
+          setOrders([]);
+          setLoadError(
+            err instanceof Error && err.message ? err.message : "Gagal memuat daftar pesanan."
+          );
           setLoading(false);
         });
     }
@@ -168,7 +178,11 @@ export default function CustomerOrdersPage() {
         </div>
 
         {/* Orders List / Empty State */}
-        {orders.length === 0 ? (
+        {loadError ? (
+          <div className="rounded-3xl border border-red-200 bg-red-50 p-6 text-center text-sm font-medium text-red-700">
+            {loadError}
+          </div>
+        ) : orders.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-neutral-200 bg-white p-10 sm:p-16 text-center space-y-4 shadow-sm">
             <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#d5c6ff]/40 text-[#396254] shadow-sm">
               <Package className="h-8 w-8 text-[#396254]" />
@@ -227,13 +241,15 @@ export default function CustomerOrdersPage() {
                     >
                       <div className="flex items-center gap-4 min-w-0">
                         <div className="relative h-16 w-14 shrink-0 rounded-2xl bg-neutral-100 overflow-hidden border border-neutral-200">
-                          <Image
-                            src={item.image}
-                            alt={item.productName}
-                            fill
-                            sizes="56px"
-                            className="object-cover"
-                          />
+                          {item.image ? (
+                            <Image
+                              src={item.image}
+                              alt={item.productName}
+                              fill
+                              sizes="56px"
+                              className="object-cover"
+                            />
+                          ) : null}
                         </div>
                         <div className="min-w-0">
                           <h3 className="font-black text-sm text-neutral-900 truncate uppercase">

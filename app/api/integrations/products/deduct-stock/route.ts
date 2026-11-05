@@ -17,6 +17,12 @@ export async function POST(request: Request) {
     }
 
     const result = await onWebsiteOrderPlaced(items);
+    if (!result.success) {
+      return NextResponse.json(
+        { error: "Gagal memproses pemotongan stok marketplace" },
+        { status: 500 }
+      );
+    }
     return NextResponse.json({
       success: true,
       message: `Berhasil memotong stok ${result.deductedCount} produk di Shopee!`,

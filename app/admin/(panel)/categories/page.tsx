@@ -28,7 +28,7 @@ import { useAdminStore } from "@/context/AdminStoreContext";
 import { type AdminCategory, slugify } from "@/lib/admin-data";
 
 export default function AdminCategoriesPage() {
-  const { categories, saveCategory, deleteCategory } = useAdminStore();
+  const { categories, saveCategory, deleteCategory, isLoading, loadError } = useAdminStore();
 
   const [modalOpen, setModalOpen] = React.useState(false);
   const [editingCategory, setEditingCategory] =
@@ -202,9 +202,16 @@ export default function AdminCategoriesPage() {
         </Button>
       </div>
 
+      {loadError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+          {loadError} Data yang tampil mungkin tidak lengkap. Coba muat ulang halaman.
+        </div>
+      )}
       <DataTable
         columns={columns}
         data={categories}
+        isLoading={isLoading}
+        emptyMessage="Belum ada kategori. Klik Tambah Kategori untuk menambahkan kategori pertama."
         searchPlaceholder="Cari kategori, slug, parent..."
         filterOptions={[
           {

@@ -45,7 +45,7 @@ import {
 import { formatIDR } from "@/lib/products";
 
 export default function AdminProductsPage() {
-  const { products, brands, categories, series, saveProduct, deleteProduct } =
+  const { products, brands, categories, series, saveProduct, deleteProduct, isLoading, loadError } =
     useAdminStore();
 
   const [modalOpen, setModalOpen] = React.useState(false);
@@ -450,9 +450,16 @@ export default function AdminProductsPage() {
         </Button>
       </div>
 
+      {loadError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+          {loadError} Data yang tampil mungkin tidak lengkap. Coba muat ulang halaman.
+        </div>
+      )}
       <DataTable
         columns={columns}
         data={products}
+        isLoading={isLoading}
+        emptyMessage="Belum ada produk. Klik Tambah Produk untuk menambahkan produk pertama."
         searchPlaceholder="Cari nama produk, SKU, brand..."
         filterOptions={[
           {

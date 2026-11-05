@@ -8,8 +8,6 @@ import {
   type AdminOrder,
   type AdminProduct,
   type AdminProductSeries,
-  INITIAL_CUSTOMERS,
-  INITIAL_ORDERS,
 } from "@/lib/admin-data";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -67,6 +65,8 @@ type AdminStoreContextType = {
   isLoading: boolean;
   /** Set when catalog data could not be loaded from the database */
   loadError: string | null;
+  /** Set when orders or customers could not be loaded from the database */
+  ordersLoadError: string | null;
   saveProduct: (product: AdminProduct) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
   saveBrand: (brand: AdminBrand) => Promise<void>;
@@ -75,7 +75,7 @@ type AdminStoreContextType = {
   deleteCategory: (id: string) => Promise<void>;
   saveSeries: (series: AdminProductSeries) => Promise<void>;
   deleteSeries: (id: string) => Promise<void>;
-  addOrder: (order: AdminOrder) => void;
+  addOrder: (order: AdminOrder) => Promise<void>;
   updateOrder: (order: AdminOrder) => Promise<void>;
   refreshAll: () => Promise<void>;
 };
@@ -84,34 +84,68 @@ const AdminStoreContext = React.createContext<
   AdminStoreContextType | undefined
 >(undefined);
 
-const KEYS = {
-  products: "matapanda_admin_products_v1",
-  brands: "matapanda_admin_brands_v1",
-  categories: "matapanda_admin_categories_v1",
-  series: "matapanda_admin_series_v1",
-  orders: "matapanda_admin_orders_v1",
-  customers: "matapanda_admin_customers_v1",
-};
+// Keys used by older versions to cache admin data in the browser. They are
+// only removed now: all admin data comes from the database.
+const LEGACY_STORAGE_KEYS = [
+  "matapanda_admin_products_v1",
+  "matapanda_admin_brands_v1",
+  "matapanda_admin_categories_v1",
+  "matapanda_admin_series_v1",
+  "matapanda_admin_orders_v1",
+  "matapanda_admin_customers_v1",
+];
 
-export function saveOrderLocally(order: AdminOrder): void {
-  if (typeof window === "undefined") return;
-  try {
-    const raw = window.localStorage.getItem(KEYS.orders);
-    const existing: AdminOrder[] = raw ? JSON.parse(raw) : INITIAL_ORDERS;
-    const updated = [order, ...existing.filter((o) => o.id !== order.id)];
-    window.localStorage.setItem(KEYS.orders, JSON.stringify(updated));
-
-    // Also persist order to PostgreSQL database asynchronously
-    fetch("/api/admin/orders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(order),
-    }).catch((err) => {
-      console.warn("[saveOrderLocally] Failed to sync order to PostgreSQL:", err);
-    });
-  } catch (err) {
-    console.error("Failed to save order locally:", err);
+/**
+ * Saves an order to the database. A new order is created; when the order
+ * number already exists, its statuses are updated instead.
+ * Throws when the database write failed.
+ */
+export async function persistOrder(order: AdminOrder): Promise<void> {
+  const res = await fetch("/api/admin/orders", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(order),
+  }).catch(() => null);
+  if (res && res.status === 409) {
+    await requestJson(
+      `/api/admin/orders/${encodeURIComponent(order.orderNumber)}`,
+      "PUT",
+      order,
+      "pesanan"
+    );
+    return;
   }
+  if (!res) {
+    throw new Error("Gagal menghubungi server saat menyimpan pesanan. Periksa koneksi internet.");
+  }
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    const reason = (data as { error?: string }).error;
+    throw new Error(
+      reason
+        ? `Gagal menyimpan pesanan ke database: ${reason}`
+        : `Gagal menyimpan pesanan ke database (HTTP ${res.status}).`
+    );
+  }
+}
+
+/**
+ * Fire-and-forget variant of {@link persistOrder} used by the checkout flow.
+ * Despite the historical name, nothing is stored in the browser anymore:
+ * the order is only saved to the database, and failures are logged.
+ */
+export function saveOrderLocally(order: AdminOrder): void {
+  persistOrder(order).catch((err) => {
+    console.error("[saveOrderLocally] Pesanan gagal disimpan ke database:", err);
+  });
+}
+
+/** Fetches an admin list endpoint and rejects when the server reports an error. */
+async function fetchList(url: string): Promise<Record<string, unknown>> {
+  const res = await fetch(url);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((data as { error?: string }).error || `HTTP ${res.status}`);
+  return data as Record<string, unknown>;
 }
 
 export function AdminStoreProvider({
@@ -124,30 +158,21 @@ export function AdminStoreProvider({
   const [brands, setBrands] = React.useState<AdminBrand[]>([]);
   const [categories, setCategories] = React.useState<AdminCategory[]>([]);
   const [series, setSeries] = React.useState<AdminProductSeries[]>([]);
-  const [orders, setOrders] = React.useState<AdminOrder[]>(INITIAL_ORDERS);
-  const [customers, setCustomers] =
-    React.useState<AdminCustomer[]>(INITIAL_CUSTOMERS);
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [orders, setOrders] = React.useState<AdminOrder[]>([]);
+  const [customers, setCustomers] = React.useState<AdminCustomer[]>([]);
+  // Starts as true: the first database load runs immediately on mount
+  const [isLoading, setIsLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState<string | null>(null);
-  const [hydrated, setHydrated] = React.useState(false);
+  const [ordersLoadError, setOrdersLoadError] = React.useState<string | null>(null);
 
-  // 1. Initial hydration from localStorage (instant cache)
+  // 1. Remove data cached in the browser by older versions (it could show
+  // orders/customers that are not in the database)
   React.useEffect(() => {
     try {
-      // Remove catalog data cached by older versions (it could show items
-      // that were never saved to the database)
-      window.localStorage.removeItem(KEYS.products);
-      window.localStorage.removeItem(KEYS.brands);
-      window.localStorage.removeItem(KEYS.categories);
-      window.localStorage.removeItem(KEYS.series);
-      const o = window.localStorage.getItem(KEYS.orders);
-      if (o) setOrders(JSON.parse(o));
-      const cust = window.localStorage.getItem(KEYS.customers);
-      if (cust) setCustomers(JSON.parse(cust));
+      LEGACY_STORAGE_KEYS.forEach((key) => window.localStorage.removeItem(key));
     } catch {
       // Ignore storage errors
     }
-    setHydrated(true);
   }, []);
 
   // 2. Fetch fresh data from PostgreSQL database
@@ -155,38 +180,50 @@ export function AdminStoreProvider({
     setIsLoading(true);
     try {
       const [pRes, bRes, cRes, sRes, oRes, custRes] = await Promise.allSettled([
-        fetch("/api/admin/products").then((r) => r.json()),
-        fetch("/api/admin/brands").then((r) => r.json()),
-        fetch("/api/admin/categories").then((r) => r.json()),
-        fetch("/api/admin/series").then((r) => r.json()),
-        fetch("/api/admin/orders").then((r) => r.json()),
-        fetch("/api/admin/customers").then((r) => r.json()),
+        fetchList("/api/admin/products"),
+        fetchList("/api/admin/brands"),
+        fetchList("/api/admin/categories"),
+        fetchList("/api/admin/series"),
+        fetchList("/api/admin/orders"),
+        fetchList("/api/admin/customers"),
       ]);
 
       const failed: string[] = [];
       if (pRes.status === "fulfilled" && Array.isArray(pRes.value.products)) {
-        setProducts(pRes.value.products);
+        setProducts(pRes.value.products as AdminProduct[]);
       } else failed.push("produk");
       if (bRes.status === "fulfilled" && Array.isArray(bRes.value.brands)) {
-        setBrands(bRes.value.brands);
+        setBrands(bRes.value.brands as AdminBrand[]);
       } else failed.push("brand");
       if (cRes.status === "fulfilled" && Array.isArray(cRes.value.categories)) {
-        setCategories(cRes.value.categories);
+        setCategories(cRes.value.categories as AdminCategory[]);
       } else failed.push("kategori");
       if (sRes.status === "fulfilled" && Array.isArray(sRes.value.series)) {
-        setSeries(sRes.value.series);
+        setSeries(sRes.value.series as AdminProductSeries[]);
       } else failed.push("series");
       setLoadError(
         failed.length > 0
           ? `Gagal memuat data ${failed.join(", ")} dari database.`
           : null
       );
-      if (oRes.status === "fulfilled" && oRes.value.orders) {
-        setOrders(oRes.value.orders);
+      const failedOrders: string[] = [];
+      if (oRes.status === "fulfilled" && Array.isArray(oRes.value.orders)) {
+        setOrders(oRes.value.orders as AdminOrder[]);
+      } else {
+        setOrders([]);
+        failedOrders.push("pesanan");
       }
-      if (custRes.status === "fulfilled" && custRes.value.customers) {
-        setCustomers(custRes.value.customers);
+      if (custRes.status === "fulfilled" && Array.isArray(custRes.value.customers)) {
+        setCustomers(custRes.value.customers as AdminCustomer[]);
+      } else {
+        setCustomers([]);
+        failedOrders.push("pelanggan");
       }
+      setOrdersLoadError(
+        failedOrders.length > 0
+          ? `Gagal memuat data ${failedOrders.join(" dan ")} dari database.`
+          : null
+      );
     } catch (err) {
       console.warn("[AdminStoreContext] Sync from database encountered errors:", err);
     } finally {
@@ -197,17 +234,6 @@ export function AdminStoreProvider({
   React.useEffect(() => {
     refreshAll();
   }, [refreshAll]);
-
-  // 3. Cache latest state to localStorage
-  React.useEffect(() => {
-    if (!hydrated) return;
-    try {
-      window.localStorage.setItem(KEYS.orders, JSON.stringify(orders));
-      window.localStorage.setItem(KEYS.customers, JSON.stringify(customers));
-    } catch {
-      // Ignore storage errors
-    }
-  }, [orders, customers, hydrated]);
 
   // ─── Products Mutations ─────────────────────────────────────────────
   const saveProduct = React.useCallback(
@@ -285,31 +311,16 @@ export function AdminStoreProvider({
   }, []);
 
   // ─── Orders Mutations ───────────────────────────────────────────────
-  const addOrder = React.useCallback((order: AdminOrder) => {
+  const addOrder = React.useCallback(async (order: AdminOrder) => {
+    await persistOrder(order);
     setOrders((prev) => [order, ...prev.filter((item) => item.id !== order.id)]);
-    fetch("/api/admin/orders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(order),
-    }).catch((err) => {
-      console.warn("[AdminStore] addOrder sync error:", err);
-    });
   }, []);
 
   const updateOrder = React.useCallback(async (order: AdminOrder) => {
+    await requestJson(`/api/admin/orders/${order.id}`, "PUT", order, "pesanan");
     setOrders((prev) =>
       prev.map((item) => (item.id === order.id ? order : item))
     );
-
-    try {
-      await fetch(`/api/admin/orders/${order.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(order),
-      });
-    } catch (err) {
-      console.error("[AdminStore] Failed to sync updated order to PostgreSQL:", err);
-    }
   }, []);
 
   return (
@@ -323,6 +334,7 @@ export function AdminStoreProvider({
         customers,
         isLoading,
         loadError,
+        ordersLoadError,
         saveProduct,
         deleteProduct,
         saveBrand,

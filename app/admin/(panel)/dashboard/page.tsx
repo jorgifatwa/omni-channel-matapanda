@@ -134,9 +134,14 @@ function DashboardContent() {
   // Mode and Filter states
   const initialMode = (searchParams.get("mode") as ViewMode) || "daily";
   const initialPreset = (searchParams.get("preset") as DailyPreset) || "30d";
-  const initialYear = Number(searchParams.get("year")) || 2026;
-  const initialStartDate = searchParams.get("startDate") || "2026-09-01";
-  const initialEndDate = searchParams.get("endDate") || "2026-09-30";
+  const today = new Date();
+  const toInputDate = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const initialYear = Number(searchParams.get("year")) || today.getFullYear();
+  const initialStartDate =
+    searchParams.get("startDate") ||
+    toInputDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 29));
+  const initialEndDate = searchParams.get("endDate") || toInputDate(today);
 
   const [mode, setMode] = React.useState<ViewMode>(initialMode);
   const [dailyPreset, setDailyPreset] = React.useState<DailyPreset>(initialPreset);
@@ -150,6 +155,7 @@ function DashboardContent() {
   const [isExporting, setIsExporting] = React.useState(false);
 
   const [analyticsData, setAnalyticsData] = React.useState<AnalyticsResponse | null>(null);
+  const [analyticsError, setAnalyticsError] = React.useState<string | null>(null);
 
   // Sync dark mode state with HTML class
   React.useEffect(() => {
@@ -185,11 +191,22 @@ function DashboardContent() {
       }
 
       const res = await fetch(`/api/admin/analytics?${params.toString()}`);
-      if (!res.ok) throw new Error("Failed to fetch analytics");
-      const data: AnalyticsResponse = await res.json();
-      setAnalyticsData(data);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          (data as { error?: string }).error || "Gagal memuat data analitik dari database"
+        );
+      }
+      setAnalyticsData(data as AnalyticsResponse);
+      setAnalyticsError(null);
     } catch (err) {
       console.error("Error fetching analytics data:", err);
+      setAnalyticsData(null);
+      setAnalyticsError(
+        err instanceof Error && err.message
+          ? err.message
+          : "Gagal memuat data analitik dari database"
+      );
     } finally {
       setIsLoading(false);
     }
@@ -376,6 +393,12 @@ function DashboardContent() {
         </div>
       </div>
 
+      {analyticsError && !isLoading && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+          {analyticsError}
+        </div>
+      )}
+
       {/* Main Period Mode Tabs & Date Pickers */}
       <Card className="border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/40">
         <CardContent className="p-4 sm:p-5 space-y-4">
@@ -474,7 +497,10 @@ function DashboardContent() {
                 Pilih Tahun Kalender:
               </span>
               <div className="flex items-center gap-1.5">
-                {[2024, 2025, 2026].map((year) => (
+                {(analyticsData?.availableYears?.length
+                  ? analyticsData.availableYears
+                  : [selectedYear]
+                ).map((year) => (
                   <button
                     key={year}
                     type="button"
@@ -501,7 +527,7 @@ function DashboardContent() {
                 Analitik Multi-Tahun:
               </span>
               <span>
-                Menampilkan perbandingan performa tahunan dari 2024, 2025 hingga 2026.
+                Menampilkan perbandingan performa tahunan berdasarkan data pesanan di database.
               </span>
             </div>
           )}

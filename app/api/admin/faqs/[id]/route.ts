@@ -1,28 +1,27 @@
 import { NextResponse } from "next/server";
 import {
-  saveFaqStore,
+  getFaqByIdStore,
+  updateFaqStore,
   deleteFaqStore,
-  getAllFaqsStore,
 } from "@/lib/faq-store.server";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    const { faqs } = await getAllFaqsStore();
-    const item = faqs.find((f) => f.id === params.id);
-
+    const item = await getFaqByIdStore(params.id);
     if (!item) {
       return NextResponse.json({ error: "FAQ tidak ditemukan" }, { status: 404 });
     }
-
     return NextResponse.json({ faq: item });
   } catch (error) {
     console.error("GET /api/admin/faqs/[id] error:", error);
     return NextResponse.json(
-      { error: "Gagal mengambil data FAQ." },
-      { status: 500 }
+      { error: "Gagal memuat FAQ dari database." },
+      { status: 503 }
     );
   }
 }
@@ -31,28 +30,43 @@ export async function PUT(
   request: Request,
   { params }: { params: { id: string } }
 ) {
+  let body;
   try {
-    const body = await request.json();
-    const { category, question, answer, sortOrder, isActive } = body;
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Format data tidak valid." }, { status: 400 });
+  }
+  const { category, question, answer, sortOrder, isActive } = body ?? {};
 
-    const { faqs } = await getAllFaqsStore();
-    const existing = faqs.find((f) => f.id === params.id);
+  try {
+    const existing = await getFaqByIdStore(params.id);
+    if (!existing) {
+      return NextResponse.json({ error: "FAQ tidak ditemukan" }, { status: 404 });
+    }
 
-    const saved = await saveFaqStore({
-      id: params.id,
-      category: category !== undefined ? category : existing?.category || "Most Asked",
-      question: question !== undefined ? question : existing?.question || "",
-      answer: answer !== undefined ? answer : existing?.answer || "",
-      sortOrder: sortOrder !== undefined ? sortOrder : existing?.sortOrder ?? 0,
-      isActive: isActive !== undefined ? isActive : existing?.isActive ?? true,
+    const nextQuestion = question !== undefined ? String(question) : existing.question;
+    const nextAnswer = answer !== undefined ? String(answer) : existing.answer;
+    if (!nextQuestion.trim() || !nextAnswer.trim()) {
+      return NextResponse.json({ error: "Pertanyaan dan jawaban FAQ wajib diisi." }, { status: 400 });
+    }
+
+    const saved = await updateFaqStore(params.id, {
+      category: category !== undefined && String(category).trim() ? String(category) : existing.category,
+      question: nextQuestion,
+      answer: nextAnswer,
+      sortOrder: sortOrder !== undefined ? sortOrder : existing.sortOrder,
+      isActive: isActive !== undefined ? isActive : existing.isActive,
     });
+    if (!saved) {
+      return NextResponse.json({ error: "FAQ tidak ditemukan" }, { status: 404 });
+    }
 
     return NextResponse.json({ faq: saved, success: true });
   } catch (error) {
     console.error(`PUT /api/admin/faqs/${params.id} error:`, error);
     return NextResponse.json(
-      { error: "Terjadi kesalahan saat memperbarui FAQ." },
-      { status: 500 }
+      { error: "Gagal memperbarui FAQ di database." },
+      { status: 503 }
     );
   }
 }
@@ -62,13 +76,16 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    await deleteFaqStore(params.id);
+    const deleted = await deleteFaqStore(params.id);
+    if (!deleted) {
+      return NextResponse.json({ error: "FAQ tidak ditemukan" }, { status: 404 });
+    }
     return NextResponse.json({ success: true, message: "FAQ berhasil dihapus." });
   } catch (error) {
     console.error(`DELETE /api/admin/faqs/${params.id} error:`, error);
     return NextResponse.json(
-      { error: "Terjadi kesalahan saat menghapus FAQ." },
-      { status: 500 }
+      { error: "Gagal menghapus FAQ dari database." },
+      { status: 503 }
     );
   }
 }

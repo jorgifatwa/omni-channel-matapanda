@@ -24,17 +24,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   type AdminNotificationItem,
-  INITIAL_NOTIFICATIONS,
   ADMIN_NOTIFICATION_CHANNEL,
   ADMIN_LATEST_NOTIF_KEY,
   formatNotificationTime,
 } from "@/lib/notifications";
 
-const LOCAL_STORAGE_NOTIFS_KEY = "itspanda_admin_notifications_store_v1";
+// Older versions cached notifications in the browser; they now come only from the database.
+const LEGACY_NOTIFS_STORAGE_KEY = "itspanda_admin_notifications_store_v1";
 
 export default function AdminNotificationBell() {
   const router = useRouter();
-  const [notifications, setNotifications] = React.useState<AdminNotificationItem[]>(INITIAL_NOTIFICATIONS);
+  const [notifications, setNotifications] = React.useState<AdminNotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = React.useState(0);
   const [filterType, setFilterType] = React.useState<"ALL" | "NEW_CUSTOMER" | "UNREAD">("ALL");
   const [open, setOpen] = React.useState(false);
@@ -46,54 +46,30 @@ export default function AdminNotificationBell() {
     link?: string;
   } | null>(null);
 
-  // Load notifications from API / localStorage
+  // Load notifications from the database (no browser cache, no sample data)
   const loadNotifications = React.useCallback(async () => {
     try {
       const res = await fetch("/api/admin/notifications");
-      if (res.ok) {
-        const data = await res.json();
-        if (data?.notifications && Array.isArray(data.notifications)) {
-          setNotifications(data.notifications);
-          setUnreadCount(data.unreadCount ?? data.notifications.filter((n: AdminNotificationItem) => !n.isRead).length);
-          try {
-            localStorage.setItem(LOCAL_STORAGE_NOTIFS_KEY, JSON.stringify(data.notifications));
-          } catch {}
-          return;
-        }
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !Array.isArray(data?.notifications)) {
+        console.error(
+          "[AdminNotificationBell] Gagal memuat notifikasi dari database:",
+          data?.error || `HTTP ${res.status}`
+        );
+        return;
       }
-
-      // Fallback
-      const cached = localStorage.getItem(LOCAL_STORAGE_NOTIFS_KEY);
-      if (cached) {
-        try {
-          const parsed: AdminNotificationItem[] = JSON.parse(cached);
-          if (Array.isArray(parsed)) {
-            setNotifications(parsed);
-            setUnreadCount(parsed.filter((n) => !n.isRead).length);
-            return;
-          }
-        } catch {}
-      }
-
-      setNotifications(INITIAL_NOTIFICATIONS);
-      setUnreadCount(INITIAL_NOTIFICATIONS.filter((n) => !n.isRead).length);
-    } catch {
-      // Fallback to cache or initial
-      const cached = localStorage.getItem(LOCAL_STORAGE_NOTIFS_KEY);
-      if (cached) {
-        try {
-          const parsed: AdminNotificationItem[] = JSON.parse(cached);
-          setNotifications(parsed);
-          setUnreadCount(parsed.filter((n) => !n.isRead).length);
-          return;
-        } catch {}
-      }
-      setNotifications(INITIAL_NOTIFICATIONS);
-      setUnreadCount(INITIAL_NOTIFICATIONS.filter((n) => !n.isRead).length);
+      const list = data.notifications as AdminNotificationItem[];
+      setNotifications(list);
+      setUnreadCount(data.unreadCount ?? list.filter((n) => !n.isRead).length);
+    } catch (err) {
+      console.error("[AdminNotificationBell] Gagal menghubungi server notifikasi:", err);
     }
   }, []);
 
   React.useEffect(() => {
+    try {
+      localStorage.removeItem(LEGACY_NOTIFS_STORAGE_KEY);
+    } catch {}
     loadNotifications();
 
     // Polling interval every 15 seconds
@@ -106,13 +82,7 @@ export default function AdminNotificationBell() {
       bc.onmessage = (event) => {
         if (event.data?.type === "NEW_NOTIFICATION" && event.data.notification) {
           const newNotif = event.data.notification as AdminNotificationItem;
-          setNotifications((prev) => {
-            const updated = [newNotif, ...prev.filter((n) => n.id !== newNotif.id)];
-            try {
-              localStorage.setItem(LOCAL_STORAGE_NOTIFS_KEY, JSON.stringify(updated));
-            } catch {}
-            return updated;
-          });
+          setNotifications((prev) => [newNotif, ...prev.filter((n) => n.id !== newNotif.id)]);
           setUnreadCount((prev) => prev + 1);
 
           // Show floating toast alert
@@ -161,10 +131,11 @@ export default function AdminNotificationBell() {
     const updated = notifications.map((n) => ({ ...n, isRead: true }));
     setNotifications(updated);
     setUnreadCount(0);
-    try {
-      localStorage.setItem(LOCAL_STORAGE_NOTIFS_KEY, JSON.stringify(updated));
-      await fetch("/api/admin/notifications/mark-all-read", { method: "PATCH" });
-    } catch {}
+    const res = await fetch("/api/admin/notifications/mark-all-read", { method: "PATCH" }).catch(
+      () => null
+    );
+    // Database write failed: reload the real state
+    if (!res?.ok) loadNotifications();
   };
 
   // Click single notification
@@ -175,14 +146,12 @@ export default function AdminNotificationBell() {
       );
       setNotifications(updated);
       setUnreadCount((prev) => Math.max(0, prev - 1));
-      try {
-        localStorage.setItem(LOCAL_STORAGE_NOTIFS_KEY, JSON.stringify(updated));
-        await fetch(`/api/admin/notifications/${notif.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ isRead: true }),
-        });
-      } catch {}
+      const res = await fetch(`/api/admin/notifications/${notif.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isRead: true }),
+      }).catch(() => null);
+      if (!res?.ok) loadNotifications();
     }
 
     setOpen(false);
@@ -200,10 +169,10 @@ export default function AdminNotificationBell() {
     if (target && !target.isRead) {
       setUnreadCount((prev) => Math.max(0, prev - 1));
     }
-    try {
-      localStorage.setItem(LOCAL_STORAGE_NOTIFS_KEY, JSON.stringify(updated));
-      await fetch(`/api/admin/notifications/${id}`, { method: "DELETE" });
-    } catch {}
+    const res = await fetch(`/api/admin/notifications/${id}`, { method: "DELETE" }).catch(
+      () => null
+    );
+    if (!res?.ok) loadNotifications();
   };
 
   // Filtered notifications

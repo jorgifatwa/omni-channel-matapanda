@@ -31,10 +31,12 @@ import {
 } from "@/components/ui/dialog";
 import { AlertDialog } from "@/components/ui/alert-dialog";
 import { type NewsletterSubscriberEntry } from "@/lib/newsletter-store";
+import { adminFetchJson, adminRequestJson, errorMessage } from "@/lib/admin-request";
 
 export default function AdminSubscribersPage() {
   const [subscribers, setSubscribers] = React.useState<NewsletterSubscriberEntry[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [loadError, setLoadError] = React.useState<string | null>(null);
   const [searchQuery, setSearchQuery] = React.useState("");
 
   // Modal & Actions state
@@ -61,15 +63,14 @@ export default function AdminSubscribersPage() {
   const loadSubscribers = React.useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/admin/subscribers");
-      if (res.ok) {
-        const data = await res.json();
-        if (data.subscribers && Array.isArray(data.subscribers)) {
-          setSubscribers(data.subscribers);
-        }
-      }
+      const data = await adminFetchJson<{ subscribers?: NewsletterSubscriberEntry[] }>(
+        "/api/admin/subscribers",
+        "subscriber"
+      );
+      setSubscribers(Array.isArray(data.subscribers) ? data.subscribers : []);
+      setLoadError(null);
     } catch (err) {
-      console.warn("Failed to load subscribers:", err);
+      setLoadError(errorMessage(err, "Gagal memuat subscriber dari database."));
     } finally {
       setLoading(false);
     }
@@ -177,17 +178,16 @@ export default function AdminSubscribersPage() {
     if (!deleteTarget) return;
 
     try {
-      const res = await fetch(`/api/admin/subscribers/${deleteTarget.id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        setSubscribers((prev) => prev.filter((s) => s.id !== deleteTarget.id));
-        showToast("success", "Subscriber berhasil dihapus.");
-      } else {
-        showToast("error", "Gagal menghapus subscriber.");
-      }
-    } catch {
-      showToast("error", "Terjadi kesalahan jaringan.");
+      await adminRequestJson(
+        `/api/admin/subscribers/${deleteTarget.id}`,
+        "DELETE",
+        null,
+        "perubahan (hapus subscriber)"
+      );
+      setSubscribers((prev) => prev.filter((s) => s.id !== deleteTarget.id));
+      showToast("success", "Subscriber berhasil dihapus.");
+    } catch (err) {
+      showToast("error", errorMessage(err, "Gagal menghapus subscriber."));
     } finally {
       setDeleteTarget(null);
     }
@@ -294,6 +294,12 @@ export default function AdminSubscribersPage() {
           </Button>
         </div>
       </div>
+
+      {loadError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs font-medium text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+          {loadError}
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

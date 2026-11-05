@@ -136,9 +136,12 @@ function IntegrationsContent() {
       if (res.ok) {
         const data: StatusResponse = await res.json();
         setAccounts(data.accounts);
+      } else {
+        setToast({ type: "error", message: "Gagal memuat status integrasi dari database." });
       }
     } catch (err) {
       console.error("Failed to fetch integration status:", err);
+      setToast({ type: "error", message: "Terjadi kesalahan jaringan saat memuat status integrasi." });
     } finally {
       setLoading(false);
     }

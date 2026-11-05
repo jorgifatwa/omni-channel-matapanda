@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import {
-  INITIAL_NOTIFICATIONS,
-  type AdminNotificationItem,
-  type NotificationType,
-} from "@/lib/notifications";
+import { type AdminNotificationItem, type NotificationType } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -15,42 +11,31 @@ export async function GET() {
       take: 50,
     });
 
-    if (dbNotifs && dbNotifs.length > 0) {
-      const formatted: AdminNotificationItem[] = dbNotifs.map((n) => ({
-        id: n.id,
-        type: n.type as NotificationType,
-        title: n.title,
-        message: n.message,
-        link: n.link,
-        isRead: n.isRead,
-        metadata: n.metadata as Record<string, unknown> | null,
-        createdAt: n.createdAt.toISOString(),
-        updatedAt: n.updatedAt.toISOString(),
-      }));
+    const formatted: AdminNotificationItem[] = dbNotifs.map((n) => ({
+      id: n.id,
+      type: n.type as NotificationType,
+      title: n.title,
+      message: n.message,
+      link: n.link,
+      isRead: n.isRead,
+      metadata: n.metadata as Record<string, unknown> | null,
+      createdAt: n.createdAt.toISOString(),
+      updatedAt: n.updatedAt.toISOString(),
+    }));
 
-      const unreadCount = formatted.filter((n) => !n.isRead).length;
+    const unreadCount = formatted.filter((n) => !n.isRead).length;
 
-      return NextResponse.json({
-        notifications: formatted,
-        unreadCount,
-        source: "database",
-      });
-    }
-
-    const unreadCount = INITIAL_NOTIFICATIONS.filter((n) => !n.isRead).length;
     return NextResponse.json({
-      notifications: INITIAL_NOTIFICATIONS,
+      notifications: formatted,
       unreadCount,
-      source: "defaults",
+      source: "database",
     });
   } catch (error) {
-    console.warn("Database unavailable for notifications, using fallback:", error);
-    const unreadCount = INITIAL_NOTIFICATIONS.filter((n) => !n.isRead).length;
-    return NextResponse.json({
-      notifications: INITIAL_NOTIFICATIONS,
-      unreadCount,
-      source: "fallback",
-    });
+    console.error("[AdminNotificationsGET] Database query failed:", error);
+    return NextResponse.json(
+      { notifications: [], unreadCount: 0, error: "Gagal memuat notifikasi dari database." },
+      { status: 503 }
+    );
   }
 }
 
@@ -98,18 +83,11 @@ export async function POST(request: Request) {
 
       return NextResponse.json({ notification: formatted, success: true }, { status: 201 });
     } catch (dbError) {
-      console.warn("Database create failed for notification, using in-memory response:", dbError);
-      const fallbackItem: AdminNotificationItem = {
-        id: `notif-${Date.now()}`,
-        type: type as NotificationType,
-        title: title.trim(),
-        message: message.trim(),
-        link: link || "/admin/customers",
-        isRead: false,
-        metadata: metadata || null,
-        createdAt: new Date().toISOString(),
-      };
-      return NextResponse.json({ notification: fallbackItem, success: true }, { status: 201 });
+      console.error("[AdminNotificationsPOST] Database create failed:", dbError);
+      return NextResponse.json(
+        { error: "Gagal menyimpan notifikasi ke database." },
+        { status: 500 }
+      );
     }
   } catch (error) {
     console.error("POST /api/admin/notifications error:", error);

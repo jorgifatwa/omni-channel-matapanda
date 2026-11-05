@@ -98,19 +98,21 @@ export async function PUT(
 
       return NextResponse.json({ user: formatted, success: true });
     } catch (dbError) {
-      console.warn("Database user update failed, using echo fallback:", dbError);
-      const fallbackUpdated: AdminUserListItem = {
-        id: params.id,
-        name: name ? name.trim() : "User",
-        email: email ? email.trim().toLowerCase() : "user@example.com",
-        phone: phone ? phone.trim() : "-",
-        role: role === "ADMIN" ? "ADMIN" : "CUSTOMER",
-        isActive: isActive !== undefined ? Boolean(isActive) : true,
-        totalOrders: 0,
-        createdAt: new Date().toISOString(),
-      };
-
-      return NextResponse.json({ user: fallbackUpdated, success: true });
+      console.error("[AdminUsersPUT] Database user update failed:", dbError);
+      const code = (dbError as { code?: string }).code;
+      if (code === "P2025") {
+        return NextResponse.json({ error: "User tidak ditemukan" }, { status: 404 });
+      }
+      if (code === "P2002") {
+        return NextResponse.json(
+          { error: "Email sudah terdaftar. Gunakan email lain." },
+          { status: 409 }
+        );
+      }
+      return NextResponse.json(
+        { error: "Gagal menyimpan perubahan user ke database." },
+        { status: 500 }
+      );
     }
   } catch (error) {
     console.error("PUT /api/admin/users/[id] error:", error);
@@ -132,8 +134,12 @@ export async function DELETE(
         where: { id: params.id },
       });
 
+      if (!targetUser || targetUser.deletedAt) {
+        return NextResponse.json({ error: "User tidak ditemukan" }, { status: 404 });
+      }
+
       if (
-        targetUser?.email.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() ||
+        targetUser.email.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() ||
         params.id === "00000000-0000-4000-8000-000000000001"
       ) {
         return NextResponse.json(
@@ -155,11 +161,11 @@ export async function DELETE(
         message: "User berhasil dihapus.",
       });
     } catch (dbError) {
-      console.warn("Database delete user failed, echoing success:", dbError);
-      return NextResponse.json({
-        success: true,
-        message: "User berhasil dihapus.",
-      });
+      console.error("[AdminUsersDELETE] Database delete user failed:", dbError);
+      return NextResponse.json(
+        { error: "Gagal menghapus user dari database." },
+        { status: 500 }
+      );
     }
   } catch (error) {
     console.error("DELETE /api/admin/users/[id] error:", error);

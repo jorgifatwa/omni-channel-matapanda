@@ -106,6 +106,7 @@ export default function OrderTrackingDetailPage() {
   const [order, setOrder] = React.useState<OrderDetail | null>(null);
   const [trackingLogs, setTrackingLogs] = React.useState<TrackingCheckpoint[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [loadError, setLoadError] = React.useState<string | null>(null);
   const [copiedResi, setCopiedResi] = React.useState(false);
 
   React.useEffect(() => {
@@ -117,9 +118,11 @@ export default function OrderTrackingDetailPage() {
   React.useEffect(() => {
     if (status === "authenticated" && orderId) {
       fetch(`/api/account/orders/${orderId}`)
-        .then((res) => {
-          if (!res.ok) throw new Error("Not found");
-          return res.json();
+        .then(async (res) => {
+          if (res.status === 404 || res.status === 403) return { order: null };
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || "Gagal memuat detail pesanan.");
+          return data;
         })
         .then((data) => {
           if (data.order) {
@@ -143,7 +146,10 @@ export default function OrderTrackingDetailPage() {
           }
           setLoading(false);
         })
-        .catch(() => {
+        .catch((err) => {
+          setLoadError(
+            err instanceof Error && err.message ? err.message : "Gagal memuat detail pesanan."
+          );
           setLoading(false);
         });
     }
@@ -175,9 +181,12 @@ export default function OrderTrackingDetailPage() {
       <div className="min-h-screen bg-neutral-50 flex flex-col font-sans">
         <Navbar />
         <main className="flex-1 max-w-[800px] w-full mx-auto px-4 py-16 text-center space-y-4">
-          <h1 className="text-xl font-bold text-neutral-900">Pesanan Tidak Ditemukan</h1>
-          <p className="text-xs text-neutral-600">
-            Pesanan yang Anda cari tidak tersedia atau Anda tidak memiliki hak akses.
+          <h1 className="text-xl font-bold text-neutral-900">
+            {loadError ? "Gagal Memuat Pesanan" : "Pesanan Tidak Ditemukan"}
+          </h1>
+          <p className={`text-xs ${loadError ? "text-red-600" : "text-neutral-600"}`}>
+            {loadError ||
+              "Pesanan yang Anda cari tidak tersedia atau Anda tidak memiliki hak akses."}
           </p>
           <Link
             href="/account/orders"
@@ -345,7 +354,9 @@ export default function OrderTrackingDetailPage() {
                   </div>
                 ) : (
                   <p className="text-xs text-neutral-500 italic font-medium">
-                    Paket sedang disiapkan di gudang kami dan akan segera diserahkan ke kurir {order.shipment.courier}.
+                    {order.shipment.trackingNumber
+                      ? `Riwayat pelacakan otomatis belum tersedia. Silakan cek nomor resi ${order.shipment.trackingNumber} langsung di situs resmi kurir ${order.shipment.courier}.`
+                      : `Belum ada riwayat pengiriman. Paket akan diserahkan ke kurir ${order.shipment.courier} setelah pesanan diproses.`}
                   </p>
                 )}
               </div>
@@ -363,13 +374,15 @@ export default function OrderTrackingDetailPage() {
                   <div key={item.id} className="py-4 first:pt-0 last:pb-0 flex items-center justify-between gap-4">
                     <div className="flex items-center gap-4 min-w-0">
                       <div className="relative h-20 w-16 shrink-0 rounded-2xl bg-neutral-100 overflow-hidden border border-neutral-200">
-                        <Image
-                          src={item.image}
-                          alt={item.productName}
-                          fill
-                          sizes="64px"
-                          className="object-cover"
-                        />
+                        {item.image ? (
+                          <Image
+                            src={item.image}
+                            alt={item.productName}
+                            fill
+                            sizes="64px"
+                            className="object-cover"
+                          />
+                        ) : null}
                       </div>
                       <div className="min-w-0">
                         <h4 className="font-black text-sm text-neutral-900 truncate uppercase">

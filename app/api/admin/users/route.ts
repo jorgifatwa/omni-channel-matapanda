@@ -15,29 +15,6 @@ export interface AdminUserListItem {
   createdAt: string;
 }
 
-const DEFAULT_USERS: AdminUserListItem[] = [
-  {
-    id: "00000000-0000-4000-8000-000000000001",
-    name: "it's matapanda Admin",
-    email: "jorgifatwaambia@gmail.com",
-    phone: "+6281290001111",
-    role: "ADMIN",
-    isActive: true,
-    totalOrders: 0,
-    createdAt: "2026-01-01T00:00:00.000Z",
-  },
-  {
-    id: "00000000-0000-4000-8000-000000000002",
-    name: "Customer it's matapanda",
-    email: "customer@itsmatapanda.com",
-    phone: "081234567890",
-    role: "CUSTOMER",
-    isActive: true,
-    totalOrders: 3,
-    createdAt: "2026-02-15T00:00:00.000Z",
-  },
-];
-
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const roleFilter = searchParams.get("role"); // "ADMIN" | "CUSTOMER" | "ALL" | null
@@ -78,83 +55,28 @@ export async function GET(request: Request) {
       },
     });
 
-    if (dbUsers.length > 0) {
-      const formatted: AdminUserListItem[] = dbUsers.map((u) => ({
-        id: u.id,
-        name: u.name,
-        email: u.email,
-        phone: u.phone || "-",
-        role: u.role as "ADMIN" | "CUSTOMER",
-        isActive: u.isActive,
-        totalOrders: u._count.orders,
-        createdAt: u.createdAt.toISOString(),
-      }));
-
-      return NextResponse.json({
-        users: formatted,
-        source: "database",
-        total: formatted.length,
-      });
-    }
-
-    // If database is empty, auto-seed the primary admin user
-    try {
-      const hashedPassword = await bcrypt.hash("admin123", 10);
-      const seededAdmin = await prisma.user.create({
-        data: {
-          name: "it's matapanda Admin",
-          email: "jorgifatwaambia@gmail.com",
-          passwordHash: hashedPassword,
-          phone: "+6281290001111",
-          role: "ADMIN",
-          isActive: true,
-        },
-      });
-
-      const initialFormatted: AdminUserListItem[] = [
-        {
-          id: seededAdmin.id,
-          name: seededAdmin.name,
-          email: seededAdmin.email,
-          phone: seededAdmin.phone || "-",
-          role: "ADMIN",
-          isActive: seededAdmin.isActive,
-          totalOrders: 0,
-          createdAt: seededAdmin.createdAt.toISOString(),
-        },
-      ];
-
-      return NextResponse.json({
-        users: initialFormatted,
-        source: "database",
-        total: initialFormatted.length,
-      });
-    } catch {}
+    const formatted: AdminUserListItem[] = dbUsers.map((u) => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      phone: u.phone || "-",
+      role: u.role as "ADMIN" | "CUSTOMER",
+      isActive: u.isActive,
+      totalOrders: u._count.orders,
+      createdAt: u.createdAt.toISOString(),
+    }));
 
     return NextResponse.json({
-      users: DEFAULT_USERS,
-      source: "defaults",
-      total: DEFAULT_USERS.length,
+      users: formatted,
+      source: "database",
+      total: formatted.length,
     });
   } catch (error) {
-    console.warn("[AdminUsersGET] Database query failed, using fallback:", error);
-    let fallback = [...DEFAULT_USERS];
-    if (roleFilter === "ADMIN") fallback = fallback.filter((u) => u.role === "ADMIN");
-    if (roleFilter === "CUSTOMER") fallback = fallback.filter((u) => u.role === "CUSTOMER");
-    if (search) {
-      fallback = fallback.filter(
-        (u) =>
-          u.name.toLowerCase().includes(search) ||
-          u.email.toLowerCase().includes(search) ||
-          u.phone.toLowerCase().includes(search)
-      );
-    }
-
-    return NextResponse.json({
-      users: fallback,
-      source: "fallback",
-      total: fallback.length,
-    });
+    console.error("[AdminUsersGET] Database query failed:", error);
+    return NextResponse.json(
+      { users: [], total: 0, error: "Gagal memuat data pengguna dari database." },
+      { status: 503 }
+    );
   }
 }
 
@@ -238,21 +160,10 @@ export async function POST(request: Request) {
         { status: 201 }
       );
     } catch (dbError) {
-      console.warn("[AdminUsersPOST] Database create failed, using memory echo:", dbError);
-      const fallbackItem: AdminUserListItem = {
-        id: `user-${Date.now()}`,
-        name: name.trim(),
-        email: cleanEmail,
-        phone: phone ? phone.trim() : "-",
-        role: role === "ADMIN" ? "ADMIN" : "CUSTOMER",
-        isActive: Boolean(isActive),
-        totalOrders: 0,
-        createdAt: new Date().toISOString(),
-      };
-
+      console.error("[AdminUsersPOST] Database create failed:", dbError);
       return NextResponse.json(
-        { user: fallbackItem, success: true },
-        { status: 201 }
+        { error: "Gagal menyimpan pengguna ke database." },
+        { status: 500 }
       );
     }
   } catch (error) {

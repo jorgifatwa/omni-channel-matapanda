@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendAdminInquiryNotification } from "@/lib/mail";
 
 export const dynamic = "force-dynamic";
+
+function isRecordNotFound(err: unknown): boolean {
+  return err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025";
+}
 
 // 1. POST: Handle customer contact message submission
 export async function POST(request: Request) {
@@ -38,8 +43,8 @@ export async function POST(request: Request) {
     const trimmedPhone = phone ? phone.trim() : null;
     const trimmedMessage = message.trim();
 
-    // 1. Save inquiry to PostgreSQL via Prisma
-    let savedInquiryId = `inq-${Date.now()}`;
+    // 1. Save inquiry to PostgreSQL via Prisma (the database is the source of truth)
+    let savedInquiryId: string;
     try {
       const created = await prisma.contactInquiry.create({
         data: {
@@ -52,7 +57,11 @@ export async function POST(request: Request) {
       });
       savedInquiryId = created.id;
     } catch (dbErr) {
-      console.warn("Database save contact inquiry fallback / offline:", dbErr);
+      console.error("Database save contact inquiry failed:", dbErr);
+      return NextResponse.json(
+        { error: "Pesan gagal disimpan karena gangguan server. Silakan coba lagi beberapa saat lagi." },
+        { status: 503 }
+      );
     }
 
     // 2. Send email notification to Admin via Nodemailer
@@ -101,30 +110,11 @@ export async function GET() {
 
       return NextResponse.json({ inquiries });
     } catch (dbErr) {
-      console.warn("Prisma findMany inquiries error:", dbErr);
-      // Fallback sample inquiries for demo
-      return NextResponse.json({
-        inquiries: [
-          {
-            id: "inq-demo-01",
-            name: "Rama Pratama",
-            email: "rama.pratama@example.com",
-            phone: "+62 812-9876-5432",
-            message: "Halo tim it's matapanda, apakah T-shirt Dawn Gong Sunburn 01 akan restock ukuran XL dalam waktu dekat?",
-            isRead: false,
-            createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-          },
-          {
-            id: "inq-demo-02",
-            name: "Siti Nurhaliza",
-            email: "siti.nur@example.com",
-            phone: "+62 856-1234-5678",
-            message: "Selamat siang, saya ingin menanyakan estimasi pengiriman JNE ke Surabaya jika checkout hari ini. Terima kasih!",
-            isRead: true,
-            createdAt: new Date(Date.now() - 3600000 * 24).toISOString(),
-          },
-        ],
-      });
+      console.error("Prisma findMany inquiries error:", dbErr);
+      return NextResponse.json(
+        { inquiries: [], error: "Gagal memuat pesan dari database." },
+        { status: 503 }
+      );
     }
   } catch (error) {
     console.error("Fetch inquiries error:", error);
@@ -160,8 +150,15 @@ export async function PATCH(request: Request) {
         data: { isRead: Boolean(isRead) },
       });
       return NextResponse.json({ success: true, inquiry: updated });
-    } catch {
-      return NextResponse.json({ success: true });
+    } catch (dbErr) {
+      if (isRecordNotFound(dbErr)) {
+        return NextResponse.json({ error: "Pesan tidak ditemukan." }, { status: 404 });
+      }
+      console.error("Update inquiry DB error:", dbErr);
+      return NextResponse.json(
+        { error: "Gagal memperbarui status pesan di database." },
+        { status: 503 }
+      );
     }
   } catch (error) {
     console.error("Update inquiry error:", error);
@@ -193,8 +190,15 @@ export async function DELETE(request: Request) {
         where: { id },
       });
       return NextResponse.json({ success: true });
-    } catch {
-      return NextResponse.json({ success: true });
+    } catch (dbErr) {
+      if (isRecordNotFound(dbErr)) {
+        return NextResponse.json({ error: "Pesan tidak ditemukan." }, { status: 404 });
+      }
+      console.error("Delete inquiry DB error:", dbErr);
+      return NextResponse.json(
+        { error: "Gagal menghapus pesan dari database." },
+        { status: 503 }
+      );
     }
   } catch (error) {
     console.error("Delete inquiry error:", error);

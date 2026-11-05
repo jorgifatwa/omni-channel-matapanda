@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   getAllBannersStore,
-  saveBannerStore,
+  createBannerStore,
   type BannerType,
 } from "@/lib/banner-store.server";
 
@@ -12,46 +12,52 @@ export async function GET(request: Request) {
   const type = searchParams.get("type") as BannerType | null;
 
   try {
-    const { banners, source } = await getAllBannersStore(type || undefined);
-    return NextResponse.json({ banners, source });
+    const banners = await getAllBannersStore(type || undefined);
+    return NextResponse.json({ banners, source: "database" });
   } catch (error) {
     console.error("GET /api/admin/banners error:", error);
     return NextResponse.json(
-      { error: "Gagal mengambil data banner." },
-      { status: 500 }
+      { banners: [], error: "Gagal memuat data banner dari database." },
+      { status: 503 }
     );
   }
 }
 
 export async function POST(request: Request) {
+  let body: Record<string, unknown>;
   try {
-    const body = await request.json();
-    const {
-      type = "HERO_BANNER",
-      title,
-      subtitle,
-      description,
-      imageUrl,
-      mobileImageUrl,
-      ctaText,
-      ctaLink,
-      sortOrder = 0,
-      isActive = true,
-    } = body;
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Format data tidak valid." }, { status: 400 });
+  }
 
-    if (!title || !imageUrl) {
-      return NextResponse.json(
-        { error: "Judul dan Gambar Banner wajib diisi." },
-        { status: 400 }
-      );
-    }
+  const {
+    type = "HERO_BANNER",
+    title,
+    subtitle,
+    description,
+    imageUrl,
+    mobileImageUrl,
+    ctaText,
+    ctaLink,
+    sortOrder = 0,
+    isActive = true,
+  } = body as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
-    const banner = await saveBannerStore({
-      type,
-      title: title.trim(),
+  if (!title || !imageUrl) {
+    return NextResponse.json(
+      { error: "Judul dan Gambar Banner wajib diisi." },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const banner = await createBannerStore({
+      type: type as BannerType,
+      title: String(title).trim(),
       subtitle: subtitle?.trim() || null,
       description: description?.trim() || null,
-      imageUrl: imageUrl.trim(),
+      imageUrl: String(imageUrl).trim(),
       mobileImageUrl: mobileImageUrl?.trim() || null,
       ctaText: ctaText?.trim() || null,
       ctaLink: ctaLink?.trim() || null,
@@ -63,8 +69,8 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("POST /api/admin/banners error:", error);
     return NextResponse.json(
-      { error: "Gagal membuat banner baru." },
-      { status: 500 }
+      { error: "Gagal menyimpan banner baru ke database." },
+      { status: 503 }
     );
   }
 }

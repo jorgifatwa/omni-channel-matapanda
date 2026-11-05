@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { OrderStatus, PaymentStatus, ShipmentStatus } from "@prisma/client";
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/** Orders can be looked up by database id (UUID) or by order number. */
+function orderLookup(id: string) {
+  return UUID_RE.test(id) ? { id } : { orderNumber: id };
+}
+
 export async function GET(
   _request: Request,
   { params }: { params: { id: string } }
@@ -10,7 +17,7 @@ export async function GET(
     const { id } = params;
     const order = await prisma.order.findFirst({
       where: {
-        OR: [{ id }, { orderNumber: id }],
+        ...orderLookup(id),
         deletedAt: null,
       },
       include: {
@@ -37,7 +44,7 @@ export async function GET(
     return NextResponse.json({ order });
   } catch (err) {
     console.error("[AdminOrdersAPI] Error fetching order:", err);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ error: "Gagal memuat pesanan dari database" }, { status: 500 });
   }
 }
 
@@ -57,7 +64,7 @@ export async function PUT(
     } = body;
 
     const existing = await prisma.order.findFirst({
-      where: { OR: [{ id }, { orderNumber: id }] },
+      where: { ...orderLookup(id), deletedAt: null },
       include: { payment: true, shipment: true },
     });
 
@@ -114,7 +121,7 @@ export async function PUT(
   } catch (err) {
     console.error("[AdminOrdersAPI] Error updating order:", err);
     return NextResponse.json(
-      { error: "Gagal memperbarui status pesanan", details: String(err) },
+      { error: "Gagal memperbarui status pesanan di database" },
       { status: 500 }
     );
   }

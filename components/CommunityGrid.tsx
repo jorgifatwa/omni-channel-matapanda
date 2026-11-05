@@ -3,27 +3,24 @@
 import * as React from "react";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight, X, ExternalLink } from "lucide-react";
-import {
-  type CommunityPost,
-  INITIAL_COMMUNITY_POSTS,
-} from "@/lib/community-store";
+import { type CommunityPost } from "@/lib/community-store";
 
 export default function CommunityGrid() {
   const containerRef = React.useRef<HTMLDivElement>(null);
-  const [posts, setPosts] = React.useState<CommunityPost[]>(INITIAL_COMMUNITY_POSTS);
+  const [posts, setPosts] = React.useState<CommunityPost[]>([]);
   const [canScrollLeft, setCanScrollLeft] = React.useState(false);
   const [canScrollRight, setCanScrollRight] = React.useState(true);
 
   // Modal Lightbox State
   const [selectedPostIndex, setSelectedPostIndex] = React.useState<number | null>(null);
 
-  // Fetch active posts from API
+  // Fetch active posts from the database API (section hidden when empty)
   React.useEffect(() => {
     let isMounted = true;
     fetch("/api/community/active")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (isMounted && data?.posts && Array.isArray(data.posts) && data.posts.length > 0) {
+        if (isMounted && Array.isArray(data?.posts)) {
           setPosts(data.posts);
         }
       })
@@ -54,7 +51,8 @@ export default function CommunityGrid() {
       clearTimeout(timer);
       window.removeEventListener("resize", checkScroll);
     };
-  }, [checkScroll]);
+    // Re-measure once posts arrive (the section only renders when posts exist)
+  }, [checkScroll, posts]);
 
   const handleScroll = (dir: "left" | "right") => {
     const el = containerRef.current;

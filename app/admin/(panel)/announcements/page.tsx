@@ -32,13 +32,14 @@ import {
 import { AlertDialog } from "@/components/ui/alert-dialog";
 import {
   type AdminAnnouncementItem,
-  INITIAL_ANNOUNCEMENTS,
   ANNOUNCEMENT_BADGE_PRESETS,
 } from "@/lib/announcements";
+import { adminFetchJson, adminRequestJson, errorMessage } from "@/lib/admin-request";
 
 export default function AdminAnnouncementsPage() {
   const [announcements, setAnnouncements] = React.useState<AdminAnnouncementItem[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [loadError, setLoadError] = React.useState<string | null>(null);
   const [filterStatus, setFilterStatus] = React.useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
   const [searchQuery, setSearchQuery] = React.useState("");
 
@@ -90,18 +91,14 @@ export default function AdminAnnouncementsPage() {
       if (typeof window !== "undefined") {
         window.localStorage.removeItem("itspanda_admin_announcements_v1");
       }
-      const res = await fetch("/api/admin/announcements");
-      if (res.ok) {
-        const json = await res.json();
-        if (json.announcements && Array.isArray(json.announcements)) {
-          setAnnouncements(json.announcements);
-          return;
-        }
-      }
-      setAnnouncements(INITIAL_ANNOUNCEMENTS);
+      const json = await adminFetchJson<{ announcements?: AdminAnnouncementItem[] }>(
+        "/api/admin/announcements",
+        "announcement"
+      );
+      setAnnouncements(Array.isArray(json.announcements) ? json.announcements : []);
+      setLoadError(null);
     } catch (err) {
-      console.warn("Failed to load announcements from server:", err);
-      setAnnouncements(INITIAL_ANNOUNCEMENTS);
+      setLoadError(errorMessage(err, "Gagal memuat announcement dari database."));
     } finally {
       setLoading(false);
     }
@@ -111,19 +108,9 @@ export default function AdminAnnouncementsPage() {
     loadAnnouncements();
   }, [loadAnnouncements]);
 
-  // Reset to default
-  const handleResetDefaults = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch("/api/admin/announcements");
-      if (res.ok) {
-        const json = await res.json();
-        if (json.announcements) setAnnouncements(json.announcements);
-      }
-      showToast("info", "Data announcement dimuat ulang dari server.");
-    } finally {
-      setLoading(false);
-    }
+  // Reload from database
+  const handleReload = async () => {
+    await loadAnnouncements();
   };
 
   // Open Create Modal
@@ -194,45 +181,33 @@ export default function AdminAnnouncementsPage() {
 
     try {
       if (editingItem) {
-        // PUT update
-        const res = await fetch(`/api/admin/announcements/${editingItem.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        if (res.ok) {
-          const json = await res.json();
-          const updatedItem = json.announcement || { ...editingItem, ...payload };
-          setAnnouncements((prev) =>
-            prev.map((a) => (a.id === editingItem.id ? updatedItem : a))
-          );
-          showToast("success", "Announcement berhasil diperbarui.");
-        } else {
-          showToast("error", "Gagal memperbarui announcement di server.");
-        }
+        const json = await adminRequestJson<{ announcement?: AdminAnnouncementItem }>(
+          `/api/admin/announcements/${editingItem.id}`,
+          "PUT",
+          payload,
+          "announcement"
+        );
+        const updatedItem = json.announcement || { ...editingItem, ...payload };
+        setAnnouncements((prev) =>
+          prev.map((a) => (a.id === editingItem.id ? updatedItem : a))
+        );
+        showToast("success", "Announcement berhasil diperbarui.");
       } else {
-        // POST create
-        const res = await fetch("/api/admin/announcements", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        if (res.ok) {
-          const json = await res.json();
-          if (json.announcement) {
-            setAnnouncements((prev) => [...prev, json.announcement]);
-          }
-          showToast("success", "Announcement baru berhasil ditambahkan.");
-        } else {
-          showToast("error", "Gagal membuat announcement baru di server.");
+        const json = await adminRequestJson<{ announcement?: AdminAnnouncementItem }>(
+          "/api/admin/announcements",
+          "POST",
+          payload,
+          "announcement"
+        );
+        if (json.announcement) {
+          setAnnouncements((prev) => [...prev, json.announcement as AdminAnnouncementItem]);
         }
+        showToast("success", "Announcement baru berhasil ditambahkan.");
       }
 
       setModalOpen(false);
-    } catch {
-      showToast("error", "Terjadi kesalahan jaringan saat menyimpan announcement.");
+    } catch (err) {
+      setFormError(errorMessage(err, "Terjadi kesalahan saat menyimpan announcement."));
     } finally {
       setIsSubmitting(false);
     }
@@ -246,22 +221,22 @@ export default function AdminAnnouncementsPage() {
     );
 
     try {
-      const res = await fetch(`/api/admin/announcements/${item.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: nextActive }),
-      });
-      if (!res.ok) throw new Error("Gagal update");
+      await adminRequestJson(
+        `/api/admin/announcements/${item.id}`,
+        "PUT",
+        { isActive: nextActive },
+        "status announcement"
+      );
       showToast(
         "info",
         `Announcement ${nextActive ? "diaktifkan" : "dinonaktifkan"}.`
       );
-    } catch {
+    } catch (err) {
       // Revert on error
       setAnnouncements((prev) =>
         prev.map((a) => (a.id === item.id ? { ...a, isActive: !nextActive } : a))
       );
-      showToast("error", "Gagal memperbarui status di server.");
+      showToast("error", errorMessage(err, "Gagal memperbarui status di server."));
     }
   };
 
@@ -282,16 +257,22 @@ export default function AdminAnnouncementsPage() {
 
     setAnnouncements(reorderedList);
 
-    // Sync to server silently
-    reorderedList.forEach((item) => {
-      fetch(`/api/admin/announcements/${item.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sortOrder: item.sortOrder }),
-      }).catch(() => {});
-    });
-
-    showToast("info", "Urutan announcement diperbarui.");
+    try {
+      await Promise.all(
+        reorderedList.map((item) =>
+          adminRequestJson(
+            `/api/admin/announcements/${item.id}`,
+            "PUT",
+            { sortOrder: item.sortOrder },
+            "urutan announcement"
+          )
+        )
+      );
+      showToast("info", "Urutan announcement diperbarui.");
+    } catch (err) {
+      showToast("error", errorMessage(err, "Gagal menyimpan urutan announcement."));
+      await loadAnnouncements();
+    }
   };
 
   // Delete Announcement
@@ -299,17 +280,16 @@ export default function AdminAnnouncementsPage() {
     if (!deleteTarget) return;
 
     try {
-      const res = await fetch(`/api/admin/announcements/${deleteTarget.id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        setAnnouncements((prev) => prev.filter((a) => a.id !== deleteTarget.id));
-        showToast("success", "Announcement berhasil dihapus.");
-      } else {
-        showToast("error", "Gagal menghapus announcement dari server.");
-      }
-    } catch {
-      showToast("error", "Gagal menghapus announcement dari server.");
+      await adminRequestJson(
+        `/api/admin/announcements/${deleteTarget.id}`,
+        "DELETE",
+        null,
+        "perubahan (hapus announcement)"
+      );
+      setAnnouncements((prev) => prev.filter((a) => a.id !== deleteTarget.id));
+      showToast("success", "Announcement berhasil dihapus.");
+    } catch (err) {
+      showToast("error", errorMessage(err, "Gagal menghapus announcement dari server."));
     } finally {
       setDeleteTarget(null);
     }
@@ -375,12 +355,12 @@ export default function AdminAnnouncementsPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={handleResetDefaults}
+            onClick={handleReload}
             className="text-xs text-neutral-600 dark:text-neutral-300"
-            title="Reset ke pengumuman default"
+            title="Muat ulang announcement dari database"
           >
             <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
-            Reset Default
+            Muat Ulang
           </Button>
           <Button
             onClick={handleOpenCreate}
@@ -391,6 +371,12 @@ export default function AdminAnnouncementsPage() {
           </Button>
         </div>
       </div>
+
+      {loadError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs font-medium text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+          {loadError}
+        </div>
+      )}
 
       {/* Live Storefront Preview Section */}
       <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-sm space-y-3">

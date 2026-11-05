@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { INITIAL_PRODUCTS } from "@/lib/admin-data";
 import {
   getActiveMarketplaceAccounts,
   getProductMappings,
@@ -15,7 +14,7 @@ import { decryptToken } from "@/lib/marketplace-crypto";
 /**
  * POST /api/integrations/products/sync-stock
  * Sinkronisasi stok dari website ke marketplace (Shopee / TikTok Shop).
- * Mendukung live stock dari payload (body.stock / body.items), database, maupun catalog.
+ * Mendukung live stock dari payload (body.stock / body.items) maupun database.
  */
 export async function POST(request: Request) {
   // Support both Admin Session and Automated Cron Secret
@@ -133,24 +132,12 @@ export async function POST(request: Request) {
         } else if (clientStockMap.has(item.sku.trim().toUpperCase())) {
           currentStock = clientStockMap.get(item.sku.trim().toUpperCase())!;
         } else {
-          try {
-            if (item.variantId) {
-              const v = await prisma.productVariant.findUnique({ where: { id: item.variantId } });
-              if (v) currentStock = v.stock;
-            } else if (item.productId) {
-              const p = await prisma.product.findUnique({ where: { id: item.productId } });
-              if (p) currentStock = p.stock;
-            }
-          } catch {
-            const initP = INITIAL_PRODUCTS.find((p) => p.id === item.productId || p.sku === item.sku);
-            if (initP) {
-              if (item.variantId && initP.variants?.length) {
-                const initV = initP.variants.find((v) => v.id === item.variantId || v.sku === item.sku);
-                if (initV) currentStock = initV.stock;
-              } else {
-                currentStock = initP.stock;
-              }
-            }
+          if (item.variantId) {
+            const v = await prisma.productVariant.findUnique({ where: { id: item.variantId } });
+            if (v) currentStock = v.stock;
+          } else if (item.productId) {
+            const p = await prisma.product.findUnique({ where: { id: item.productId } });
+            if (p) currentStock = p.stock;
           }
         }
 
@@ -248,6 +235,13 @@ export async function POST(request: Request) {
         const msg = err instanceof Error ? err.message : String(err);
         errors.push(`[${item.sku}] ${msg}`);
       }
+    }
+
+    if (syncedCount === 0 && errors.length > 0) {
+      return NextResponse.json(
+        { error: "Gagal menyinkronkan stok produk", failedCount: targets.length, errors },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({

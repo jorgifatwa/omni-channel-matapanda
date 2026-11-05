@@ -3,29 +3,28 @@
 import * as React from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { getStorefrontAnnouncements, type AnnouncementMessage } from "@/lib/announcements";
+import { type AnnouncementMessage } from "@/lib/announcements";
 
 export default function AnnouncementBar() {
-  const [announcements, setAnnouncements] = React.useState<AnnouncementMessage[]>(() =>
-    getStorefrontAnnouncements()
-  );
+  // Announcements come only from the database; the bar hides itself when empty.
+  const [announcements, setAnnouncements] = React.useState<AnnouncementMessage[]>([]);
 
   React.useEffect(() => {
     let isMounted = true;
 
     async function loadAnnouncements() {
-      let baseAnnouncements = getStorefrontAnnouncements();
+      let baseAnnouncements: AnnouncementMessage[] = [];
 
       try {
         const res = await fetch("/api/announcements/active");
         if (res.ok) {
           const data = await res.json();
-          if (data?.announcements && Array.isArray(data.announcements) && data.announcements.length > 0) {
+          if (Array.isArray(data?.announcements)) {
             baseAnnouncements = data.announcements;
           }
         }
       } catch {
-        // Use static fallback
+        // Database unavailable: show no announcements
       }
 
       try {
