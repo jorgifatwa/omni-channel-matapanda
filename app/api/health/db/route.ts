@@ -1,65 +1,62 @@
 import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Public database health check.
+ * Read-only: it never creates or changes data, and it does not expose
+ * connection details or raw error messages.
+ */
 export async function GET() {
   try {
-    // 1. Test basic connection
     await prisma.$queryRaw`SELECT 1 as result`;
+  } catch (error) {
+    console.error("[HealthDB] Database connection error:", error);
+    return NextResponse.json(
+      {
+        status: "disconnected",
+        connected: false,
+        tablesReady: false,
+        hint: "Database tidak dapat dijangkau. Periksa DATABASE_URL di environment variables.",
+        timestamp: new Date().toISOString(),
+      },
+      { status: 503 }
+    );
+  }
 
-    // 2. Count users
-    const userCount = await prisma.user.count({ where: { deletedAt: null } });
-    const adminCount = await prisma.user.count({
-      where: { role: "ADMIN", deletedAt: null },
-    });
-
-    // 3. Auto-seed admin user if not already in database
-    const primaryAdminEmail = "jorgifatwaambia@gmail.com";
-    let adminRecord = await prisma.user.findFirst({
-      where: { email: { equals: primaryAdminEmail, mode: "insensitive" } },
-    });
-
-    if (!adminRecord) {
-      try {
-        const hashedPassword = await bcrypt.hash("admin123", 10);
-        adminRecord = await prisma.user.create({
-          data: {
-            name: "it's matapanda Admin",
-            email: primaryAdminEmail,
-            passwordHash: hashedPassword,
-            phone: "+6281290001111",
-            role: "ADMIN",
-            isActive: true,
-          },
-        });
-      } catch (createErr) {
-        console.warn("[HealthDB] Could not auto-create admin in DB:", createErr);
-      }
-    }
+  try {
+    const [userCount, adminCount, productCount] = await Promise.all([
+      prisma.user.count({ where: { deletedAt: null } }),
+      prisma.user.count({ where: { role: "ADMIN", deletedAt: null } }),
+      prisma.product.count({ where: { deletedAt: null } }),
+    ]);
 
     return NextResponse.json({
       status: "connected",
       database: "PostgreSQL",
       connected: true,
+      tablesReady: true,
       userCount,
-      adminCount: Math.max(adminCount, adminRecord ? 1 : 0),
-      adminEmail: primaryAdminEmail,
+      adminCount,
+      productCount,
       message: "Database PostgreSQL terhubung dengan normal.",
       timestamp: new Date().toISOString(),
     });
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[HealthDB] Database connection error:", errorMessage);
+  } catch (error) {
+    const missingTables =
+      error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2021";
+    console.error("[HealthDB] Database query error:", error);
 
     return NextResponse.json(
       {
-        status: "disconnected",
-        connected: false,
-        error: errorMessage,
-        hint:
-          "Database belum dapat dijangkau dari server ini. Pastikan variabel DATABASE_URL di Vercel Dashboard sudah diisi dengan koneksi PostgreSQL cloud aktif (seperti Neon / Supabase / Vercel Postgres) dan bukan localhost.",
+        status: missingTables ? "schema_missing" : "error",
+        connected: true,
+        tablesReady: !missingTables,
+        hint: missingTables
+          ? "Database terhubung, tetapi tabel belum dibuat. Jalankan `npx prisma db push` ke database ini."
+          : "Database terhubung, tetapi query gagal. Periksa log server.",
         timestamp: new Date().toISOString(),
       },
       { status: 503 }
