@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getR2Client, uploadToR2 } from "@/lib/r2";
+import { getStorageClient, uploadToStorage } from "@/lib/storage";
 
 export async function POST(request: Request) {
   try {
@@ -19,19 +19,19 @@ export async function POST(request: Request) {
     const mimeType = file.type || "image/jpeg";
     const fileName = file.name || "upload.jpg";
 
-    // 1. Primary: Try Cloudflare R2 (S3-Compatible Zero-Egress Storage)
-    const r2Client = getR2Client();
-    if (r2Client) {
+    // 1. Primary: S3-compatible object storage (Backblaze B2, private bucket
+    //    served through /api/media)
+    if (getStorageClient()) {
       try {
-        const result = await uploadToR2(buffer, fileName, mimeType, folder);
+        const result = await uploadToStorage(buffer, fileName, mimeType, folder);
         return NextResponse.json({
           url: result.url,
           publicId: result.key,
-          provider: "cloudflare_r2",
+          provider: "backblaze_b2",
         });
-      } catch (r2Error) {
-        console.error("Cloudflare R2 upload error:", r2Error);
-        // If R2 fails, proceed to fallback options below
+      } catch (storageError) {
+        console.error("Object storage upload error:", storageError);
+        // If storage fails, proceed to fallback options below
       }
     }
 

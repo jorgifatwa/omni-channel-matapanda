@@ -1,6 +1,6 @@
 # it's matapanda E-Commerce & Executive Admin Console
 
-Platform e-commerce fashion streetwear modern untuk brand **it's matapanda**, dibangun menggunakan **Next.js 14 (App Router)**, **TypeScript**, **PostgreSQL + Prisma ORM**, **Cloudflare R2 Object Storage**, **Midtrans Payment Gateway**, sistem pengiriman domestik (**RajaOngkir / JNE**) & internasional (**DHL Express**), serta notifikasi email transaksi otomatis via **Nodemailer (SMTP)**.
+Platform e-commerce fashion streetwear modern untuk brand **it's matapanda**, dibangun menggunakan **Next.js 14 (App Router)**, **TypeScript**, **PostgreSQL + Prisma ORM**, **Backblaze B2 Object Storage**, **Midtrans Payment Gateway**, sistem pengiriman domestik (**RajaOngkir / JNE**) & internasional (**DHL Express**), serta notifikasi email transaksi otomatis via **Nodemailer (SMTP)**.
 
 ---
 
@@ -43,7 +43,7 @@ Platform e-commerce fashion streetwear modern untuk brand **it's matapanda**, di
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS, Shadcn UI primitives, Lucide Icons
 - **Database & ORM**: PostgreSQL & Prisma ORM
-- **Object Storage**: [Cloudflare R2](https://www.cloudflare.com/developer-platform/r2/) (S3-Compatible, **Zero-Egress Fees / Bebas Biaya Bandwidth**)
+- **Object Storage**: [Backblaze B2](https://www.backblaze.com/cloud-storage) (S3-Compatible, **10 GB gratis tanpa kartu kredit**, bucket private via proxy `/api/media`)
 - **Payment Gateway**: [Midtrans](https://midtrans.com/) (Snap API & Webhook Notification)
 - **Domestic Shipping**: [RajaOngkir Starter API](https://rajaongkir.com/) (JNE Express Real-Time Cost Calculation)
 - **International Shipping**: DHL Express Worldwide API
@@ -78,13 +78,13 @@ ADMIN_DEFAULT_EMAIL="jorgifatwaambia@gmail.com"
 ADMIN_DEFAULT_PASSWORD="ganti-dengan-password-kuat"
 
 # ==========================================
-# CLOUDFLARE R2 (Primary Image Storage - S3 Compatible, Zero Egress)
+# BACKBLAZE B2 (Primary Image Storage - S3 Compatible, private bucket served via /api/media)
 # ==========================================
-R2_ACCOUNT_ID="your-cloudflare-account-id"
-R2_ACCESS_KEY_ID="your-r2-access-key-id"
-R2_SECRET_ACCESS_KEY="your-r2-secret-access-key"
-R2_BUCKET_NAME="matapanda-images"
-R2_PUBLIC_URL="https://pub-your-bucket-id.r2.dev"
+STORAGE_ENDPOINT="https://s3.us-east-005.backblazeb2.com"
+STORAGE_REGION="us-east-005"
+STORAGE_BUCKET_NAME="your-bucket-name"
+STORAGE_ACCESS_KEY_ID="b2-key-id"
+STORAGE_SECRET_ACCESS_KEY="b2-application-key"
 
 # ==========================================
 # RAJAONGKIR by Komerce (JNE, J&T, SiCepat, AnterAja, POS - Real-Time)
@@ -208,12 +208,12 @@ it's matapanda menggunakan **RajaOngkir Starter API (100% Gratis)** untuk menghi
 
 ---
 
-## ☁️ 6. Panduan Cloudflare R2 (Image Storage)
+## ☁️ 6. Panduan Backblaze B2 (Image Storage)
 
-1. Buka [Cloudflare Dashboard](https://dash.cloudflare.com) &rarr; **R2 Object Storage**.
-2. Buat bucket baru `matapanda-images`.
-3. Aktifkan **R2.dev subdomain** atau Custom Domain, lalu masukkan ke `R2_PUBLIC_URL`.
-4. Buat **API Token** dengan izin *Object Read & Write*, salin kredensial ke `.env`.
+1. Daftar di [Backblaze](https://www.backblaze.com/sign-up/cloud-storage) (tanpa kartu kredit), pilih region **US East**.
+2. Buat bucket **Private** (Object Lock: Disable), contoh `itsmatapanda-storage`, lalu catat **Endpoint**-nya.
+3. Buat **Application Key** khusus bucket tersebut dengan akses *Read and Write*.
+4. Isi `STORAGE_*` di `.env`. Gambar ditampilkan lewat `/api/media/...` (di-cache CDN Vercel), jadi bucket tidak perlu public.
 
 ---
 
@@ -273,7 +273,7 @@ web-doc/
 │   ├── shopee-products.ts            # Shopee Products & Stock Sync API Helper
 │   ├── tiktokshop-oauth.ts           # TikTok Shop / Tokopedia OAuth Helper
 │   ├── rajaongkir.ts                 # Helper RajaOngkir Starter
-│   ├── r2.ts                         # Cloudflare R2 Upload Helper
+│   ├── storage.ts                    # Backblaze B2 (S3) Upload Helper
 │   └── prisma.ts                     # Prisma Singleton Instance
 ├── components/
 │   ├── Navbar.tsx                    # Header Megamenu, Cart & User Account Dropdown

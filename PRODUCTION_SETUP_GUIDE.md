@@ -1,6 +1,6 @@
 # Panduan Lengkap Konfigurasi API Key & Deployment Production
 
-Dokumen ini berisi panduan teknis langkah demi langkah untuk melakukan konfigurasi seluruh API Key pihak ketiga (Shopee, TikTok Shop / Tokopedia, Midtrans, RajaOngkir, Cloudflare R2, dan SMTP Email) serta langkah deployment ke server production.
+Dokumen ini berisi panduan teknis langkah demi langkah untuk melakukan konfigurasi seluruh API Key pihak ketiga (Shopee, TikTok Shop / Tokopedia, Midtrans, RajaOngkir, Backblaze B2, dan SMTP Email) serta langkah deployment ke server production.
 
 ---
 
@@ -10,7 +10,7 @@ Dokumen ini berisi panduan teknis langkah demi langkah untuk melakukan konfigura
 3. [Integrasi TikTok Shop Partner Center (Tokopedia)](#3-integrasi-tiktok-shop-partner-center-tokopedia)
 4. [Integrasi Payment Gateway Midtrans](#4-integrasi-payment-gateway-midtrans)
 5. [Integrasi Ongkos Kirim (RajaOngkir)](#5-integrasi-ongkos-kirim-rajaongkir)
-6. [Integrasi Media Storage (Cloudflare R2)](#6-integrasi-media-storage-cloudflare-r2)
+6. [Integrasi Media Storage (Backblaze B2)](#6-integrasi-media-storage-backblaze-b2)
 7. [Integrasi Email Transaksional (SMTP)](#7-integrasi-email-transaksional-smtp)
 8. [Database PostgreSQL Production](#8-database-postgresql-production)
 9. [Checklist Environment Variables (.env)](#9-checklist-environment-variables-env)
@@ -187,30 +187,31 @@ Digunakan untuk menghitung ongkos kirim real-time JNE, J&T, SiCepat, AnterAja, P
 
 ---
 
-## 6. Integrasi Media Storage (Cloudflare R2)
+## 6. Integrasi Media Storage (Backblaze B2)
 
-Cloudflare R2 adalah penyimpanan objek (kompatibel AWS S3) berkinerja tinggi dengan **biaya bandwidth egress Rp 0 (Zero Egress)**.
+Backblaze B2 adalah penyimpanan objek (kompatibel AWS S3) dengan **10 GB gratis tanpa kartu kredit**. Bucket dibuat **Private** (bucket Public mewajibkan kartu kredit), lalu gambar ditampilkan lewat route proxy `/api/media/...` yang di-cache CDN Vercel.
 
 ### Langkah-langkah:
-1. Login ke [Cloudflare Dashboard](https://dash.cloudflare.com/) -> **R2 Object Storage**.
-2. Klik **Create Bucket**: Beri nama bucket, contoh: `matapanda-images`.
-3. Buat API Token:
-   - Klik **Manage R2 API Tokens** -> **Create API Token**.
-   - Berikan izin: **Object Read & Write**.
-   - Salin:
-     - **Account ID** (ada di sidebar kanan dashboard R2)
-     - **Access Key ID**
-     - **Secret Access Key**
-4. Aktifkan Public Access:
-   - Di halaman setting bucket, klik **Connect Domain** (custom domain Anda seperti `assets.domain-anda.com`) atau aktifkan **R2.dev subdomain**.
-5. **Konfigurasi di `.env` Production**:
+1. Daftar di [Backblaze](https://www.backblaze.com/sign-up/cloud-storage), pilih region **US East** (sama dengan region default server Vercel `iad1`).
+2. **B2 Cloud Storage -> Buckets -> Create a Bucket**:
+   - Nama bucket unik, contoh: `itsmatapanda-storage`
+   - Files in Bucket: **Private**
+   - Object Lock: **Disable**
+3. Catat **Endpoint** bucket, contoh: `s3.us-east-005.backblazeb2.com` (region = `us-east-005`).
+4. (Disarankan) **Lifecycle Settings** -> **Keep only the last version** agar file lama tidak memakan kuota.
+5. **Application Keys -> Add a New Application Key**:
+   - Akses hanya ke bucket tersebut, tipe **Read and Write**.
+   - Salin **keyID** dan **applicationKey** (hanya ditampilkan sekali).
+6. **Konfigurasi di `.env` Production**:
    ```env
-   R2_ACCOUNT_ID="account-id-cloudflare"
-   R2_ACCESS_KEY_ID="access-key-id"
-   R2_SECRET_ACCESS_KEY="secret-access-key"
-   R2_BUCKET_NAME="matapanda-images"
-   R2_PUBLIC_URL="https://assets.domain-anda.com"
+   STORAGE_ENDPOINT="https://s3.us-east-005.backblazeb2.com"
+   STORAGE_REGION="us-east-005"
+   STORAGE_BUCKET_NAME="nama-bucket-anda"
+   STORAGE_ACCESS_KEY_ID="b2-key-id"
+   STORAGE_SECRET_ACCESS_KEY="b2-application-key"
    ```
+
+URL gambar yang tersimpan berbentuk `/api/media/products/<timestamp>-<nama-file>`.
 
 ---
 
@@ -274,12 +275,12 @@ NEXTAUTH_SECRET="hasil-dari-generate-keys"
 ADMIN_DEFAULT_EMAIL="jorgifatwaambia@gmail.com"
 ADMIN_DEFAULT_PASSWORD="PasswordKuatSuperAdmin123!"
 
-# STORAGE (CLOUDFLARE R2)
-R2_ACCOUNT_ID="cloudflare-account-id"
-R2_ACCESS_KEY_ID="r2-access-key-id"
-R2_SECRET_ACCESS_KEY="r2-secret-access-key"
-R2_BUCKET_NAME="nama-bucket-anda"
-R2_PUBLIC_URL="https://assets.domain-anda.com"
+# STORAGE (BACKBLAZE B2)
+STORAGE_ENDPOINT="https://s3.us-east-005.backblazeb2.com"
+STORAGE_REGION="us-east-005"
+STORAGE_BUCKET_NAME="nama-bucket-anda"
+STORAGE_ACCESS_KEY_ID="b2-key-id"
+STORAGE_SECRET_ACCESS_KEY="b2-application-key"
 
 # LOGISTIK (RAJAONGKIR by Komerce)
 RAJAONGKIR_API_KEY="api-key-rajaongkir"
