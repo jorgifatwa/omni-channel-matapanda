@@ -126,7 +126,7 @@ export default function AdminLoginPage() {
                     <FormControl>
                       <Input
                         type="email"
-                        placeholder="jorgifatwaambia@gmail.com"
+                        placeholder="admin@email.com"
                         autoComplete="email"
                         {...field}
                       />
