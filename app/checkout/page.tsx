@@ -21,7 +21,7 @@ import {
 import { useSession } from "next-auth/react";
 import { useCart } from "@/context/CartContext";
 import { type CurrencyCode } from "@/lib/products";
-import { persistOrder, saveOrderLocally } from "@/context/AdminStoreContext";
+import { createCheckoutOrder } from "@/context/AdminStoreContext";
 import { type AdminOrder } from "@/lib/admin-data";
 
 interface ShippingOption {
@@ -289,7 +289,7 @@ export default function CheckoutPage() {
 
     // 0. Simpan pesanan ke database dulu. Kalau gagal, jangan lanjut ke pembayaran.
     try {
-      await persistOrder(newOrder);
+      await createCheckoutOrder(newOrder);
     } catch (err) {
       console.error("[Checkout] Failed to save order:", err);
       setOrderError(
@@ -454,7 +454,7 @@ export default function CheckoutPage() {
         ],
       };
 
-      saveOrderLocally(updated);
+      // Status lunas hanya diperbarui oleh webhook Midtrans / admin, bukan dari browser
       setCreatedOrder(updated);
     } catch (err) {
       console.error("Failed to settle simulated payment:", err);

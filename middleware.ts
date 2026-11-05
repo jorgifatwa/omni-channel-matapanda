@@ -27,6 +27,28 @@ export async function middleware(request: NextRequest) {
       (await getToken({ req: request, secret }))
     : null;
 
+  // 0. Admin-only APIs: require a logged-in ADMIN session
+  if (
+    pathname.startsWith("/api/admin") ||
+    pathname === "/api/upload" ||
+    pathname === "/api/payment/send-receipt" ||
+    pathname === "/api/integrations/products/deduct-stock"
+  ) {
+    const cronSecret = process.env.CRON_SECRET;
+    const isCron =
+      pathname === "/api/integrations/products/deduct-stock" &&
+      !!cronSecret &&
+      request.headers.get("authorization") === `Bearer ${cronSecret}`;
+
+    if (!isCron && (!token || token.role !== "ADMIN")) {
+      return NextResponse.json(
+        { error: "Akses ditolak. Silakan login sebagai admin." },
+        { status: 401 }
+      );
+    }
+    return NextResponse.next();
+  }
+
   // 1. Handle /admin routes
   if (pathname.startsWith("/admin")) {
     if (pathname === "/admin/login") {
@@ -72,5 +94,12 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/account/:path*"],
+  matcher: [
+    "/admin/:path*",
+    "/account/:path*",
+    "/api/admin/:path*",
+    "/api/upload",
+    "/api/payment/send-receipt",
+    "/api/integrations/products/deduct-stock",
+  ],
 };

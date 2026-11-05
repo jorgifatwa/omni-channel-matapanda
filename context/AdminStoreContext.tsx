@@ -130,7 +130,33 @@ export async function persistOrder(order: AdminOrder): Promise<void> {
 }
 
 /**
- * Fire-and-forget variant of {@link persistOrder} used by the checkout flow.
+ * Creates a NEW order from the storefront checkout via the public endpoint.
+ * The server forces all statuses to PENDING. Throws when it was not saved.
+ */
+export async function createCheckoutOrder(order: AdminOrder): Promise<void> {
+  let res: Response;
+  try {
+    res = await fetch("/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(order),
+    });
+  } catch {
+    throw new Error("Gagal menghubungi server saat menyimpan pesanan. Periksa koneksi internet.");
+  }
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    const reason = (data as { error?: string }).error;
+    throw new Error(
+      reason
+        ? `Gagal menyimpan pesanan: ${reason}`
+        : `Gagal menyimpan pesanan (HTTP ${res.status}).`
+    );
+  }
+}
+
+/**
+ * Fire-and-forget variant of {@link persistOrder} (admin only).
  * Despite the historical name, nothing is stored in the browser anymore:
  * the order is only saved to the database, and failures are logged.
  */

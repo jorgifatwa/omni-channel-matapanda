@@ -14,8 +14,6 @@ import {
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useCart } from "@/context/CartContext";
-import { persistOrder } from "@/context/AdminStoreContext";
-import { type AdminOrder } from "@/lib/admin-data";
 
 function FinishContent() {
   const { status: authStatus } = useSession();
@@ -40,68 +38,13 @@ function FinishContent() {
     if (isSuccess) {
       clearCart();
 
-      // Baca data order asli yang disimpan dari checkout page sebelum redirect ke Midtrans
-      let savedOrder: AdminOrder | null = null;
+      // Status lunas, email bukti pembayaran, dan pemotongan stok marketplace
+      // diproses di server oleh webhook Midtrans, bukan dari browser.
       try {
-        const raw = sessionStorage.getItem("pendingOrderData");
-        if (raw) {
-          savedOrder = JSON.parse(raw) as AdminOrder;
-          sessionStorage.removeItem("pendingOrderData"); // Hapus setelah dibaca
-        }
+        sessionStorage.removeItem("pendingOrderData");
       } catch {
-        // sessionStorage tidak tersedia atau data corrupt — lanjut dengan fallback
+        // sessionStorage tidak tersedia
       }
-
-      const sendReceipt = () =>
-        fetch("/api/payment/send-receipt", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          // Email content is read from the order stored in the database
-          body: JSON.stringify({ orderId, paymentStatus: "SETTLEMENT" }),
-        })
-          .then(async (r) => {
-            const d = await r.json().catch(() => ({}));
-            if (!r.ok) console.error("[Finish] Email receipt gagal:", d.error || r.status);
-            else console.log("[Finish] Email receipt sent:", d);
-          })
-          .catch((err) => console.warn("[Finish] Email receipt error:", err));
-
-      if (!savedOrder) {
-        // No order data from this browser: the order was already saved to the
-        // database at checkout; only send the receipt for it.
-        sendReceipt();
-        return;
-      }
-
-      const completedOrder: AdminOrder = {
-        ...savedOrder,
-        orderNumber: orderId || savedOrder.orderNumber,
-        paymentStatus: "SETTLEMENT",
-        orderStatus: "PAID",
-      };
-
-      // Simpan status lunas ke database, lalu kirim email konfirmasi dari data database
-      persistOrder(completedOrder)
-        .catch((err) => {
-          console.error("[Finish] Gagal menyimpan status pesanan ke database:", err);
-        })
-        .finally(sendReceipt);
-
-      // Otomatis potong stok di Shopee & marketplace yang terhubung secara real-time
-      fetch("/api/integrations/products/deduct-stock", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          items: completedOrder.items.map((it) => ({
-            productId: it.productId,
-            sku: it.sku,
-            quantity: it.quantity,
-          })),
-        }),
-      })
-        .then((r) => r.json())
-        .then((d) => console.log("[Finish] Marketplace stock auto-deducted:", d))
-        .catch((err) => console.warn("[Finish] Marketplace stock sync error:", err));
     }
   }, [isSuccess, orderId, clearCart]);
 
