@@ -622,53 +622,6 @@ export const INITIAL_ORDERS: AdminOrder[] = [
   },
 ];
 
-export const SALES_30_DAYS_DATA = Array.from({ length: 30 }, (_, idx) => {
-  const day = idx + 1;
-  const dateLabel = `Sep ${String(day).padStart(2, "0")}`;
-  const wave = Math.sin(idx * 0.45) * 1200000 + Math.cos(idx * 0.2) * 800000;
-  const revenue = Math.max(
-    650000,
-    Math.round((2400000 + wave + (idx % 5) * 350000) / 10000) * 10000
-  );
-  const orders = Math.max(1, Math.round(revenue / 520000));
-  return {
-    date: dateLabel,
-    revenue,
-    orders,
-  };
-});
-
-export const TOP_SELLING_PRODUCTS = [
-  {
-    id: "micro-dumpling-bag",
-    name: "Micro Dumpling Bag",
-    sku: "IMP-DUMP-MIC",
-    sold: 84,
-    revenue: 41076000,
-  },
-  {
-    id: "xs-dumpling-bag",
-    name: "XS Dumpling Bag",
-    sku: "IMP-DUMP-XS",
-    sold: 62,
-    revenue: 36518000,
-  },
-  {
-    id: "everyday-canvas-tote",
-    name: "Everyday Canvas Tote Bag",
-    sku: "IMP-TOTE-CANV",
-    sold: 55,
-    revenue: 21395000,
-  },
-  {
-    id: "puffer-cloud-shoulder-bag",
-    name: "Puffer Cloud Shoulder Bag",
-    sku: "IMP-SHLD-PUF",
-    sold: 40,
-    revenue: 21960000,
-  },
-];
-
 export function slugify(input: string): string {
   return input
     .toLowerCase()

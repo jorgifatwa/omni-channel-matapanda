@@ -66,11 +66,3 @@ export function decryptToken(ciphertext: string): string {
   const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
   return decrypted.toString("utf8");
 }
-
-/**
- * Returns true if the provided string looks like an encrypted token
- * (i.e. has the iv:authTag:ciphertext format).
- */
-export function isEncryptedToken(value: string): boolean {
-  return value.split(":").length === 3;
-}

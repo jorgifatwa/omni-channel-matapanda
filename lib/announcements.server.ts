@@ -276,36 +276,3 @@ export async function deleteAnnouncementStore(id: string): Promise<boolean> {
 
   return true;
 }
-
-/**
- * Reset announcements to default presets
- */
-export async function resetAnnouncementsToDefaultStore(): Promise<AdminAnnouncementItem[]> {
-  const initialWithUuids = INITIAL_ANNOUNCEMENTS.map((a) => normalizeItem(a));
-  writeAnnouncementsToFile(initialWithUuids);
-
-  try {
-    await prisma.announcement.deleteMany({}).catch(() => {});
-    for (const item of initialWithUuids) {
-      await prisma.announcement.create({
-        data: {
-          id: item.id,
-          text: item.text,
-          link: item.link || null,
-          badge: item.badge || null,
-          sortOrder: item.sortOrder,
-          isActive: item.isActive,
-        },
-      }).catch(() => {});
-    }
-  } catch (err) {
-    console.warn("[announcements.server] Reset DB skipped:", err);
-  }
-
-  try {
-    revalidatePath("/");
-    revalidatePath("/admin/announcements");
-  } catch {}
-
-  return initialWithUuids;
-}

@@ -25,7 +25,6 @@ export interface AdminNotificationItem {
 }
 
 export const ADMIN_NOTIFICATION_CHANNEL = "itspanda_admin_notifications_channel";
-export const ADMIN_NOTIFICATION_STORAGE_KEY = "itspanda_admin_notifications_v1";
 export const ADMIN_LATEST_NOTIF_KEY = "itspanda_latest_notification_event";
 
 export const INITIAL_NOTIFICATIONS: AdminNotificationItem[] = [

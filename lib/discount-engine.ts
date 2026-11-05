@@ -316,22 +316,3 @@ export function calculateGiftPackageReward(
     }
   );
 }
-
-/**
- * Get active gift package badge for a product card/detail
- */
-export function getProductGiftBadge(
-  productId: string,
-  categoryId?: string | null,
-  activeCampaigns: DiscountCampaign[] = []
-): DiscountCampaign | null {
-  const gifts = activeCampaigns.filter(
-    (c) => c.campaignType === "GIFT_PACKAGE" && c.isActive && c.giftProductId
-  );
-  for (const g of gifts) {
-    if (g.targetType === "ALL_PRODUCTS") return g;
-    if (g.targetType === "CATEGORY" && categoryId && g.targetCategoryIds.includes(categoryId)) return g;
-    if (g.targetType === "SPECIFIC_PRODUCTS" && g.targetProductIds.includes(productId)) return g;
-  }
-  return null;
-}

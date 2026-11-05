@@ -316,39 +316,3 @@ export async function deleteBannerStore(id: string): Promise<boolean> {
 
   return true;
 }
-
-/**
- * Reset Banners to initial presets
- */
-export async function resetBannersToDefaultStore(): Promise<AdminBannerItem[]> {
-  writeBannersToFile(INITIAL_ALL_BANNERS);
-
-  try {
-    await prisma.banner.deleteMany({}).catch(() => {});
-    for (const b of INITIAL_ALL_BANNERS) {
-      await prisma.banner.create({
-        data: {
-          type: b.type,
-          title: b.title,
-          subtitle: b.subtitle || null,
-          description: b.description || null,
-          imageUrl: b.imageUrl,
-          mobileImageUrl: b.mobileImageUrl || null,
-          ctaText: b.ctaText || null,
-          ctaLink: b.ctaLink || null,
-          sortOrder: b.sortOrder,
-          isActive: b.isActive,
-        },
-      }).catch(() => {});
-    }
-  } catch (err) {
-    console.warn("[banner-store.server] Reset DB skipped:", err);
-  }
-
-  try {
-    revalidatePath("/");
-    revalidatePath("/admin/banners");
-  } catch {}
-
-  return INITIAL_ALL_BANNERS;
-}

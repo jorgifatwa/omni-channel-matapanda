@@ -114,10 +114,6 @@ export const NEW_ARRIVAL_PRODUCTS: Product[] = [
   },
 ];
 
-export function getProductById(id: string): Product | undefined {
-  return NEW_ARRIVAL_PRODUCTS.find((p) => p.id === id);
-}
-
 export function formatIDR(amount: number): string {
   return `${amount.toLocaleString("id-ID")} IDR`;
 }
