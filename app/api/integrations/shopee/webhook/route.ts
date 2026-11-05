@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
-import {
-  getActiveMarketplaceAccounts,
-  getProductMappings,
-  saveProductMapping,
-} from "@/lib/marketplace-store";
+import { getActiveMarketplaceAccounts } from "@/lib/marketplace-store";
 import { decryptToken } from "@/lib/marketplace-crypto";
 import { buildShopeeSign, SHOPEE_BASE_URL } from "@/lib/shopee-oauth";
-import { updateTikTokShopStock } from "@/lib/tiktokshop-products";
-import { prisma } from "@/lib/prisma";
 import { verifyShopeePush } from "@/lib/webhook-signature";
+import { applyMarketplaceOrderToStock } from "@/lib/marketplace-order-stock";
+
+/**
+ * Shopee pushes code 3 for EVERY status change (UNPAID, READY_TO_SHIP,
+ * SHIPPED, COMPLETED, CANCELLED...). Website stock is reduced only once,
+ * when the order becomes paid and ready to ship.
+ */
+const DEDUCT_ON_STATUS = "READY_TO_SHIP";
 
 /**
  * POST /api/integrations/shopee/webhook
@@ -70,32 +72,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ code: 0, message: "Shop not registered" });
     }
 
-    // Code 3: Order Status Update
-    if (code === 3 && data?.ordersn) {
+    // Code 3: Order Status Update — deduct once, on the paid status only
+    if (code === 3 && data?.ordersn && data.status === DEDUCT_ON_STATUS) {
       const orderSn = data.ordersn;
-      const orderStatus = data.status;
-      console.log(`[Shopee Webhook] Order ${orderSn} status updated to: ${orderStatus}`);
-
       let plainToken = shopeeAccount.accessToken;
       try {
         plainToken = decryptToken(shopeeAccount.accessToken);
       } catch {}
 
-      let tiktokToken = "";
-      if (tiktokAccount) {
-        try {
-          tiktokToken = decryptToken(tiktokAccount.accessToken);
-        } catch {
-          tiktokToken = tiktokAccount.accessToken;
-        }
-      }
-
-      // Fetch order detail from Shopee
       const partnerId = Number(process.env.SHOPEE_PARTNER_ID || "0");
       const timestamp = Math.floor(Date.now() / 1000);
       const apiPath = "/api/v2/order/get_order_detail";
       const sign = buildShopeeSign(apiPath, timestamp, { accessToken: plainToken, shopId: shopeeAccount.shopId });
-
       const params = new URLSearchParams({
         partner_id: String(partnerId),
         timestamp: String(timestamp),
@@ -106,84 +94,28 @@ export async function POST(request: Request) {
         response_optional_fields: "item_list,order_status",
       });
 
-      const orderRes = await fetch(`${SHOPEE_BASE_URL}${apiPath}?${params.toString()}`);
-      if (orderRes.ok) {
-        const orderData = await orderRes.json();
-        const orderInfo = orderData?.response?.order_list?.[0];
-        const items = orderInfo?.item_list || [];
-
-        const allMappings = await getProductMappings();
-
-        for (const item of items) {
-          const match = allMappings.find(
-            (m) =>
-              m.platform === "SHOPEE" &&
-              String(m.marketplaceItemId) === String(item.item_id) &&
-              (m.marketplaceModelId ? String(m.marketplaceModelId) === String(item.model_id) : true)
-          );
-
-          if (match) {
-            const purchasedQty = item.model_quantity_purchased || item.active_qty || 1;
-            const newStock = Math.max(0, match.websiteStock - purchasedQty);
-
-            console.log(`[Shopee Webhook] Auto-deducting stock for SKU ${match.sku}: ${match.websiteStock} -> ${newStock}`);
-
-            // 1. Update Shopee mapping record
-            await saveProductMapping({
-              ...match,
-              websiteStock: newStock,
-              marketplaceStock: newStock,
-              lastSyncAt: new Date().toISOString(),
-              lastSyncStatus: "SUCCESS",
-              lastSyncError: null,
-            });
-
-            // 2. Update Website Database (Prisma)
-            if (match.variantId) {
-              await prisma.productVariant.update({
-                where: { id: match.variantId },
-                data: { stock: newStock },
-              });
-            } else if (match.productId) {
-              await prisma.product.update({
-                where: { id: match.productId },
-                data: { stock: newStock },
-              });
-            }
-
-            // 3. Propagate to TikTok Shop (Tokopedia) if product is mapped there!
-            if (tiktokAccount) {
-              const tiktokMatch = allMappings.find(
-                (m) =>
-                  m.platform === "TIKTOK_SHOP" &&
-                  m.sku.trim().toUpperCase() === match.sku.trim().toUpperCase()
-              );
-
-              if (tiktokMatch) {
-                console.log(`[Shopee Webhook] Propagating new stock (${newStock}) to TikTok Shop for SKU ${match.sku}...`);
-                const tiktokRes = await updateTikTokShopStock(
-                  tiktokToken,
-                  tiktokAccount.shopId,
-                  tiktokMatch.marketplaceItemId,
-                  tiktokMatch.marketplaceModelId,
-                  newStock
-                );
-
-                if (tiktokRes.success) {
-                  await saveProductMapping({
-                    ...tiktokMatch,
-                    websiteStock: newStock,
-                    marketplaceStock: newStock,
-                    lastSyncAt: new Date().toISOString(),
-                    lastSyncStatus: "SUCCESS",
-                    lastSyncError: null,
-                  });
-                }
-              }
-            }
-          }
-        }
+      const orderRes = await fetch(`${SHOPEE_BASE_URL}${apiPath}?${params.toString()}`, { cache: "no-store" });
+      const orderData = await orderRes.json().catch(() => ({}));
+      if (!orderRes.ok || (orderData?.error && orderData.error !== "success")) {
+        // Throw -> 500 so Shopee retries instead of the order being lost
+        throw new Error(`get_order_detail ${orderSn} gagal (HTTP ${orderRes.status}): ${orderData?.message || orderData?.error || ""}`);
       }
+      const items: Array<{ item_id?: number; model_id?: number; model_sku?: string; item_sku?: string; model_quantity_purchased?: number }> =
+        orderData?.response?.order_list?.[0]?.item_list || [];
+
+      const { deducted } = await applyMarketplaceOrderToStock(
+        "SHOPEE",
+        items.map((it) => ({
+          itemId: it.item_id != null ? String(it.item_id) : null,
+          modelId: it.model_id ? String(it.model_id) : null,
+          sellerSku: it.model_sku || it.item_sku || null,
+          quantity: Number(it.model_quantity_purchased) || 1,
+        })),
+        tiktokAccount
+      );
+      console.log(`[Shopee Webhook] Order ${orderSn}: ${deducted} item(s) deducted from website stock.`);
+    } else if (code === 3 && data?.ordersn) {
+      console.log(`[Shopee Webhook] Order ${data.ordersn} status ${data.status}: no stock change.`);
     }
 
     // Shopee expects { code: 0, message: "success" }

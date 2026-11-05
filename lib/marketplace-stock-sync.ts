@@ -66,6 +66,21 @@ export async function onWebsiteOrderPlaced(
 
     for (const item of items) {
       const cleanSku = item.sku.trim().toUpperCase();
+      const qty = Math.max(1, Number(item.quantity) || 1);
+
+      // Website DB is the source of truth. Deduct atomically if the caller
+      // has not done it yet, then read the real current stock.
+      if (!options.websiteStockAlreadyDeducted) {
+        if (item.variantId) {
+          await prisma.productVariant.updateMany({ where: { id: item.variantId }, data: { stock: { decrement: qty } } });
+          await prisma.productVariant.updateMany({ where: { id: item.variantId, stock: { lt: 0 } }, data: { stock: 0 } });
+        }
+        if (item.productId) {
+          await prisma.product.updateMany({ where: { id: item.productId }, data: { stock: { decrement: qty } } });
+          await prisma.product.updateMany({ where: { id: item.productId, stock: { lt: 0 } }, data: { stock: 0 } });
+        }
+      }
+
       const matches = allMappings.filter(
         (m) =>
           m.sku.trim().toUpperCase() === cleanSku ||
@@ -75,73 +90,46 @@ export async function onWebsiteOrderPlaced(
       );
 
       for (const match of matches) {
-        const qty = Number(item.quantity) || 1;
-        const newStock = options.websiteStockAlreadyDeducted
-          ? Math.max(0, match.websiteStock)
-          : Math.max(0, match.websiteStock - qty);
+        const currentRow = match.variantId
+          ? await prisma.productVariant.findUnique({ where: { id: match.variantId }, select: { stock: true } })
+          : await prisma.product.findUnique({ where: { id: match.productId }, select: { stock: true } });
+        const newStock = Math.max(0, currentRow?.stock ?? 0);
 
         console.log(
           `[Omnichannel Sync] Website order for SKU ${match.sku} (Qty: ${qty}). Updating ${match.platform} stock to ${newStock}...`
         );
 
-        let updateSuccess = false;
-
-        // 1. Push to Shopee
+        let res: { success: boolean; error?: string } = { success: false, error: "Akun marketplace tidak terhubung" };
         if (match.platform === "SHOPEE" && shopeeAccount) {
-          const shopeeRes = await updateShopeeStock(
+          res = await updateShopeeStock(
             shopeeToken,
             shopeeAccount.shopId,
             match.marketplaceItemId,
             newStock,
             match.marketplaceModelId
           );
-          updateSuccess = shopeeRes.success;
-          if (!shopeeRes.success) {
-            console.warn(
-              `[Omnichannel Sync] Failed to update Shopee stock for ${match.sku}:`,
-              shopeeRes.error
-            );
-          }
-        }
-
-        // 2. Push to TikTok Shop (Tokopedia)
-        if (match.platform === "TIKTOK_SHOP" && tiktokAccount) {
-          const tiktokRes = await updateTikTokShopStock(
+        } else if (match.platform === "TIKTOK_SHOP" && tiktokAccount) {
+          res = await updateTikTokShopStock(
             tiktokToken,
             tiktokAccount.shopId,
             match.marketplaceItemId,
             match.marketplaceModelId,
             newStock
           );
-          updateSuccess = tiktokRes.success;
+        }
+        if (!res.success) {
+          console.warn(`[Omnichannel Sync] Failed to update ${match.platform} stock for ${match.sku}:`, res.error);
         }
 
-        if (updateSuccess) {
-          // 3. Update mapping record
-          await saveProductMapping({
-            ...match,
-            websiteStock: newStock,
-            marketplaceStock: newStock,
-            lastSyncAt: new Date().toISOString(),
-            lastSyncStatus: "SUCCESS",
-            lastSyncError: null,
-          });
-
-          // 4. Update website stock in the database
-          if (match.variantId) {
-            await prisma.productVariant.update({
-              where: { id: match.variantId },
-              data: { stock: newStock },
-            });
-          } else if (match.productId) {
-            await prisma.product.update({
-              where: { id: match.productId },
-              data: { stock: newStock },
-            });
-          }
-
-          deductedCount++;
-        }
+        await saveProductMapping({
+          ...match,
+          websiteStock: newStock,
+          marketplaceStock: res.success ? newStock : match.marketplaceStock,
+          lastSyncAt: new Date().toISOString(),
+          lastSyncStatus: res.success ? "SUCCESS" : "FAILED",
+          lastSyncError: res.success ? null : res.error || "Gagal memperbarui stok",
+        });
+        if (res.success) deductedCount++;
       }
     }
 

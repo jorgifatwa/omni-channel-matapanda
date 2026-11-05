@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { ORDER_PAYMENT_WINDOW_HOURS, expireCharge } from "@/lib/midtrans";
+import { ORDER_PAYMENT_WINDOW_HOURS } from "@/lib/midtrans";
+import { cancelOrder } from "@/lib/order-lifecycle";
 
 export const dynamic = "force-dynamic";
 
@@ -32,26 +33,14 @@ async function handle(request: Request) {
         createdAt: { lt: cutoff },
         OR: [{ payment: null }, { payment: { status: { not: "SETTLEMENT" } } }],
       },
-      select: { id: true, orderNumber: true, payment: { select: { midtransOrderId: true, status: true } } },
+      select: { id: true },
       take: 200,
     });
 
     let cancelled = 0;
     for (const order of stale) {
-      if (order.payment?.status === "PENDING") {
-        await expireCharge(order.payment.midtransOrderId).catch(() => undefined);
-      }
-      const res = await prisma.order.updateMany({
-        where: { id: order.id, status: "PENDING" },
-        data: { status: "CANCELLED" },
-      });
-      if (order.payment?.status === "PENDING") {
-        await prisma.payment.updateMany({
-          where: { orderId: order.id, status: "PENDING" },
-          data: { status: "EXPIRE" },
-        });
-      }
-      cancelled += res.count;
+      // cancelOrder also stops the pending Midtrans charge and gives back the coupon use
+      if (await cancelOrder(order.id)) cancelled++;
     }
     return NextResponse.json({ success: true, checked: stale.length, cancelled });
   } catch (error) {

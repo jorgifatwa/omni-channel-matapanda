@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
 
     const dbProducts = await prisma.product.findMany({
       where: { isActive: true },
-      include: { variants: true, images: { take: 1 } },
+      include: { variants: { where: { deletedAt: null } }, images: { take: 1 } },
     });
     for (const p of dbProducts) {
       const img = p.images?.[0]?.url || "";
@@ -160,6 +160,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("[Auto Match] Error:", error);
-    return NextResponse.json({ error: "Gagal menjalankan auto-match" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Gagal menjalankan auto-match", details: error instanceof Error ? error.message : String(error) },
+      { status: 500 }
+    );
   }
 }

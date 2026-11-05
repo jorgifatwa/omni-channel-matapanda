@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { OrderStatus, PaymentStatus, ShipmentStatus } from "@prisma/client";
+import { cancelOrder, markOrderPaid } from "@/lib/order-lifecycle";
+import { expireCharge } from "@/lib/midtrans";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -65,7 +67,7 @@ export async function PUT(
 
     const existing = await prisma.order.findFirst({
       where: { ...orderLookup(id), deletedAt: null },
-      include: { payment: true, shipment: true },
+      include: { payment: true, shipment: true, items: true },
     });
 
     if (!existing) {
@@ -75,14 +77,43 @@ export async function PUT(
       );
     }
 
-    // 1. Update Order status
-    if (orderStatus) {
-      await prisma.order.update({
-        where: { id: existing.id },
-        data: {
-          status: (orderStatus as OrderStatus) || existing.status,
-        },
-      });
+    // 1. Update Order status. PAID / CANCELLED go through the shared
+    //    lifecycle so stock, coupon usage and the Midtrans charge stay consistent.
+    if (orderStatus && orderStatus !== existing.status) {
+      if (!Object.values(OrderStatus).includes(orderStatus as OrderStatus)) {
+        return NextResponse.json({ error: "Status pesanan tidak valid" }, { status: 400 });
+      }
+      if (orderStatus === "PENDING") {
+        // Going back to PENDING would let a late payment reduce stock twice
+        return NextResponse.json(
+          { error: "Status tidak bisa dikembalikan ke PENDING." },
+          { status: 409 }
+        );
+      }
+      if (orderStatus === "CANCELLED") {
+        if (!(await cancelOrder(existing.id))) {
+          return NextResponse.json(
+            { error: "Hanya pesanan PENDING atau PAID yang bisa dibatalkan." },
+            { status: 409 }
+          );
+        }
+      } else if (orderStatus === "PAID" && existing.status === "PENDING") {
+        // Manual payment confirmed by the admin
+        await prisma.$transaction((tx) => markOrderPaid(tx, existing.id, existing.items));
+        if (existing.payment?.status === "PENDING" && existing.payment.midtransTransactionId) {
+          await expireCharge(existing.payment.midtransOrderId).catch(() => undefined);
+        }
+      } else if (existing.status === "CANCELLED") {
+        return NextResponse.json(
+          { error: "Pesanan yang sudah dibatalkan tidak bisa diaktifkan lagi. Buat pesanan baru." },
+          { status: 409 }
+        );
+      } else {
+        await prisma.order.update({
+          where: { id: existing.id },
+          data: { status: orderStatus as OrderStatus },
+        });
+      }
     }
 
     // 2. Update Payment status

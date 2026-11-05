@@ -38,6 +38,13 @@ export async function POST(request: Request) {
       );
     }
 
+    if (String(name).length > 100 || String(email).length > 200 || String(phone || "").length > 30 || String(message).length > 5000) {
+      return NextResponse.json(
+        { error: "Isian terlalu panjang. Pesan maksimal 5.000 karakter." },
+        { status: 400 }
+      );
+    }
+
     const trimmedName = name.trim();
     const trimmedEmail = email.trim().toLowerCase();
     const trimmedPhone = phone ? phone.trim() : null;

@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     const dbProducts = await prisma.product.findMany({
       where: { isActive: true },
       include: {
-        variants: true,
+        variants: { where: { deletedAt: null } },
         images: { take: 1, orderBy: { isPrimary: "desc" } },
       },
     });

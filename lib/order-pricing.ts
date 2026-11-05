@@ -157,6 +157,15 @@ export async function priceCheckoutOrder(body: Record<string, unknown>): Promise
       product.variants.find((v) => sameText(v.size, line.size) && sameText(v.color, line.color)) ||
       null;
 
+    // A product with variants must be ordered as one of them; otherwise the
+    // order would skip the variant stock check and variant stock would drift.
+    if (!variant && product.variants.length > 0) {
+      throw new OrderPricingError(
+        `Ukuran/warna untuk "${product.name}" tidak tersedia. Hapus produk tersebut dari keranjang lalu pilih varian yang ada.`,
+        409
+      );
+    }
+
     const stockKey = variant ? `v:${variant.id}` : `p:${product.id}`;
     const stockEntry = stockUse.get(stockKey) || {
       needed: 0,

@@ -10,6 +10,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { sendOrderConfirmationEmail, type OrderConfirmationData } from "@/lib/mail";
 import { onWebsiteOrderPlaced } from "@/lib/marketplace-stock-sync";
+import { cancelOrder, markOrderPaid } from "@/lib/order-lifecycle";
 import {
   PAYMENT_METHOD_LABELS,
   methodFromMidtrans,
@@ -113,48 +114,16 @@ export async function applyMidtransStatus(data: MidtransResponse): Promise<Apply
   }
 
   let markedPaid = false;
+  let shouldCancel = false;
   await prisma.$transaction(async (tx) => {
     if (paymentStatus === "SETTLEMENT") {
-      // Only the first settlement flips PENDING -> PAID, so retries never
-      // repeat the side effects below.
-      const res = await tx.order.updateMany({
-        where: { id: order.id, status: "PENDING" },
-        data: { status: "PAID" },
-      });
-      markedPaid = res.count === 1;
-
-      if (markedPaid) {
-        for (const item of order.items) {
-          if (item.variantId) {
-            await tx.productVariant.updateMany({
-              where: { id: item.variantId },
-              data: { stock: { decrement: item.quantity } },
-            });
-          }
-          await tx.product.updateMany({
-            where: { id: item.productId },
-            data: { stock: { decrement: item.quantity } },
-          });
-        }
-        const productIds = order.items.map((it) => it.productId);
-        await tx.productVariant.updateMany({
-          where: { productId: { in: productIds }, stock: { lt: 0 } },
-          data: { stock: 0 },
-        });
-        await tx.product.updateMany({
-          where: { id: { in: productIds }, stock: { lt: 0 } },
-          data: { stock: 0 },
-        });
-      }
+      // Only the first settlement flips PENDING -> PAID and reduces stock,
+      // so retries and concurrent status polls never repeat side effects.
+      markedPaid = await markOrderPaid(tx, order.id, order.items);
     } else if (paymentStatus === "CANCEL" || paymentStatus === "DENY" || paymentStatus === "EXPIRE") {
       // A QR charge expires after 30 minutes while the order stays payable
       // for 24 hours, so only cancel the order once its window has closed.
-      if (Date.now() >= orderPaymentDeadline(order.createdAt).getTime() - 60_000) {
-        await tx.order.updateMany({
-          where: { id: order.id, status: "PENDING" },
-          data: { status: "CANCELLED" },
-        });
-      }
+      shouldCancel = Date.now() >= orderPaymentDeadline(order.createdAt).getTime() - 60_000;
     }
 
     // Never downgrade a settled payment because of a late/out-of-order notification
@@ -186,6 +155,18 @@ export async function applyMidtransStatus(data: MidtransResponse): Promise<Apply
       },
     });
   });
+
+  if (shouldCancel) {
+    await cancelOrder(order.id);
+  }
+
+  if (paymentStatus === "SETTLEMENT" && !markedPaid && order.status !== "PAID") {
+    // Money arrived for an order that is no longer payable (cancelled by the
+    // admin or by the deadline). Needs a manual refund or re-activation.
+    console.error(
+      `[Midtrans] PERLU TINDAKAN: pembayaran ${midtransOrderId} (Rp ${grossAmountRaw}) diterima untuk pesanan ${order.orderNumber} berstatus ${order.status}. Lakukan refund atau proses manual.`
+    );
+  }
 
   if (markedPaid) {
     await runPaidSideEffects(order.id, method ? PAYMENT_METHOD_LABELS[method] : paymentType).catch((err) =>

@@ -119,32 +119,18 @@ export async function POST(request: Request) {
         { status: 201 }
       );
     } catch (dbErr) {
-      console.warn("Database create user fallback:", dbErr);
-      const fallbackUser = {
-        id: `usr-${Date.now()}`,
-        name: name.trim(),
-        email: normalizedEmail,
-        phone: normalizedPhone,
-        role: "CUSTOMER",
-      };
-      const fallbackNotif = {
-        id: `notif-${Date.now()}`,
-        type: "NEW_CUSTOMER",
-        title: "Customer Baru Terdaftar",
-        message: `${name.trim()} (${normalizedEmail}) baru saja mendaftar akun customer it'smatapanda.`,
-        link: "/admin/customers",
-        isRead: false,
-        createdAt: new Date().toISOString(),
-      };
-
+      // Never report success when the account was not saved
+      const code = (dbErr as { code?: string })?.code;
+      if (code === "P2002") {
+        return NextResponse.json(
+          { error: "Email atau nomor HP sudah terdaftar. Silakan login." },
+          { status: 409 }
+        );
+      }
+      console.error("[Register] Gagal menyimpan user:", dbErr);
       return NextResponse.json(
-        {
-          success: true,
-          message: "Akun customer berhasil dibuat (Demo Mode)",
-          user: fallbackUser,
-          notification: fallbackNotif,
-        },
-        { status: 201 }
+        { error: "Pendaftaran gagal disimpan. Silakan coba lagi beberapa saat lagi." },
+        { status: 503 }
       );
     }
   } catch (error) {

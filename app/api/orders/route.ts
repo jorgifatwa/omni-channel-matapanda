@@ -84,8 +84,17 @@ export async function POST(request: Request) {
   const checkoutToken = randomBytes(24).toString("hex");
   const checkoutTokenHash = createHash("sha256").update(checkoutToken).digest("hex");
 
+  // Order numbers are generated here (never taken from the browser): random,
+  // not guessable, and never ending in "-<digits>" (reserved for payment retries).
+  const LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const rand = randomBytes(6);
+  const suffix = Array.from(rand, (b) => LETTERS[b % LETTERS.length]).join("");
+  const ymd = new Date(Date.now() + 7 * 3_600_000).toISOString().slice(2, 10).replace(/-/g, "");
+  const orderNumber = `ZDC-${ymd}-${suffix}`;
+
   const sanitized = {
     ...body,
+    orderNumber,
     couponCode: pricing.couponCode || null,
     subtotal: pricing.subtotal,
     shippingCost: pricing.shippingCost,

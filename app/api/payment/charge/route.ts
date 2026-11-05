@@ -16,6 +16,7 @@ import {
   toInstructions,
 } from "@/lib/midtrans";
 import { applyMidtransStatus } from "@/lib/midtrans-payment";
+import { cancelOrder } from "@/lib/order-lifecycle";
 
 /**
  * POST /api/payment/charge  { orderNumber, checkoutToken, method }
@@ -78,7 +79,7 @@ export async function POST(request: Request) {
     );
   }
   if (Date.now() >= orderPaymentDeadline(order.createdAt).getTime()) {
-    await prisma.order.updateMany({ where: { id: order.id, status: "PENDING" }, data: { status: "CANCELLED" } });
+    await cancelOrder(order.id);
     return NextResponse.json(
       { error: "Batas waktu pembayaran pesanan ini sudah lewat. Silakan checkout ulang." },
       { status: 409 }
@@ -117,17 +118,30 @@ export async function POST(request: Request) {
       if (stillPending) await expireCharge(previousId);
     } catch (err) {
       console.warn(`[Payment] Status charge ${previousId} tidak bisa dicek:`, err);
+      // Never leave the old charge payable next to a new one
+      await expireCharge(previousId).catch(() => undefined);
     }
   }
 
   // 2. Create a new charge (suffixed id when replacing an earlier one)
-  const midtransOrderId = nextMidtransOrderId(orderNumber, previousId);
+  let midtransOrderId = nextMidtransOrderId(orderNumber, previousId);
   const appUrl = (process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
   const finishUrl = `${appUrl}/checkout/finish?order_id=${encodeURIComponent(orderNumber)}&transaction_status=pending`;
 
   let charge;
   try {
-    charge = await createCharge(order, method, midtransOrderId, finishUrl);
+    // A charge may exist at Midtrans that we failed to record (timeout, DB
+    // error). Midtrans then rejects the id with 406; move to the next suffix.
+    for (let attempt = 0; ; attempt++) {
+      try {
+        charge = await createCharge(order, method, midtransOrderId, finishUrl);
+        break;
+      } catch (err) {
+        if ((err as MidtransError).statusCode !== "406" || attempt >= 3) throw err;
+        await expireCharge(midtransOrderId).catch(() => undefined);
+        midtransOrderId = nextMidtransOrderId(orderNumber, midtransOrderId);
+      }
+    }
   } catch (err) {
     const e = err as MidtransError;
     console.error(`[Payment] Charge ${midtransOrderId} (${method}) ditolak:`, e.statusCode, e.message, e.details);

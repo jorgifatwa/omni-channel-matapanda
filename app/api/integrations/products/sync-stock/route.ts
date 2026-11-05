@@ -141,95 +141,71 @@ export async function POST(request: Request) {
           }
         }
 
-        // 2. Check live stock from the specific marketplace
-        let targetStock = currentStock;
+        // 2. Website is the source of truth.
+        //    SMART / PUSH_TO_MARKETPLACE: push website stock to the marketplace.
+        //    PULL_FROM_MARKETPLACE: copy the marketplace stock into the website DB.
+        const isShopee = item.platform === "SHOPEE";
+        const account = isShopee ? shopeeAccount : tiktokAccount;
+        const label = isShopee ? "Shopee" : "TikTok";
+        if (!account) {
+          errors.push(`[${label}: ${item.sku}] akun ${label} tidak terhubung`);
+          continue;
+        }
+        const live = (isShopee ? liveShopeeProducts : liveTikTokProducts).find(
+          (p) =>
+            p.itemId === item.marketplaceItemId &&
+            (item.marketplaceModelId ? p.modelId === item.marketplaceModelId : true)
+        );
+        const now = new Date().toISOString();
 
-        if (item.platform === "SHOPEE") {
-          const liveShopee = liveShopeeProducts.find(
-            (s) =>
-              s.itemId === item.marketplaceItemId &&
-              (item.marketplaceModelId ? s.modelId === item.marketplaceModelId : true)
-          );
-
-          if (direction === "PULL_FROM_MARKETPLACE" || direction === "SMART") {
-            if (liveShopee && typeof liveShopee.stock === "number") {
-              targetStock = liveShopee.stock;
-            }
+        if (direction === "PULL_FROM_MARKETPLACE") {
+          if (!live) {
+            errors.push(`[${label}: ${item.sku}] stok live tidak ditemukan di ${label}`);
+            continue;
           }
-
-          if (shopeeAccount) {
-            const updateRes = await updateShopeeStock(
-              shopeeToken,
-              shopeeAccount.shopId,
-              item.marketplaceItemId,
-              targetStock,
-              item.marketplaceModelId
-            );
-
-            if (updateRes.success) {
-              await saveProductMapping({
-                ...item,
-                websiteStock: targetStock,
-                marketplaceStock: targetStock,
-                lastSyncAt: new Date().toISOString(),
-                lastSyncStatus: "SUCCESS",
-                lastSyncError: null,
-              });
-              syncedCount++;
-            } else {
-              await saveProductMapping({
-                ...item,
-                websiteStock: targetStock,
-                lastSyncAt: new Date().toISOString(),
-                lastSyncStatus: "FAILED",
-                lastSyncError: updateRes.error || "Gagal update stok di Shopee",
-              });
-              errors.push(`[Shopee: ${item.sku}] ${updateRes.error}`);
-            }
+          const pulled = Math.max(0, Math.floor(live.stock));
+          if (item.variantId) {
+            await prisma.productVariant.updateMany({ where: { id: item.variantId }, data: { stock: pulled } });
+          } else {
+            await prisma.product.updateMany({ where: { id: item.productId }, data: { stock: pulled } });
           }
-        } else if (item.platform === "TIKTOK_SHOP") {
-          const liveTikTok = liveTikTokProducts.find(
-            (s) =>
-              s.itemId === item.marketplaceItemId &&
-              (item.marketplaceModelId ? s.modelId === item.marketplaceModelId : true)
-          );
+          await saveProductMapping({
+            ...item,
+            websiteStock: pulled,
+            marketplaceStock: pulled,
+            lastSyncAt: now,
+            lastSyncStatus: "SUCCESS",
+            lastSyncError: null,
+          });
+          syncedCount++;
+          continue;
+        }
 
-          if (direction === "PULL_FROM_MARKETPLACE" || direction === "SMART") {
-            if (liveTikTok && typeof liveTikTok.stock === "number") {
-              targetStock = liveTikTok.stock;
-            }
-          }
+        const targetStock = Math.max(0, Math.floor(currentStock));
+        const updateRes = isShopee
+          ? await updateShopeeStock(shopeeToken, account.shopId, item.marketplaceItemId, targetStock, item.marketplaceModelId)
+          : await updateTikTokShopStock(tiktokToken, account.shopId, item.marketplaceItemId, item.marketplaceModelId, targetStock);
 
-          if (tiktokAccount) {
-            const updateRes = await updateTikTokShopStock(
-              tiktokToken,
-              tiktokAccount.shopId,
-              item.marketplaceItemId,
-              item.marketplaceModelId,
-              targetStock
-            );
-
-            if (updateRes.success) {
-              await saveProductMapping({
-                ...item,
-                websiteStock: targetStock,
-                marketplaceStock: targetStock,
-                lastSyncAt: new Date().toISOString(),
-                lastSyncStatus: "SUCCESS",
-                lastSyncError: null,
-              });
-              syncedCount++;
-            } else {
-              await saveProductMapping({
-                ...item,
-                websiteStock: targetStock,
-                lastSyncAt: new Date().toISOString(),
-                lastSyncStatus: "FAILED",
-                lastSyncError: updateRes.error || "Gagal update stok di TikTok Shop",
-              });
-              errors.push(`[TikTok: ${item.sku}] ${updateRes.error}`);
-            }
-          }
+        if (updateRes.success) {
+          await saveProductMapping({
+            ...item,
+            websiteStock: targetStock,
+            marketplaceStock: targetStock,
+            lastSyncAt: now,
+            lastSyncStatus: "SUCCESS",
+            lastSyncError: null,
+          });
+          syncedCount++;
+        } else {
+          await saveProductMapping({
+            ...item,
+            websiteStock: targetStock,
+            marketplaceStock: live ? live.stock : item.marketplaceStock,
+            lastSyncAt: now,
+            lastSyncStatus: "FAILED",
+            lastSyncError: updateRes.error || `Gagal update stok di ${label}`,
+          });
+          errors.push(`[${label}: ${item.sku}] ${updateRes.error}`);
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);

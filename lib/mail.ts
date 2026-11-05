@@ -232,7 +232,23 @@ export function generateOrderReceiptHtml(data: OrderConfirmationData): string {
   `.trim();
 }
 
-export function generateAdminInquiryHtml(data: ContactInquiryEmailData): string {
+const escapeHtml = (v: string | null | undefined): string =>
+  String(v ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+export function generateAdminInquiryHtml(raw: ContactInquiryEmailData): string {
+  // Everything here comes from a public form: escape before putting it in HTML
+  const data = {
+    ...raw,
+    name: escapeHtml(raw.name),
+    email: escapeHtml(raw.email),
+    phone: raw.phone ? escapeHtml(raw.phone) : raw.phone,
+    message: escapeHtml(raw.message),
+  };
   const appUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
 
   return `

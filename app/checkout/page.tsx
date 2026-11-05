@@ -352,7 +352,7 @@ export default function CheckoutPage() {
     // 1. Pesanan sudah tersimpan (status PENDING, total dari server). Buat tagihan
     //    Midtrans untuk metode yang dipilih; langkah 2 menampilkan instruksinya.
     //    Pemakaian kupon sudah dicatat oleh server saat pesanan disimpan.
-    const start = await startPayment(orderNumber, paymentMethod);
+    const start = await startPayment(savedOrder.orderNumber, paymentMethod);
     setCreatedOrder(savedOrder);
     setPaymentStart(start);
     setIsProcessingPayment(false);
@@ -533,7 +533,7 @@ export default function CheckoutPage() {
                     </button>
 
                     <Link
-                      href={`/tracking?orderId=${encodeURIComponent(createdOrder.orderNumber)}`}
+                      href={`/tracking?orderId=${encodeURIComponent(createdOrder.orderNumber)}&email=${encodeURIComponent(createdOrder.customerEmail)}`}
                       className="w-full inline-flex items-center justify-center rounded-2xl border-2 border-[#396254]/20 bg-white dark:bg-neutral-800 px-6 py-3.5 text-sm font-bold text-[#396254] dark:text-neutral-100 hover:bg-[#396254]/5 transition-all shadow-sm gap-2 hover:-translate-y-0.5 active:scale-95 text-center"
                     >
                       <Truck className="h-4 w-4" />
@@ -621,7 +621,7 @@ export default function CheckoutPage() {
                   {/* Action Buttons */}
                   <div className="space-y-3 pt-2">
                     <Link
-                      href={`/tracking?orderId=${encodeURIComponent(createdOrder.orderNumber)}`}
+                      href={`/tracking?orderId=${encodeURIComponent(createdOrder.orderNumber)}&email=${encodeURIComponent(createdOrder.customerEmail)}`}
                       className="w-full inline-flex items-center justify-center rounded-2xl bg-[#396254] hover:bg-[#2e5044] px-6 py-4 text-sm font-bold text-[#dcf58d] transition-all shadow-md gap-2 hover:-translate-y-0.5 active:scale-95"
                     >
                       <Truck className="h-4 w-4" />

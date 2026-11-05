@@ -1,15 +1,12 @@
 import { NextResponse } from "next/server";
 import {
   getActiveMarketplaceAccounts,
-  getProductMappings,
-  saveProductMapping,
 } from "@/lib/marketplace-store";
 import { decryptToken } from "@/lib/marketplace-crypto";
-import { updateShopeeStock } from "@/lib/shopee-products";
 import { buildTikTokShopSign } from "@/lib/tiktokshop-products";
 import { TIKTOK_API_BASE } from "@/lib/tiktokshop-oauth";
-import { prisma } from "@/lib/prisma";
 import { verifyTikTokShopWebhook } from "@/lib/webhook-signature";
+import { applyMarketplaceOrderToStock } from "@/lib/marketplace-order-stock";
 
 /**
  * GET /api/integrations/tiktokshop/webhook
@@ -79,155 +76,73 @@ export async function POST(request: Request) {
       tiktokToken = tiktokAccount.accessToken;
     }
 
-    let shopeeToken = "";
-    if (shopeeAccount) {
-      try {
-        shopeeToken = decryptToken(shopeeAccount.accessToken);
-      } catch {
-        shopeeToken = shopeeAccount.accessToken;
-      }
-    }
-
-    // Process Order Status Change (New paid order awaiting shipment)
+    // Order status pushes arrive for every status change; website stock is
+    // reduced only once, when the order is paid and awaiting shipment.
     const orderId = data?.order_id;
     const orderStatus = data?.order_status;
 
-    if (orderId && (orderStatus === "AWAITING_SHIPMENT" || !orderStatus || type === 1)) {
-      console.log(`[TikTok Shop Webhook] Processing order ${orderId} (Status: ${orderStatus || "NEW"})`);
+    if (orderId && orderStatus === "AWAITING_SHIPMENT") {
+      let orderItems: Array<{ sku_id?: string; seller_sku?: string; product_id?: string; quantity: number }> = [];
 
-      let orderItems: Array<{ sku_id?: string; seller_sku?: string; quantity: number }> = [];
+      const inline = Array.isArray(data?.sku_list) && data.sku_list.length > 0
+        ? data.sku_list
+        : Array.isArray(data?.line_items) && data.line_items.length > 0
+        ? data.line_items
+        : null;
 
-      // 1. Check if SKU list is already in webhook payload
-      if (Array.isArray(data?.sku_list) && data.sku_list.length > 0) {
-        orderItems = data.sku_list.map((s: TikTokWebhookItem) => ({
-          sku_id: s.sku_id,
-          seller_sku: s.seller_sku,
-          quantity: Number(s.quantity) || 1,
-        }));
-      } else if (Array.isArray(data?.line_items) && data.line_items.length > 0) {
-        orderItems = data.line_items.map((s: TikTokWebhookItem) => ({
+      if (inline) {
+        orderItems = inline.map((s: TikTokWebhookItem) => ({
           sku_id: s.sku_id,
           seller_sku: s.seller_sku,
           quantity: Number(s.quantity) || 1,
         }));
       } else {
-        // 2. Fetch order detail from TikTok Shop API
-        try {
-          const appKey = process.env.TIKTOK_SHOP_APP_KEY || "";
-          const timestamp = String(Math.floor(Date.now() / 1000));
-          const path = `/order/202309/orders/${orderId}`;
-          const queryParams: Record<string, string> = {
-            app_key: appKey,
-            timestamp,
-            shop_cipher: tiktokAccount.shopId,
-          };
-          const sign = buildTikTokShopSign(path, queryParams);
-          queryParams.sign = sign;
-
-          const queryString = new URLSearchParams(queryParams).toString();
-          const res = await fetch(`${TIKTOK_API_BASE}${path}?${queryString}`, {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-              "x-tts-access-token": tiktokToken,
-            },
-          });
-
-          if (res.ok) {
-            const resJson = await res.json() as {
-              data?: { line_items?: Array<{ sku_id?: string; seller_sku?: string; quantity?: number }> };
-            };
-            if (resJson.data?.line_items) {
-              orderItems = resJson.data.line_items.map((it) => ({
-                sku_id: it.sku_id,
-                seller_sku: it.seller_sku,
-                quantity: Number(it.quantity) || 1,
-              }));
-            }
-          }
-        } catch (fetchErr) {
-          console.warn("[TikTok Shop Webhook] Could not fetch remote order detail:", fetchErr);
+        // Order detail: GET /order/202309/orders?ids=<id>
+        const appKey = process.env.TIKTOK_SHOP_APP_KEY || "";
+        const path = "/order/202309/orders";
+        const queryParams: Record<string, string> = {
+          app_key: appKey,
+          timestamp: String(Math.floor(Date.now() / 1000)),
+          shop_cipher: tiktokAccount.shopId,
+          ids: String(orderId),
+        };
+        queryParams.sign = buildTikTokShopSign(path, queryParams);
+        const res = await fetch(`${TIKTOK_API_BASE}${path}?${new URLSearchParams(queryParams)}`, {
+          method: "GET",
+          headers: { "Content-Type": "application/json", "x-tts-access-token": tiktokToken },
+          cache: "no-store",
+        });
+        const resJson = (await res.json().catch(() => ({}))) as {
+          code?: number;
+          message?: string;
+          data?: { orders?: Array<{ line_items?: Array<{ sku_id?: string; seller_sku?: string; product_id?: string; quantity?: number }> }> };
+        };
+        if (!res.ok || resJson.code !== 0) {
+          // Throw -> 500 so TikTok retries instead of the order being lost
+          throw new Error(`TikTok order detail ${orderId} gagal (HTTP ${res.status}, code ${resJson.code}): ${resJson.message || ""}`);
         }
+        // Each line item is one unit; quantity is 1 unless the API says otherwise
+        orderItems = (resJson.data?.orders?.[0]?.line_items || []).map((it) => ({
+          sku_id: it.sku_id,
+          seller_sku: it.seller_sku,
+          product_id: it.product_id,
+          quantity: Number(it.quantity) || 1,
+        }));
       }
 
-      // If items resolved, deduct stock across website and Shopee
-      const allMappings = await getProductMappings();
-
-      for (const item of orderItems) {
-        const cleanSku = (item.seller_sku || "").trim().toUpperCase();
-
-        const match = allMappings.find(
-          (m) =>
-            m.platform === "TIKTOK_SHOP" &&
-            ((item.sku_id && m.marketplaceModelId === item.sku_id) ||
-              (cleanSku && m.sku.trim().toUpperCase() === cleanSku))
-        );
-
-        if (match) {
-          const purchasedQty = item.quantity || 1;
-          const newStock = Math.max(0, match.websiteStock - purchasedQty);
-
-          console.log(
-            `[TikTok Shop Webhook] Auto-deducting stock for SKU ${match.sku}: ${match.websiteStock} -> ${newStock}`
-          );
-
-          // 1. Update TikTok Shop mapping
-          await saveProductMapping({
-            ...match,
-            websiteStock: newStock,
-            marketplaceStock: newStock,
-            lastSyncAt: new Date().toISOString(),
-            lastSyncStatus: "SUCCESS",
-            lastSyncError: null,
-          });
-
-          // 2. Update Website Database (Prisma)
-          if (match.variantId) {
-            await prisma.productVariant.update({
-              where: { id: match.variantId },
-              data: { stock: newStock },
-            });
-          } else if (match.productId) {
-            await prisma.product.update({
-              where: { id: match.productId },
-              data: { stock: newStock },
-            });
-          }
-
-          // 3. Propagate new stock to Shopee!
-          if (shopeeAccount) {
-            const shopeeMatch = allMappings.find(
-              (m) =>
-                m.platform === "SHOPEE" &&
-                m.sku.trim().toUpperCase() === match.sku.trim().toUpperCase()
-            );
-
-            if (shopeeMatch) {
-              console.log(
-                `[TikTok Shop Webhook] Propagating new stock (${newStock}) to Shopee for SKU ${match.sku}...`
-              );
-              const shopeeRes = await updateShopeeStock(
-                shopeeToken,
-                shopeeAccount.shopId,
-                shopeeMatch.marketplaceItemId,
-                newStock,
-                shopeeMatch.marketplaceModelId
-              );
-
-              if (shopeeRes.success) {
-                await saveProductMapping({
-                  ...shopeeMatch,
-                  websiteStock: newStock,
-                  marketplaceStock: newStock,
-                  lastSyncAt: new Date().toISOString(),
-                  lastSyncStatus: "SUCCESS",
-                  lastSyncError: null,
-                });
-              }
-            }
-          }
-        }
-      }
+      const { deducted } = await applyMarketplaceOrderToStock(
+        "TIKTOK_SHOP",
+        orderItems.map((it) => ({
+          itemId: it.product_id || null,
+          modelId: it.sku_id || null,
+          sellerSku: it.seller_sku || null,
+          quantity: it.quantity,
+        })),
+        shopeeAccount
+      );
+      console.log(`[TikTok Shop Webhook] Order ${orderId}: ${deducted} item(s) deducted from website stock.`);
+    } else if (orderId) {
+      console.log(`[TikTok Shop Webhook] Order ${orderId} status ${orderStatus || "-"}: no stock change.`);
     }
 
     // TikTok Shop expects { code: 0, message: "success" }

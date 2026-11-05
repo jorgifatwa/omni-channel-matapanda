@@ -139,6 +139,9 @@ export async function POST(request: Request) {
         { status: 201 }
       );
     } catch (dbErr) {
+      if ((dbErr as { code?: string })?.code === "P2002") {
+        return NextResponse.json({ error: "Nama/slug sudah dipakai (termasuk data yang pernah dihapus). Gunakan nama lain." }, { status: 409 });
+      }
       console.error("[AdminCategoriesAPI] Database error creating category:", dbErr);
       return NextResponse.json(
         { error: "Gagal menyimpan kategori ke database", details: String(dbErr) },

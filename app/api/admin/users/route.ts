@@ -160,6 +160,9 @@ export async function POST(request: Request) {
         { status: 201 }
       );
     } catch (dbError) {
+      if ((dbError as { code?: string })?.code === "P2002") {
+        return NextResponse.json({ error: "Email sudah dipakai akun lain (termasuk akun yang pernah dihapus)." }, { status: 409 });
+      }
       console.error("[AdminUsersPOST] Database create failed:", dbError);
       return NextResponse.json(
         { error: "Gagal menyimpan pengguna ke database." },

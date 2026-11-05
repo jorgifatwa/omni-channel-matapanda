@@ -28,11 +28,15 @@ export async function GET(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
+    const contentType = object.ContentType || "application/octet-stream";
+    const isSafeImage = /^image\/(jpeg|png|webp|gif|avif)$/.test(contentType);
     const headers = new Headers({
-      "Content-Type": object.ContentType || "application/octet-stream",
+      "Content-Type": isSafeImage ? contentType : "application/octet-stream",
+      "Content-Security-Policy": "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox",
       "Cache-Control": "public, max-age=31536000, s-maxage=31536000, immutable",
       "X-Content-Type-Options": "nosniff",
     });
+    if (!isSafeImage) headers.set("Content-Disposition", "attachment");
     if (object.ContentLength != null) {
       headers.set("Content-Length", String(object.ContentLength));
     }

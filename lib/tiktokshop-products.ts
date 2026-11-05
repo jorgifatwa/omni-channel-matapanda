@@ -36,188 +36,108 @@ export function buildTikTokShopSign(
   return crypto.createHmac("sha256", appSecret).update(baseString).digest("hex");
 }
 
+type TikTokSearchResponse = {
+  code: number;
+  message: string;
+  data?: {
+    next_page_token?: string;
+    products?: Array<{
+      id: string;
+      title: string;
+      main_images?: Array<{ url_list?: string[] }>;
+      skus?: Array<{
+        id: string;
+        seller_sku?: string;
+        price?: { original_price?: string; sale_price?: string };
+        inventory?: Array<{ quantity?: number; warehouse_id?: string }>;
+        sales_attributes?: Array<{ value_name?: string }>;
+      }>;
+    }>;
+  };
+};
+
 /**
- * Fetch and format all products from TikTok Shop (Tokopedia - Nan.Basic).
- * Uses API with fallback for sandbox/test environments.
+ * Fetch and format all active products from TikTok Shop (Tokopedia), all pages.
+ * Throws on API errors so callers report a failure instead of syncing wrong data.
+ * Endpoint: POST /product/202309/products/search (page_size/page_token are query params).
  */
 export async function fetchUnifiedTikTokShopProducts(
   accessToken: string,
   shopId: string
 ): Promise<TikTokShopProductItem[]> {
   const appKey = process.env.TIKTOK_SHOP_APP_KEY || "";
-  const timestamp = String(Math.floor(Date.now() / 1000));
   const path = "/product/202309/products/search";
+  const bodyStr = JSON.stringify({ status: "ACTIVATE" });
+  const formatted: TikTokShopProductItem[] = [];
 
-  try {
-    const bodyObj = { page_size: 50, status: "ACTIVATE" };
-    const bodyStr = JSON.stringify(bodyObj);
-
+  let pageToken = "";
+  for (let page = 0; page < 50; page++) {
     const queryParams: Record<string, string> = {
       app_key: appKey,
-      timestamp,
+      timestamp: String(Math.floor(Date.now() / 1000)),
       shop_cipher: shopId,
+      page_size: "100",
     };
+    if (pageToken) queryParams.page_token = pageToken;
+    queryParams.sign = buildTikTokShopSign(path, queryParams, bodyStr);
 
-    const sign = buildTikTokShopSign(path, queryParams, bodyStr);
-    queryParams.sign = sign;
-
-    const queryString = new URLSearchParams(queryParams).toString();
-    const url = `${TIKTOK_API_BASE}${path}?${queryString}`;
-
-    const res = await fetch(url, {
+    const res = await fetch(`${TIKTOK_API_BASE}${path}?${new URLSearchParams(queryParams)}`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-tts-access-token": accessToken,
-      },
+      headers: { "Content-Type": "application/json", "x-tts-access-token": accessToken },
       body: bodyStr,
+      cache: "no-store",
     });
+    const data = (await res.json().catch(() => ({}))) as Partial<TikTokSearchResponse>;
+    if (!res.ok || data.code !== 0) {
+      throw new Error(`TikTok Shop products/search gagal (HTTP ${res.status}, code ${data.code}): ${data.message || "unknown"}`);
+    }
 
-    if (res.ok) {
-      const data = await res.json() as {
-        code: number;
-        message: string;
-        data?: {
-          products?: Array<{
-            id: string;
-            title: string;
-            main_images?: Array<{ url_list?: string[] }>;
-            skus?: Array<{
-              id: string;
-              seller_sku?: string;
-              price?: { original_price?: string; sale_price?: string };
-              inventory?: Array<{ quantity?: number }>;
-              sales_attributes?: Array<{ value_name?: string }>;
-            }>;
-          }>;
-        };
-      };
-
-      if (data.code === 0 && data.data?.products && data.data.products.length > 0) {
-        const formatted: TikTokShopProductItem[] = [];
-
-        for (const prod of data.data.products) {
-          const mainImage = prod.main_images?.[0]?.url_list?.[0] || null;
-          const skus = prod.skus || [];
-
-          if (skus.length > 1) {
-            for (const s of skus) {
-              const varName = s.sales_attributes?.map((a) => a.value_name).filter(Boolean).join(" - ") || null;
-              const totalStock = s.inventory?.reduce((acc, inv) => acc + (inv.quantity || 0), 0) ?? 0;
-              formatted.push({
-                itemId: prod.id,
-                modelId: s.id,
-                name: prod.title,
-                modelName: varName,
-                sku: s.seller_sku || `TTS-${s.id}`,
-                stock: totalStock,
-                price: Number(s.price?.sale_price || s.price?.original_price || 0),
-                image: mainImage,
-                hasModel: true,
-              });
-            }
-          } else if (skus.length === 1) {
-            const singleSku = skus[0];
-            const totalStock = singleSku.inventory?.reduce((acc, inv) => acc + (inv.quantity || 0), 0) ?? 0;
-            formatted.push({
-              itemId: prod.id,
-              modelId: singleSku.id,
-              name: prod.title,
-              modelName: null,
-              sku: singleSku.seller_sku || `TTS-${singleSku.id}`,
-              stock: totalStock,
-              price: Number(singleSku.price?.sale_price || singleSku.price?.original_price || 0),
-              image: mainImage,
-              hasModel: false,
-            });
-          } else {
-            formatted.push({
-              itemId: prod.id,
-              modelId: null,
-              name: prod.title,
-              modelName: null,
-              sku: `TTS-${prod.id}`,
-              stock: 0,
-              price: 0,
-              image: mainImage,
-              hasModel: false,
-            });
-          }
-        }
-
-        if (formatted.length > 0) {
-          return formatted;
-        }
+    for (const prod of data.data?.products || []) {
+      const mainImage = prod.main_images?.[0]?.url_list?.[0] || null;
+      const skus = prod.skus || [];
+      if (skus.length === 0) {
+        formatted.push({
+          itemId: prod.id,
+          modelId: null,
+          name: prod.title,
+          modelName: null,
+          sku: `TTS-${prod.id}`,
+          stock: 0,
+          price: 0,
+          image: mainImage,
+          hasModel: false,
+        });
+        continue;
+      }
+      for (const s of skus) {
+        const varName =
+          skus.length > 1
+            ? s.sales_attributes?.map((a) => a.value_name).filter(Boolean).join(" - ") || null
+            : null;
+        formatted.push({
+          itemId: prod.id,
+          modelId: s.id,
+          name: prod.title,
+          modelName: varName,
+          sku: s.seller_sku || `TTS-${s.id}`,
+          stock: s.inventory?.reduce((acc, inv) => acc + (inv.quantity || 0), 0) ?? 0,
+          price: Number(s.price?.sale_price || s.price?.original_price || 0),
+          image: mainImage,
+          hasModel: skus.length > 1,
+        });
       }
     }
-  } catch (apiErr) {
-    console.warn("[TikTok Shop Products] Live fetch error / sandbox empty:", apiErr);
-  }
 
-  // Fallback demo/catalog items matching the it's matapanda catalog for testability
-  // (Ensures the admin mapping UI is immediately functional and testable)
-  return [
-    {
-      itemId: "172985102938101",
-      modelId: "20192837461",
-      name: "Puffy Sling Bag Tas Slempang Parasut Nylon Pria Wanita matapanda",
-      modelName: "Black - All Size",
-      sku: "PUFFY-SLING-BLK",
-      stock: 17,
-      price: 189000,
-      image: "https://cf.shopee.co.id/file/id-11134207-81z1k-mo3h59yzp4w0b3",
-      hasModel: false,
-    },
-    {
-      itemId: "172985102938102",
-      modelId: "20192837462",
-      name: "Dawn Gong Sunburn 01 T-shirt",
-      modelName: "White - M",
-      sku: "DG-SB01-WHT-M",
-      stock: 45,
-      price: 450000,
-      image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=800&q=80",
-      hasModel: true,
-    },
-    {
-      itemId: "172985102938102",
-      modelId: "20192837463",
-      name: "Dawn Gong Sunburn 01 T-shirt",
-      modelName: "White - L",
-      sku: "DG-SB01-WHT-L",
-      stock: 30,
-      price: 450000,
-      image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=800&q=80",
-      hasModel: true,
-    },
-    {
-      itemId: "172985102938103",
-      modelId: "20192837464",
-      name: "Nebula Heavyweight Oversized Hoodie",
-      modelName: "Black - L",
-      sku: "NB-HOOD-BLK-L",
-      stock: 20,
-      price: 850000,
-      image: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=800&q=80",
-      hasModel: true,
-    },
-    {
-      itemId: "172985102938104",
-      modelId: null,
-      name: "it's matapanda Cyber Utility Crossbody Bag",
-      modelName: null,
-      sku: "ZD-BAG-BLK",
-      stock: 15,
-      price: 520000,
-      image: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=800&q=80",
-      hasModel: false,
-    },
-  ];
+    pageToken = data.data?.next_page_token || "";
+    if (!pageToken) break;
+  }
+  return formatted;
 }
 
 /**
  * Update stock on TikTok Shop (Tokopedia)
  * Endpoint: POST /product/202309/products/{product_id}/inventory/update
+ * Body: { skus: [{ id, inventory: [{ quantity }] }] }
  */
 export async function updateTikTokShopStock(
   accessToken: string,
@@ -226,52 +146,39 @@ export async function updateTikTokShopStock(
   skuId?: string | null,
   stock: number = 0
 ): Promise<{ success: boolean; error?: string }> {
+  if (!skuId) {
+    return { success: false, error: "SKU TikTok Shop belum dipetakan (sku id kosong)." };
+  }
   const appKey = process.env.TIKTOK_SHOP_APP_KEY || "";
-  const timestamp = String(Math.floor(Date.now() / 1000));
   const path = `/product/202309/products/${productId}/inventory/update`;
 
   try {
-    const bodyObj = {
-      skus: [
-        {
-          id: skuId || productId,
-          available_stock: Number(stock),
-        },
-      ],
-    };
-    const bodyStr = JSON.stringify(bodyObj);
-
+    const bodyStr = JSON.stringify({
+      skus: [{ id: skuId, inventory: [{ quantity: Math.max(0, Math.floor(Number(stock))) }] }],
+    });
     const queryParams: Record<string, string> = {
       app_key: appKey,
-      timestamp,
+      timestamp: String(Math.floor(Date.now() / 1000)),
       shop_cipher: shopId,
     };
+    queryParams.sign = buildTikTokShopSign(path, queryParams, bodyStr);
 
-    const sign = buildTikTokShopSign(path, queryParams, bodyStr);
-    queryParams.sign = sign;
-
-    const queryString = new URLSearchParams(queryParams).toString();
-    const url = `${TIKTOK_API_BASE}${path}?${queryString}`;
-
-    const res = await fetch(url, {
+    const res = await fetch(`${TIKTOK_API_BASE}${path}?${new URLSearchParams(queryParams)}`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-tts-access-token": accessToken,
-      },
+      headers: { "Content-Type": "application/json", "x-tts-access-token": accessToken },
       body: bodyStr,
+      cache: "no-store",
     });
-
-    const data = await res.json() as { code?: number; message?: string };
-    if (data.code !== 0 && data.code !== undefined) {
-      console.warn("[TikTok Shop Stock Update] API notice:", data.message);
-      // Even if API returns notice in sandbox, record as handled
+    const data = (await res.json().catch(() => ({}))) as { code?: number; message?: string };
+    if (!res.ok || data.code !== 0) {
+      const error = `TikTok Shop inventory/update gagal (HTTP ${res.status}, code ${data.code}): ${data.message || "unknown"}`;
+      console.warn("[TikTok Shop Stock Update]", error);
+      return { success: false, error };
     }
-
     return { success: true };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.warn("[TikTok Shop Stock Update] Error / Sandbox fallback:", msg);
-    return { success: true };
+    console.warn("[TikTok Shop Stock Update] Error:", msg);
+    return { success: false, error: msg };
   }
 }

@@ -41,6 +41,9 @@ export async function PUT(
       },
     });
   } catch (error) {
+    if ((error as { code?: string })?.code === "P2002") {
+      return NextResponse.json({ error: "Nama/slug sudah dipakai (termasuk data yang pernah dihapus). Gunakan nama lain." }, { status: 409 });
+    }
     console.error("[AdminBrandsAPI] Error updating brand:", error);
     return NextResponse.json(
       { error: "Gagal memperbarui brand", details: String(error) },

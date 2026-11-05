@@ -26,8 +26,22 @@ export async function POST(request: Request) {
       );
     }
 
+    // Only raster images: anything else (HTML, SVG...) would be served from
+    // our own domain and could run scripts.
+    const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"];
+    const MAX_BYTES = 10 * 1024 * 1024;
+    if (!ALLOWED.includes(file.type)) {
+      return NextResponse.json(
+        { error: "Format file tidak didukung. Gunakan JPG, PNG, WEBP, GIF, atau AVIF." },
+        { status: 400 }
+      );
+    }
+    if (file.size > MAX_BYTES) {
+      return NextResponse.json({ error: "Ukuran file maksimal 10 MB." }, { status: 400 });
+    }
+
     const buffer = Buffer.from(await file.arrayBuffer());
-    const mimeType = file.type || "image/jpeg";
+    const mimeType = file.type;
     const fileName = file.name || "upload.jpg";
 
     const result = await uploadToStorage(buffer, fileName, mimeType, folder);

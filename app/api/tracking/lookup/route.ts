@@ -20,6 +20,14 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+    // Order numbers are not secret, so the buyer's email or phone is required
+    // to see order details (name, address, items).
+    if (!searchEmailOrPhone) {
+      return NextResponse.json(
+        { error: "Masukkan email atau nomor HP yang dipakai saat memesan." },
+        { status: 400 }
+      );
+    }
 
     // 1. Try querying PostgreSQL via Prisma
     try {
@@ -56,19 +64,21 @@ export async function POST(request: Request) {
         );
       }
 
-      // Optional verification if email/phone was entered
-      if (searchEmailOrPhone) {
-        const userEmail = order.user?.email?.toLowerCase() || "";
-        const userPhone = order.user?.phone || order.address?.phone || "";
-        const isEmailMatch = userEmail === searchEmailOrPhone || userEmail.includes(searchEmailOrPhone);
-        const isPhoneMatch = userPhone.includes(searchEmailOrPhone);
-
-        if (!isEmailMatch && !isPhoneMatch && !searchKey.startsWith("JNE") && !searchKey.startsWith("DHL")) {
-          return NextResponse.json(
-            { error: "Email atau No. Handphone tidak sesuai dengan pesanan ini." },
-            { status: 403 }
-          );
-        }
+      // Exact match on the buyer's email or phone (08xx / 628xx / +628xx)
+      const normPhone = (v: string) => {
+        const d = v.replace(/\D/g, "");
+        return d.startsWith("62") ? `0${d.slice(2)}` : d;
+      };
+      const userEmail = order.user?.email?.toLowerCase() || "";
+      const phones = [order.user?.phone, order.address?.phone].filter(Boolean).map((p) => normPhone(p as string));
+      const isEmailMatch = Boolean(userEmail) && userEmail === searchEmailOrPhone;
+      const inputPhone = normPhone(searchEmailOrPhone);
+      const isPhoneMatch = inputPhone.length >= 8 && phones.includes(inputPhone);
+      if (!isEmailMatch && !isPhoneMatch) {
+        return NextResponse.json(
+          { error: "Email atau No. Handphone tidak sesuai dengan pesanan ini." },
+          { status: 403 }
+        );
       }
 
       return NextResponse.json({

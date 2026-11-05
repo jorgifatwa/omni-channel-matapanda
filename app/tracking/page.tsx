@@ -142,7 +142,7 @@ function TrackingContent() {
   }, []);
 
   React.useEffect(() => {
-    if (initialOrderId) {
+    if (initialOrderId && initialEmail) {
       performLookup(initialOrderId, initialEmail);
     }
   }, [initialOrderId, initialEmail, performLookup]);
@@ -211,12 +211,13 @@ function TrackingContent() {
               className="block text-xs font-black uppercase tracking-wider text-neutral-800 mb-2 flex items-center gap-1.5"
             >
               <Mail className="h-3.5 w-3.5" />
-              <span>Email atau No. Handphone (Opsional)</span>
+              <span>Email atau No. Handphone</span>
             </label>
             <input
               id="emailOrPhone"
               type="text"
               placeholder="nama@email.com atau 08123456789"
+              required
               value={emailOrPhone}
               onChange={(e) => setEmailOrPhone(e.target.value)}
               className="w-full rounded-2xl border border-neutral-300 py-3.5 px-4 text-sm text-black placeholder:text-neutral-400 focus:border-[#396254] focus:outline-none focus:ring-2 focus:ring-[#396254]/20 transition-all font-medium"

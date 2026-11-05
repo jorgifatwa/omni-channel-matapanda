@@ -61,12 +61,10 @@ export async function POST(request: Request) {
     switch (result.kind) {
       case "not_found":
         console.warn(`[Midtrans Webhook] Pesanan ${orderId} tidak ditemukan.`);
-        return NextResponse.json({ error: "Pesanan tidak ditemukan." }, { status: 404 });
+        return NextResponse.json({ status: "ignored", reason: "order not found" });
       case "amount_mismatch":
-        return NextResponse.json(
-          { error: "Nominal pembayaran tidak sesuai dengan total pesanan." },
-          { status: 400 }
-        );
+        // Logged for review; acknowledged so Midtrans stops retrying
+        return NextResponse.json({ status: "ignored", reason: "amount mismatch" });
       case "ignored":
         console.info(`[Midtrans Webhook] Diabaikan: ${result.reason}`);
         return NextResponse.json({ status: "ignored", order_id: orderId });

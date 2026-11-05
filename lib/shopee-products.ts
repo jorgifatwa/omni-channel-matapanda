@@ -128,9 +128,14 @@ export async function getShopeeItemBaseInfo(
 
   const url = `${SHOPEE_BASE_URL}${apiPath}?${params.toString()}`;
   const res = await fetch(url);
-  if (!res.ok) return [];
+  if (!res.ok) {
+    throw new Error(`Shopee get_item_base_info HTTP ${res.status}: ${await res.text()}`);
+  }
 
-  const data = await res.json() as { response?: { item_list?: RawShopeeItem[] } };
+  const data = await res.json() as { error?: string; message?: string; response?: { item_list?: RawShopeeItem[] } };
+  if (data.error && data.error !== "success") {
+    throw new Error(`Shopee get_item_base_info error: ${data.message || data.error}`);
+  }
   return data.response?.item_list || [];
 }
 
@@ -158,9 +163,14 @@ export async function getShopeeModelList(
 
   const url = `${SHOPEE_BASE_URL}${apiPath}?${params.toString()}`;
   const res = await fetch(url);
-  if (!res.ok) return [];
+  if (!res.ok) {
+    throw new Error(`Shopee get_model_list HTTP ${res.status}: ${await res.text()}`);
+  }
 
-  const data = await res.json() as { response?: { model?: RawShopeeModel[] } };
+  const data = await res.json() as { error?: string; message?: string; response?: { model?: RawShopeeModel[] } };
+  if (data.error && data.error !== "success") {
+    throw new Error(`Shopee get_model_list error: ${data.message || data.error}`);
+  }
   return data.response?.model || [];
 }
 
@@ -239,113 +249,68 @@ export async function updateShopeeStock(
 }
 
 /**
- * 5. Pull & Format All Shopee Products (with Fallback for Sandbox Test Shops)
+ * 5. Pull & Format All Shopee Products (all pages).
+ * Throws on API errors so callers report a failure instead of syncing wrong data.
  */
 export async function fetchUnifiedShopeeProducts(
   accessToken: string,
   shopId: string | number
 ): Promise<ShopeeProductItem[]> {
-  try {
-    const { itemIds } = await getShopeeItemList(accessToken, shopId, 0, 50);
-
-    if (itemIds.length > 0) {
-      const baseInfoList = await getShopeeItemBaseInfo(accessToken, shopId, itemIds);
-      const formatted: ShopeeProductItem[] = [];
-
-      for (const item of baseInfoList) {
-        const hasModel = item.has_model === true;
-        const mainImage = item.image?.image_url_list?.[0] || null;
-
-        if (hasModel) {
-          const models = await getShopeeModelList(accessToken, shopId, item.item_id);
-          for (const m of models) {
-            formatted.push({
-              itemId: String(item.item_id),
-              modelId: String(m.model_id),
-              name: item.item_name,
-              modelName: m.model_name || m.name,
-              sku: m.model_sku || item.item_sku || `SHP-${item.item_id}-${m.model_id}`,
-              stock:
-                m.stock_info_v2?.summary_info?.total_available_stock ??
-                m.stock_info_v2?.seller_stock?.[0]?.stock ??
-                m.stock_info_v2?.normal_stock ??
-                m.stock_info?.[0]?.normal_stock ??
-                0,
-              price: m.price_info?.[0]?.original_price ?? item.price_info?.[0]?.original_price ?? 0,
-              image: mainImage,
-              hasModel: true,
-            });
-          }
-        } else {
-          formatted.push({
-            itemId: String(item.item_id),
-            name: item.item_name,
-            sku: item.item_sku || `SHP-${item.item_id}`,
-            stock:
-              item.stock_info_v2?.summary_info?.total_available_stock ??
-              item.stock_info_v2?.seller_stock?.[0]?.stock ??
-              item.stock_info_v2?.normal_stock ??
-              item.stock_info?.[0]?.normal_stock ??
-              0,
-            price: item.price_info?.[0]?.original_price ?? 0,
-            image: mainImage,
-            hasModel: false,
-          });
-        }
-      }
-
-      if (formatted.length > 0) {
-        return formatted;
-      }
-    }
-  } catch (apiErr) {
-    console.warn("[Shopee Products] Live fetch error / sandbox empty:", apiErr);
+  // get_item_list allows up to 100 per page; get_item_base_info up to 50 ids per call.
+  const itemIds: number[] = [];
+  for (let offset = 0, page = 0; page < 50; page++) {
+    const res = await getShopeeItemList(accessToken, shopId, offset, 100);
+    itemIds.push(...res.itemIds);
+    if (!res.hasMore || res.itemIds.length === 0) break;
+    offset += res.itemIds.length;
   }
 
-  // Fallback demo/sandbox items matching the it's matapanda streetwear catalog
-  // (Ensures the admin mapping UI is immediately testable even if sandbox shop has no products yet)
-  return [
-    {
-      itemId: "227530901",
-      modelId: "8810231",
-      name: "Dawn Gong Sunburn 01 T-shirt",
-      modelName: "White - M",
-      sku: "DG-SB01-WHT-M",
-      stock: 45,
-      price: 450000,
-      image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=800&q=80",
-      hasModel: true,
-    },
-    {
-      itemId: "227530901",
-      modelId: "8810232",
-      name: "Dawn Gong Sunburn 01 T-shirt",
-      modelName: "White - L",
-      sku: "DG-SB01-WHT-L",
-      stock: 30,
-      price: 450000,
-      image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=800&q=80",
-      hasModel: true,
-    },
-    {
-      itemId: "227530902",
-      modelId: "8810233",
-      name: "Nebula Heavyweight Oversized Hoodie",
-      modelName: "Black - L",
-      sku: "NB-HOOD-BLK-L",
-      stock: 20,
-      price: 850000,
-      image: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=800&q=80",
-      hasModel: true,
-    },
-    {
-      itemId: "227530903",
-      name: "it's matapanda Cyber Utility Crossbody Bag",
-      sku: "ZD-BAG-BLK",
-      stock: 15,
-      price: 520000,
-      image: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=800&q=80",
-      hasModel: false,
-    },
-  ];
+  const baseInfoList: RawShopeeItem[] = [];
+  for (let i = 0; i < itemIds.length; i += 50) {
+    baseInfoList.push(...(await getShopeeItemBaseInfo(accessToken, shopId, itemIds.slice(i, i + 50))));
+  }
+
+  const formatted: ShopeeProductItem[] = [];
+  for (const item of baseInfoList) {
+    const hasModel = item.has_model === true;
+    const mainImage = item.image?.image_url_list?.[0] || null;
+
+    if (hasModel) {
+      const models = await getShopeeModelList(accessToken, shopId, item.item_id);
+      for (const m of models) {
+        formatted.push({
+          itemId: String(item.item_id),
+          modelId: String(m.model_id),
+          name: item.item_name,
+          modelName: m.model_name || m.name,
+          sku: m.model_sku || item.item_sku || `SHP-${item.item_id}-${m.model_id}`,
+          stock:
+            m.stock_info_v2?.summary_info?.total_available_stock ??
+            m.stock_info_v2?.seller_stock?.[0]?.stock ??
+            m.stock_info_v2?.normal_stock ??
+            m.stock_info?.[0]?.normal_stock ??
+            0,
+          price: m.price_info?.[0]?.original_price ?? item.price_info?.[0]?.original_price ?? 0,
+          image: mainImage,
+          hasModel: true,
+        });
+      }
+    } else {
+      formatted.push({
+        itemId: String(item.item_id),
+        name: item.item_name,
+        sku: item.item_sku || `SHP-${item.item_id}`,
+        stock:
+          item.stock_info_v2?.summary_info?.total_available_stock ??
+          item.stock_info_v2?.seller_stock?.[0]?.stock ??
+          item.stock_info_v2?.normal_stock ??
+          item.stock_info?.[0]?.normal_stock ??
+          0,
+        price: item.price_info?.[0]?.original_price ?? 0,
+        image: mainImage,
+        hasModel: false,
+      });
+    }
+  }
+  return formatted;
 }

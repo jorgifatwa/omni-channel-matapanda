@@ -130,8 +130,8 @@ export async function PUT(
       if (catExists) validCategoryId = categoryId;
     }
 
-    // Validate productSeriesId
-    let validSeriesId: string | null = null;
+    // Validate productSeriesId (left unchanged when the field is not sent)
+    let validSeriesId: string | null = productSeriesId === undefined ? existing.productSeriesId : null;
     if (productSeriesId && isValidUuid(productSeriesId)) {
       const seriesExists = await prisma.productSeries.findUnique({
         where: { id: productSeriesId },
@@ -141,15 +141,21 @@ export async function PUT(
 
     const cleanName = name ? name.trim() : existing.name;
     const cleanSku = sku ? sku.trim().toUpperCase() : existing.sku;
-    const cleanSlug = name && name.trim() !== existing.name ? slugify(cleanName) : existing.slug;
+    let cleanSlug = existing.slug;
+    if (name && name.trim() !== existing.name) {
+      const base = slugify(cleanName) || `produk-${id.slice(0, 8)}`;
+      const taken = await prisma.product.findFirst({ where: { slug: base, NOT: { id } }, select: { id: true } });
+      cleanSlug = taken ? `${base}-${id.slice(0, 6)}` : base;
+    }
 
     // Calculate total stock from variants if variants provided
     const totalStock = Array.isArray(variants) && variants.length > 0
       ? variants.reduce((sum: number, v: { stock?: number }) => sum + Number(v.stock || 0), 0)
       : stock !== undefined ? Number(stock) : existing.stock;
 
+    await prisma.$transaction(async (tx) => {
     // 1. Update product scalar fields
-    await prisma.product.update({
+    await tx.product.update({
       where: { id },
       data: {
         name: cleanName,
@@ -174,12 +180,12 @@ export async function PUT(
     // 2. Update images if provided
     if (Array.isArray(images)) {
       // Remove previous images and re-add in order
-      await prisma.productImage.deleteMany({
+      await tx.productImage.deleteMany({
         where: { productId: id },
       });
 
       if (images.length > 0) {
-        await prisma.productImage.createMany({
+        await tx.productImage.createMany({
           data: images.map((url: string, idx: number) => ({
             id: crypto.randomUUID(),
             productId: id,
@@ -191,17 +197,18 @@ export async function PUT(
       }
     }
 
-    // 3. Update variants if provided
+    // 3. Update variants in place (keeps ids, so marketplace mappings, carts and
+    //    order items stay linked); variants removed in the form are soft-deleted.
     if (Array.isArray(variants) && variants.length > 0) {
-      // Delete old variants not in the new variant list or recreate
-      await prisma.productVariant.deleteMany({
-        where: { productId: id },
+      const current = await tx.productVariant.findMany({
+        where: { productId: id, deletedAt: null },
+        select: { id: true },
       });
+      const currentIds = new Set(current.map((v) => v.id));
+      const keptIds = new Set<string>();
 
-      await prisma.productVariant.createMany({
-        data: variants.map((v: AdminProductVariant) => ({
-          id: isValidUuid(v.id) ? v.id : crypto.randomUUID(),
-          productId: id,
+      for (const v of variants as AdminProductVariant[]) {
+        const data = {
           sku: v.sku || `${cleanSku}-${v.size}-${v.color}`.toUpperCase(),
           size: v.size || "Standard",
           color: v.color || "Default",
@@ -210,9 +217,28 @@ export async function PUT(
           image: v.image || null,
           stock: Number(v.stock || 0),
           lowStockThreshold: Number(v.lowStockThreshold || 5),
-        })),
-      });
+        };
+        if (isValidUuid(v.id) && currentIds.has(v.id)) {
+          await tx.productVariant.update({ where: { id: v.id }, data });
+          keptIds.add(v.id);
+        } else {
+          const created = await tx.productVariant.create({
+            data: { id: crypto.randomUUID(), productId: id, ...data },
+            select: { id: true },
+          });
+          keptIds.add(created.id);
+        }
+      }
+
+      const removed = Array.from(currentIds).filter((vid) => !keptIds.has(vid));
+      if (removed.length > 0) {
+        await tx.productVariant.updateMany({
+          where: { id: { in: removed } },
+          data: { deletedAt: new Date() },
+        });
+      }
     }
+    });
 
     // Fetch refreshed product with relations
     const refreshed = await prisma.product.findUnique({

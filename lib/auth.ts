@@ -54,6 +54,7 @@ export const authOptions: NextAuthOptions = {
           const dbUser = await prisma.user.findFirst({
             where: {
               isActive: true,
+              deletedAt: null,
               OR: isEmail
                 ? [{ email: { equals: lowerIdentifier, mode: "insensitive" } }]
                 : [
@@ -77,6 +78,15 @@ export const authOptions: NextAuthOptions = {
               };
             }
           }
+          // A deactivated / deleted account still "exists": the env bootstrap
+          // below must never bring it back.
+          if (!dbUserExists) {
+            const anyUser = await prisma.user.findFirst({
+              where: { email: { equals: lowerIdentifier, mode: "insensitive" } },
+              select: { passwordHash: true },
+            });
+            if (anyUser?.passwordHash) dbUserExists = true;
+          }
         } catch (dbErr) {
           dbReachable = false;
           console.warn("[Auth] Database check error:", dbErr);
@@ -94,6 +104,7 @@ export const authOptions: NextAuthOptions = {
         if (
           envAdminEmail &&
           envAdminPassword &&
+          dbReachable &&
           !dbUserExists &&
           lowerIdentifier === envAdminEmail &&
           safeEqual(cleanPassword, envAdminPassword)
@@ -137,6 +148,7 @@ export const authOptions: NextAuthOptions = {
 
         if (
           e2eAdminPassword &&
+          process.env.VERCEL_ENV !== "production" &&
           lowerIdentifier === e2eAdminEmail &&
           (inputPassword === e2eAdminPassword || cleanPassword === e2eAdminPassword.trim())
         ) {
