@@ -19,8 +19,8 @@ import {
   Gift,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { useCart, type CartItem } from "@/context/CartContext";
-import { NEW_ARRIVAL_PRODUCTS, type CurrencyCode } from "@/lib/products";
+import { useCart } from "@/context/CartContext";
+import { type CurrencyCode } from "@/lib/products";
 import { saveOrderLocally } from "@/context/AdminStoreContext";
 import { type AdminOrder } from "@/lib/admin-data";
 
@@ -35,18 +35,6 @@ interface ShippingOption {
   estimatedDays: string;
   description?: string;
 }
-
-const FALLBACK_ITEM: CartItem = {
-  key: "dawn-gong-sunburn-01-t-shirt__M__White",
-  productId: NEW_ARRIVAL_PRODUCTS[0].id,
-  name: NEW_ARRIVAL_PRODUCTS[0].name,
-  price: NEW_ARRIVAL_PRODUCTS[0].price,
-  priceNumber: NEW_ARRIVAL_PRODUCTS[0].priceNumber,
-  image: NEW_ARRIVAL_PRODUCTS[0].image,
-  size: "M",
-  color: "White",
-  quantity: 1,
-};
 
 function formatCheckoutPrice(amountInIDR: number, currency: CurrencyCode) {
   switch (currency) {
@@ -65,6 +53,7 @@ function formatCheckoutPrice(amountInIDR: number, currency: CurrencyCode) {
 export default function CheckoutPage() {
   const {
     items,
+    isHydrated,
     currency,
     clearCart,
     appliedCoupon,
@@ -78,7 +67,7 @@ export default function CheckoutPage() {
   } = useCart();
 
   const checkoutItems = React.useMemo(() => {
-    const base = items.length > 0 ? items : [FALLBACK_ITEM];
+    const base = items;
     if (giftItem) {
       return [...base, giftItem];
     }
@@ -457,6 +446,27 @@ export default function CheckoutPage() {
       setIsSettlingPayment(false);
     }
   };
+
+  // Empty cart: never show placeholder products at checkout
+  if (isHydrated && items.length === 0 && !orderSuccess && !createdOrder) {
+    return (
+      <div className="min-h-dvh flex flex-col items-center justify-center gap-4 bg-[#fafaf8] dark:bg-neutral-950 px-6 text-center">
+        <ShoppingBag className="h-10 w-10 text-[#396254] dark:text-[#dcf58d]" />
+        <h1 className="text-xl font-black text-[#396254] dark:text-white">
+          Keranjang Anda masih kosong
+        </h1>
+        <p className="text-sm text-neutral-600 dark:text-neutral-400 max-w-sm">
+          Tambahkan produk ke keranjang terlebih dahulu sebelum melanjutkan ke checkout.
+        </p>
+        <Link
+          href="/"
+          className="mt-2 inline-flex items-center rounded-full bg-[#396254] px-6 py-3 text-sm font-bold text-white hover:opacity-90"
+        >
+          Belanja Sekarang
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-dvh flex flex-col bg-[#fafaf8] dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 font-sans">

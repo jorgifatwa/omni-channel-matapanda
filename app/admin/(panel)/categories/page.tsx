@@ -71,7 +71,7 @@ export default function AdminCategoriesPage() {
     }
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !slug.trim()) {
       setFormError("Nama kategori dan slug wajib diisi.");
@@ -92,8 +92,12 @@ export default function AdminCategoriesPage() {
         editingCategory?.createdAt ?? new Date().toISOString().slice(0, 10),
     };
 
-    saveCategory(payload);
-    setModalOpen(false);
+    try {
+      await saveCategory(payload);
+      setModalOpen(false);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Gagal menyimpan ke database.");
+    }
   };
 
   const columns: ColumnDef<AdminCategory>[] = [
@@ -312,7 +316,11 @@ export default function AdminCategoriesPage() {
         title="Hapus Kategori?"
         description={`Apakah Anda yakin ingin menghapus kategori "${deleteTarget?.name}"? Tindakan ini tidak dapat dibatalkan.`}
         onConfirm={() => {
-          if (deleteTarget) deleteCategory(deleteTarget.id);
+          if (deleteTarget) {
+            deleteCategory(deleteTarget.id).catch((err) =>
+              window.alert(err instanceof Error ? err.message : "Gagal menghapus dari database.")
+            );
+          }
         }}
       />
     </div>

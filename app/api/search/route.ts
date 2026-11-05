@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { INITIAL_PRODUCTS } from "@/lib/admin-data";
 import { applyDiscountsToProducts } from "@/lib/discount-engine";
 import { getActiveDiscounts } from "@/lib/discount-store";
 
@@ -46,30 +45,9 @@ export async function GET(req: Request) {
       }));
       return NextResponse.json({ products: applyDiscountsToProducts(formatted, getActiveDiscounts()) });
     }
-  } catch {
-    // DB offline, fall through to INITIAL_PRODUCTS
+  } catch (err) {
+    console.error("[Search] Database query failed:", err);
   }
 
-  const fallbackMatches = INITIAL_PRODUCTS.filter(
-    (p) =>
-      p.isActive &&
-      (p.name.toLowerCase().includes(q) ||
-        p.sku.toLowerCase().includes(q) ||
-        p.description.toLowerCase().includes(q) ||
-        p.categoryName.toLowerCase().includes(q) ||
-        p.brandName.toLowerCase().includes(q))
-  ).slice(0, 8);
-
-  const formatted = fallbackMatches.map((p) => ({
-    id: p.id,
-    name: p.name,
-    slug: p.slug,
-    sku: p.sku,
-    price: p.price,
-    discountPrice: p.discountPrice,
-    image: p.images[0] || "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=600&q=80",
-    categoryName: p.categoryName,
-  }));
-
-  return NextResponse.json({ products: applyDiscountsToProducts(formatted, getActiveDiscounts()) });
+  return NextResponse.json({ products: [] });
 }

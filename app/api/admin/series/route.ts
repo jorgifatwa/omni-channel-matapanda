@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { slugify, INITIAL_SERIES } from "@/lib/admin-data";
+import { slugify } from "@/lib/admin-data";
 
 export async function GET() {
   try {
@@ -25,16 +25,21 @@ export async function GET() {
       });
     }
   } catch (err) {
-    console.warn("Could not fetch product series from DB, using fallback:", err);
+    console.error("Could not fetch product series from DB:", err);
+    return NextResponse.json(
+      { series: [], error: "Gagal memuat series dari database" },
+      { status: 503 }
+    );
   }
 
-  return NextResponse.json({ series: INITIAL_SERIES });
+  // Database reachable but empty
+  return NextResponse.json({ series: [] });
 }
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, slug, description } = body;
+    const { name, slug } = body;
 
     if (!name || typeof name !== "string" || !name.trim()) {
       return NextResponse.json(
@@ -68,17 +73,11 @@ export async function POST(request: Request) {
         },
       });
     } catch (dbErr) {
-      console.warn("Could not save series to DB, returning local fallback:", dbErr);
-      return NextResponse.json({
-        success: true,
-        series: {
-          id: `series-${Date.now()}`,
-          name: cleanName,
-          slug: cleanSlug,
-          description: description || "",
-          productCount: 0,
-        },
-      });
+      console.error("Could not save series to DB:", dbErr);
+      return NextResponse.json(
+        { error: "Gagal menyimpan series ke database" },
+        { status: 500 }
+      );
     }
   } catch {
     return NextResponse.json(

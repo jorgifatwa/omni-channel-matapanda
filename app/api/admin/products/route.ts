@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { INITIAL_PRODUCTS, type AdminProduct, type AdminProductVariant, slugify } from "@/lib/admin-data";
+import { type AdminProduct, type AdminProductVariant, slugify } from "@/lib/admin-data";
 import crypto from "crypto";
 
 function isValidUuid(id?: string | null): boolean {
@@ -66,10 +66,15 @@ export async function GET() {
       return NextResponse.json({ products: formatted, source: "database" });
     }
   } catch (err) {
-    console.warn("[AdminProductsAPI] Could not fetch products from database, falling back:", err);
+    console.error("[AdminProductsAPI] Could not fetch products from database:", err);
+    return NextResponse.json(
+      { products: [], error: "Gagal memuat produk dari database" },
+      { status: 503 }
+    );
   }
 
-  return NextResponse.json({ products: INITIAL_PRODUCTS, source: "defaults" });
+  // Database reachable but empty
+  return NextResponse.json({ products: [], source: "database" });
 }
 
 export async function POST(request: Request) {

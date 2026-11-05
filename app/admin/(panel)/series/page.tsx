@@ -80,48 +80,19 @@ export default function AdminSeriesPage() {
     const cleanSlug = slugify(slug.trim() || cleanName);
 
     try {
-      // 1. Sync to Prisma DB if API is online
-      const res = await fetch("/api/admin/series", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: cleanName,
-          slug: cleanSlug,
-        }),
-      });
-
-      let savedId = editingSeries?.id ?? `series-${Date.now()}`;
-      if (res.ok) {
-        const data = await res.json();
-        if (data.series?.id) savedId = data.series.id;
-      }
-
-      const payload: AdminProductSeries = {
-        id: savedId,
-        name: cleanName,
-        slug: cleanSlug,
-        description: description.trim() || undefined,
-        productCount:
-          editingSeries?.productCount ??
-          products.filter((p) => p.productSeriesId === savedId).length,
-        createdAt:
-          editingSeries?.createdAt ?? new Date().toISOString().slice(0, 10),
-      };
-
-      saveSeries(payload);
-      setModalOpen(false);
-    } catch {
-      // Fallback local save
       const payload: AdminProductSeries = {
         id: editingSeries?.id ?? `series-${Date.now()}`,
         name: cleanName,
         slug: cleanSlug,
         description: description.trim() || undefined,
-        productCount: 0,
-        createdAt: new Date().toISOString().slice(0, 10),
+        productCount: editingSeries?.productCount ?? 0,
+        createdAt:
+          editingSeries?.createdAt ?? new Date().toISOString().slice(0, 10),
       };
-      saveSeries(payload);
+      await saveSeries(payload);
       setModalOpen(false);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Gagal menyimpan series ke database.");
     } finally {
       setIsSubmitting(false);
     }
@@ -129,13 +100,11 @@ export default function AdminSeriesPage() {
 
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
-
     try {
-      await fetch(`/api/admin/series/${deleteTarget.id}`, {
-        method: "DELETE",
-      }).catch(() => {});
+      await deleteSeries(deleteTarget.id);
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : "Gagal menghapus series dari database.");
     } finally {
-      deleteSeries(deleteTarget.id);
       setDeleteTarget(null);
     }
   };

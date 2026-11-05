@@ -214,7 +214,7 @@ export default function AdminProductsPage() {
     setVariants((prev) => prev.filter((v) => v.id !== id));
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !sku.trim() || !price) {
       setFormError("Nama produk, SKU, dan Harga wajib diisi.");
@@ -277,8 +277,12 @@ export default function AdminProductsPage() {
         editingProduct?.createdAt ?? new Date().toISOString().slice(0, 10),
     };
 
-    saveProduct(payload);
-    setModalOpen(false);
+    try {
+      await saveProduct(payload);
+      setModalOpen(false);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Gagal menyimpan ke database.");
+    }
   };
 
   const columns: ColumnDef<AdminProduct>[] = [
@@ -1045,7 +1049,11 @@ export default function AdminProductsPage() {
         title="Hapus Produk?"
         description={`Apakah Anda yakin ingin menghapus produk "${deleteTarget?.name}" (${deleteTarget?.sku})? Tindakan ini tidak dapat dibatalkan.`}
         onConfirm={() => {
-          if (deleteTarget) deleteProduct(deleteTarget.id);
+          if (deleteTarget) {
+            deleteProduct(deleteTarget.id).catch((err) =>
+              window.alert(err instanceof Error ? err.message : "Gagal menghapus dari database.")
+            );
+          }
         }}
       />
     </div>

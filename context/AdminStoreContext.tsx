@@ -8,13 +8,54 @@ import {
   type AdminOrder,
   type AdminProduct,
   type AdminProductSeries,
-  INITIAL_BRANDS,
-  INITIAL_CATEGORIES,
   INITIAL_CUSTOMERS,
   INITIAL_ORDERS,
-  INITIAL_PRODUCTS,
-  INITIAL_SERIES,
 } from "@/lib/admin-data";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/** Records saved in the database have UUIDs; new (unsaved) records have temporary ids. */
+function isUuid(id: string | undefined | null): boolean {
+  return !!id && UUID_RE.test(id);
+}
+
+function upsertById<T extends { id: string }>(list: T[], item: T, replaceId?: string): T[] {
+  const targetId = replaceId ?? item.id;
+  const idx = list.findIndex((x) => x.id === targetId);
+  if (idx === -1) return [item, ...list];
+  const next = [...list];
+  next[idx] = item;
+  return next;
+}
+
+/** Calls an admin API and throws a readable error when the database rejects it. */
+async function requestJson<T = unknown>(
+  url: string,
+  method: "POST" | "PUT" | "DELETE",
+  body: unknown,
+  label: string
+): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method,
+      headers: body ? { "Content-Type": "application/json" } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch {
+    throw new Error(`Gagal menghubungi server saat menyimpan ${label}. Periksa koneksi internet.`);
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const reason = (data as { error?: string }).error;
+    throw new Error(
+      reason
+        ? `Gagal menyimpan ${label} ke database: ${reason}`
+        : `Gagal menyimpan ${label} ke database (HTTP ${res.status}).`
+    );
+  }
+  return data as T;
+}
 
 type AdminStoreContextType = {
   products: AdminProduct[];
@@ -24,6 +65,8 @@ type AdminStoreContextType = {
   orders: AdminOrder[];
   customers: AdminCustomer[];
   isLoading: boolean;
+  /** Set when catalog data could not be loaded from the database */
+  loadError: string | null;
   saveProduct: (product: AdminProduct) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
   saveBrand: (brand: AdminBrand) => Promise<void>;
@@ -76,40 +119,27 @@ export function AdminStoreProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [products, setProducts] =
-    React.useState<AdminProduct[]>(INITIAL_PRODUCTS);
-  const [brands, setBrands] = React.useState<AdminBrand[]>(INITIAL_BRANDS);
-  const [categories, setCategories] =
-    React.useState<AdminCategory[]>(INITIAL_CATEGORIES);
-  const [series, setSeries] =
-    React.useState<AdminProductSeries[]>(INITIAL_SERIES);
+  // Catalog data comes only from the database (no dummy data, no browser cache)
+  const [products, setProducts] = React.useState<AdminProduct[]>([]);
+  const [brands, setBrands] = React.useState<AdminBrand[]>([]);
+  const [categories, setCategories] = React.useState<AdminCategory[]>([]);
+  const [series, setSeries] = React.useState<AdminProductSeries[]>([]);
   const [orders, setOrders] = React.useState<AdminOrder[]>(INITIAL_ORDERS);
   const [customers, setCustomers] =
     React.useState<AdminCustomer[]>(INITIAL_CUSTOMERS);
   const [isLoading, setIsLoading] = React.useState(false);
+  const [loadError, setLoadError] = React.useState<string | null>(null);
   const [hydrated, setHydrated] = React.useState(false);
 
   // 1. Initial hydration from localStorage (instant cache)
   React.useEffect(() => {
     try {
-      const p = window.localStorage.getItem(KEYS.products);
-      if (p) {
-        const storedProducts: AdminProduct[] = JSON.parse(p);
-        const existingIds = new Set(storedProducts.map((sp) => sp.id));
-        const missing = INITIAL_PRODUCTS.filter((ip) => !existingIds.has(ip.id));
-        setProducts(missing.length > 0 ? [...storedProducts, ...missing] : storedProducts);
-      }
-      const b = window.localStorage.getItem(KEYS.brands);
-      if (b) setBrands(JSON.parse(b));
-      const c = window.localStorage.getItem(KEYS.categories);
-      if (c) setCategories(JSON.parse(c));
-      const s = window.localStorage.getItem(KEYS.series);
-      if (s) {
-        const storedSeries: AdminProductSeries[] = JSON.parse(s);
-        const existingIds = new Set(storedSeries.map((ss) => ss.id));
-        const missing = INITIAL_SERIES.filter((is) => !existingIds.has(is.id));
-        setSeries(missing.length > 0 ? [...storedSeries, ...missing] : storedSeries);
-      }
+      // Remove catalog data cached by older versions (it could show items
+      // that were never saved to the database)
+      window.localStorage.removeItem(KEYS.products);
+      window.localStorage.removeItem(KEYS.brands);
+      window.localStorage.removeItem(KEYS.categories);
+      window.localStorage.removeItem(KEYS.series);
       const o = window.localStorage.getItem(KEYS.orders);
       if (o) setOrders(JSON.parse(o));
       const cust = window.localStorage.getItem(KEYS.customers);
@@ -133,18 +163,24 @@ export function AdminStoreProvider({
         fetch("/api/admin/customers").then((r) => r.json()),
       ]);
 
-      if (pRes.status === "fulfilled" && pRes.value.products) {
+      const failed: string[] = [];
+      if (pRes.status === "fulfilled" && Array.isArray(pRes.value.products)) {
         setProducts(pRes.value.products);
-      }
-      if (bRes.status === "fulfilled" && bRes.value.brands) {
+      } else failed.push("produk");
+      if (bRes.status === "fulfilled" && Array.isArray(bRes.value.brands)) {
         setBrands(bRes.value.brands);
-      }
-      if (cRes.status === "fulfilled" && cRes.value.categories) {
+      } else failed.push("brand");
+      if (cRes.status === "fulfilled" && Array.isArray(cRes.value.categories)) {
         setCategories(cRes.value.categories);
-      }
-      if (sRes.status === "fulfilled" && sRes.value.series) {
+      } else failed.push("kategori");
+      if (sRes.status === "fulfilled" && Array.isArray(sRes.value.series)) {
         setSeries(sRes.value.series);
-      }
+      } else failed.push("series");
+      setLoadError(
+        failed.length > 0
+          ? `Gagal memuat data ${failed.join(", ")} dari database.`
+          : null
+      );
       if (oRes.status === "fulfilled" && oRes.value.orders) {
         setOrders(oRes.value.orders);
       }
@@ -166,239 +202,86 @@ export function AdminStoreProvider({
   React.useEffect(() => {
     if (!hydrated) return;
     try {
-      window.localStorage.setItem(KEYS.products, JSON.stringify(products));
-      window.localStorage.setItem(KEYS.brands, JSON.stringify(brands));
-      window.localStorage.setItem(KEYS.categories, JSON.stringify(categories));
-      window.localStorage.setItem(KEYS.series, JSON.stringify(series));
       window.localStorage.setItem(KEYS.orders, JSON.stringify(orders));
       window.localStorage.setItem(KEYS.customers, JSON.stringify(customers));
     } catch {
       // Ignore storage errors
     }
-  }, [products, brands, categories, series, orders, customers, hydrated]);
+  }, [orders, customers, hydrated]);
 
   // ─── Products Mutations ─────────────────────────────────────────────
   const saveProduct = React.useCallback(
     async (product: AdminProduct) => {
-      const isExisting = products.some((p) => p.id === product.id);
-
-      // Optimistic state update
-      setProducts((prev) => {
-        const idx = prev.findIndex((item) => item.id === product.id);
-        if (idx > -1) {
-          const next = [...prev];
-          next[idx] = product;
-          return next;
-        }
-        return [product, ...prev];
-      });
-
-      try {
-        if (isExisting) {
-          const res = await fetch(`/api/admin/products/${product.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(product),
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (data.product) {
-              setProducts((prev) =>
-                prev.map((p) => (p.id === product.id ? { ...p, ...data.product } : p))
-              );
-            }
-          }
-        } else {
-          const res = await fetch("/api/admin/products", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(product),
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (data.product) {
-              // Replace temporary product id with database record
-              setProducts((prev) =>
-                prev.map((p) => (p.id === product.id ? { ...p, id: data.product.id } : p))
-              );
-            }
-          }
-        }
-      } catch (err) {
-        console.error("[AdminStore] Failed to sync product to PostgreSQL:", err);
-      }
+      const isExisting = isUuid(product.id);
+      const data = await requestJson<{ product?: AdminProduct }>(
+        isExisting ? `/api/admin/products/${product.id}` : "/api/admin/products",
+        isExisting ? "PUT" : "POST",
+        product,
+        "produk"
+      );
+      const saved = data.product ? { ...product, ...data.product } : product;
+      setProducts((prev) => upsertById(prev, saved, isExisting ? product.id : undefined));
     },
-    [products]
+    []
   );
 
   const deleteProduct = React.useCallback(async (id: string) => {
-    // Optimistic remove
+    await requestJson(`/api/admin/products/${id}`, "DELETE", undefined, "produk");
     setProducts((prev) => prev.filter((item) => item.id !== id));
-
-    try {
-      await fetch(`/api/admin/products/${id}`, { method: "DELETE" });
-    } catch (err) {
-      console.error("[AdminStore] Failed to delete product from database:", err);
-    }
   }, []);
 
   // ─── Brands Mutations ───────────────────────────────────────────────
-  const saveBrand = React.useCallback(
-    async (brand: AdminBrand) => {
-      const isExisting = brands.some((b) => b.id === brand.id);
-
-      setBrands((prev) => {
-        const idx = prev.findIndex((item) => item.id === brand.id);
-        if (idx > -1) {
-          const next = [...prev];
-          next[idx] = brand;
-          return next;
-        }
-        return [brand, ...prev];
-      });
-
-      try {
-        if (isExisting) {
-          await fetch(`/api/admin/brands/${brand.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(brand),
-          });
-        } else {
-          const res = await fetch("/api/admin/brands", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(brand),
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (data.brand) {
-              setBrands((prev) =>
-                prev.map((b) => (b.id === brand.id ? data.brand : b))
-              );
-            }
-          }
-        }
-      } catch (err) {
-        console.error("[AdminStore] Failed to sync brand to PostgreSQL:", err);
-      }
-    },
-    [brands]
-  );
+  const saveBrand = React.useCallback(async (brand: AdminBrand) => {
+    const isExisting = isUuid(brand.id);
+    const data = await requestJson<{ brand?: AdminBrand }>(
+      isExisting ? `/api/admin/brands/${brand.id}` : "/api/admin/brands",
+      isExisting ? "PUT" : "POST",
+      brand,
+      "brand"
+    );
+    const saved = data.brand ? { ...brand, ...data.brand } : brand;
+    setBrands((prev) => upsertById(prev, saved, isExisting ? brand.id : undefined));
+  }, []);
 
   const deleteBrand = React.useCallback(async (id: string) => {
+    await requestJson(`/api/admin/brands/${id}`, "DELETE", undefined, "brand");
     setBrands((prev) => prev.filter((item) => item.id !== id));
-    try {
-      await fetch(`/api/admin/brands/${id}`, { method: "DELETE" });
-    } catch (err) {
-      console.error("[AdminStore] Failed to delete brand from database:", err);
-    }
   }, []);
 
   // ─── Categories Mutations ───────────────────────────────────────────
-  const saveCategory = React.useCallback(
-    async (category: AdminCategory) => {
-      const isExisting = categories.some((c) => c.id === category.id);
-
-      setCategories((prev) => {
-        const idx = prev.findIndex((item) => item.id === category.id);
-        if (idx > -1) {
-          const next = [...prev];
-          next[idx] = category;
-          return next;
-        }
-        return [category, ...prev];
-      });
-
-      try {
-        if (isExisting) {
-          await fetch(`/api/admin/categories/${category.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(category),
-          });
-        } else {
-          const res = await fetch("/api/admin/categories", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(category),
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (data.category) {
-              setCategories((prev) =>
-                prev.map((c) => (c.id === category.id ? data.category : c))
-              );
-            }
-          }
-        }
-      } catch (err) {
-        console.error("[AdminStore] Failed to sync category to PostgreSQL:", err);
-      }
-    },
-    [categories]
-  );
+  const saveCategory = React.useCallback(async (category: AdminCategory) => {
+    const isExisting = isUuid(category.id);
+    const data = await requestJson<{ category?: AdminCategory }>(
+      isExisting ? `/api/admin/categories/${category.id}` : "/api/admin/categories",
+      isExisting ? "PUT" : "POST",
+      category,
+      "kategori"
+    );
+    const saved = data.category ? { ...category, ...data.category } : category;
+    setCategories((prev) => upsertById(prev, saved, isExisting ? category.id : undefined));
+  }, []);
 
   const deleteCategory = React.useCallback(async (id: string) => {
+    await requestJson(`/api/admin/categories/${id}`, "DELETE", undefined, "kategori");
     setCategories((prev) => prev.filter((item) => item.id !== id));
-    try {
-      await fetch(`/api/admin/categories/${id}`, { method: "DELETE" });
-    } catch (err) {
-      console.error("[AdminStore] Failed to delete category from database:", err);
-    }
   }, []);
 
   // ─── Series Mutations ───────────────────────────────────────────────
-  const saveSeries = React.useCallback(
-    async (sItem: AdminProductSeries) => {
-      const isExisting = series.some((s) => s.id === sItem.id);
-
-      setSeries((prev) => {
-        const idx = prev.findIndex((item) => item.id === sItem.id);
-        if (idx > -1) {
-          const next = [...prev];
-          next[idx] = sItem;
-          return next;
-        }
-        return [sItem, ...prev];
-      });
-
-      try {
-        if (isExisting) {
-          await fetch(`/api/admin/series/${sItem.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(sItem),
-          });
-        } else {
-          const res = await fetch("/api/admin/series", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(sItem),
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (data.series) {
-              setSeries((prev) =>
-                prev.map((s) => (s.id === sItem.id ? data.series : s))
-              );
-            }
-          }
-        }
-      } catch (err) {
-        console.error("[AdminStore] Failed to sync series to PostgreSQL:", err);
-      }
-    },
-    [series]
-  );
+  const saveSeries = React.useCallback(async (sItem: AdminProductSeries) => {
+    const isExisting = isUuid(sItem.id);
+    const data = await requestJson<{ series?: AdminProductSeries }>(
+      isExisting ? `/api/admin/series/${sItem.id}` : "/api/admin/series",
+      isExisting ? "PUT" : "POST",
+      sItem,
+      "series"
+    );
+    const saved = data.series ? { ...sItem, ...data.series } : sItem;
+    setSeries((prev) => upsertById(prev, saved, isExisting ? sItem.id : undefined));
+  }, []);
 
   const deleteSeries = React.useCallback(async (id: string) => {
+    await requestJson(`/api/admin/series/${id}`, "DELETE", undefined, "series");
     setSeries((prev) => prev.filter((item) => item.id !== id));
-    try {
-      await fetch(`/api/admin/series/${id}`, { method: "DELETE" });
-    } catch (err) {
-      console.error("[AdminStore] Failed to delete series from database:", err);
-    }
   }, []);
 
   // ─── Orders Mutations ───────────────────────────────────────────────
@@ -439,6 +322,7 @@ export function AdminStoreProvider({
         orders,
         customers,
         isLoading,
+        loadError,
         saveProduct,
         deleteProduct,
         saveBrand,

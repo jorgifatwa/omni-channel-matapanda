@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { INITIAL_CATEGORIES, type AdminCategory, slugify } from "@/lib/admin-data";
+import { type AdminCategory, slugify } from "@/lib/admin-data";
 import crypto from "crypto";
 
 function isValidUuid(id?: string | null): boolean {
@@ -75,10 +75,15 @@ export async function GET() {
       return NextResponse.json({ categories: formatted, source: "database" });
     }
   } catch (err) {
-    console.warn("[AdminCategoriesAPI] Failed to fetch categories from database:", err);
+    console.error("[AdminCategoriesAPI] Failed to fetch categories from database:", err);
+    return NextResponse.json(
+      { categories: [], error: "Gagal memuat kategori dari database" },
+      { status: 503 }
+    );
   }
 
-  return NextResponse.json({ categories: INITIAL_CATEGORIES, source: "defaults" });
+  // Database reachable but empty
+  return NextResponse.json({ categories: [], source: "database" });
 }
 
 export async function POST(request: Request) {

@@ -67,8 +67,11 @@ export async function DELETE(
 
       return NextResponse.json({ success: true });
     } catch (dbErr) {
-      console.warn("DB delete series error:", dbErr);
-      return NextResponse.json({ success: true, localOnly: true });
+      console.error("DB delete series error:", dbErr);
+      return NextResponse.json(
+        { error: "Gagal menghapus series dari database" },
+        { status: 500 }
+      );
     }
   } catch {
     return NextResponse.json(

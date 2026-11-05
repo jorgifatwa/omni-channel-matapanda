@@ -94,7 +94,7 @@ export default function AdminBrandsPage() {
     }
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !slug.trim()) {
       setFormError("Nama brand dan slug wajib diisi.");
@@ -114,8 +114,12 @@ export default function AdminBrandsPage() {
         editingBrand?.createdAt ?? new Date().toISOString().slice(0, 10),
     };
 
-    saveBrand(payload);
-    setModalOpen(false);
+    try {
+      await saveBrand(payload);
+      setModalOpen(false);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Gagal menyimpan ke database.");
+    }
   };
 
   const columns: ColumnDef<AdminBrand>[] = [
@@ -341,7 +345,11 @@ export default function AdminBrandsPage() {
         title="Hapus Brand?"
         description={`Apakah Anda yakin ingin menghapus brand "${deleteTarget?.name}"? Tindakan ini tidak dapat dibatalkan.`}
         onConfirm={() => {
-          if (deleteTarget) deleteBrand(deleteTarget.id);
+          if (deleteTarget) {
+            deleteBrand(deleteTarget.id).catch((err) =>
+              window.alert(err instanceof Error ? err.message : "Gagal menghapus dari database.")
+            );
+          }
         }}
       />
     </div>

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { INITIAL_BRANDS, type AdminBrand, slugify } from "@/lib/admin-data";
+import { type AdminBrand, slugify } from "@/lib/admin-data";
 import crypto from "crypto";
 
 export async function GET() {
@@ -29,10 +29,15 @@ export async function GET() {
       return NextResponse.json({ brands: formatted, source: "database" });
     }
   } catch (err) {
-    console.warn("[AdminBrandsAPI] Failed to fetch brands from database:", err);
+    console.error("[AdminBrandsAPI] Failed to fetch brands from database:", err);
+    return NextResponse.json(
+      { brands: [], error: "Gagal memuat brand dari database" },
+      { status: 503 }
+    );
   }
 
-  return NextResponse.json({ brands: INITIAL_BRANDS, source: "defaults" });
+  // Database reachable but empty
+  return NextResponse.json({ brands: [], source: "database" });
 }
 
 export async function POST(request: Request) {

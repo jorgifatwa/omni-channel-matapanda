@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { INITIAL_BRANDS, INITIAL_CATEGORIES, INITIAL_PRODUCTS } from "@/lib/admin-data";
 import {
   applyDiscountsToProducts as applyDiscountsPure,
   applyDiscountToSingleProduct as applyDiscountSinglePure,
@@ -141,17 +140,10 @@ export async function getActiveBrands(): Promise<StorefrontBrand[]> {
       }));
     }
   } catch (error) {
-    console.warn("Database unavailable, using fallback brands:", error);
+    console.error("[Storefront] Failed to load brands from database:", error);
   }
 
-  // Fallback to active initial brands
-  return INITIAL_BRANDS.filter((b) => b.isActive).map((b) => ({
-    id: b.id,
-    name: b.name,
-    slug: b.slug,
-    logoUrl: b.logoUrl,
-    productCount: b.productCount,
-  }));
+  return [];
 }
 
 const NON_BAG_PATTERNS = [
@@ -212,20 +204,10 @@ export async function getActiveCategories(): Promise<StorefrontCategory[]> {
       }
     }
   } catch (error) {
-    console.warn("Database unavailable, using fallback categories:", error);
+    console.error("[Storefront] Failed to load categories from database:", error);
   }
 
-  // Fallback to active initial bag categories
-  return INITIAL_CATEGORIES.filter(
-    (c) => c.isActive && !isNonBagCategory(c.slug, c.name)
-  ).map((c) => ({
-    id: c.id,
-    name: c.name,
-    slug: c.slug,
-    parentId: c.parentId,
-    parentName: c.parentName,
-    productCount: c.productCount,
-  }));
+  return [];
 }
 
 export async function getNewArrivalProducts(): Promise<StorefrontProduct[]> {
@@ -249,14 +231,10 @@ export async function getNewArrivalProducts(): Promise<StorefrontProduct[]> {
       return applyDiscountsToProducts(products.map((p) => formatPrismaProduct(p)));
     }
   } catch (error) {
-    console.warn("Database unavailable, using fallback new arrivals:", error);
+    console.error("[Storefront] Failed to load new arrivals from database:", error);
   }
 
-  // Fallback to initial products
-  const fallback = INITIAL_PRODUCTS.filter((p) => p.isActive && (p.isNewArrival ?? true)).map(
-    (p) => formatFallbackProduct(p)
-  );
-  return applyDiscountsToProducts(fallback);
+  return [];
 }
 
 export async function getAllStorefrontProducts(): Promise<StorefrontProduct[]> {
@@ -280,14 +258,10 @@ export async function getAllStorefrontProducts(): Promise<StorefrontProduct[]> {
       return applyDiscountsToProducts(products.map((p) => formatPrismaProduct(p)));
     }
   } catch (error) {
-    console.warn("Database unavailable, using fallback all products:", error);
+    console.error("[Storefront] Failed to load all products from database:", error);
   }
 
-  // Fallback to all initial products
-  const fallback = INITIAL_PRODUCTS.filter((p) => p.isActive).map((p) =>
-    formatFallbackProduct(p)
-  );
-  return applyDiscountsToProducts(fallback);
+  return [];
 }
 
 export async function getProductsByBrandSlug(
@@ -322,32 +296,10 @@ export async function getProductsByBrandSlug(
       };
     }
   } catch (error) {
-    console.warn("Database unavailable, using fallback brand lookup:", error);
+    console.error("[Storefront] Failed to load brand lookup from database:", error);
   }
 
-  const fallbackBrand = INITIAL_BRANDS.find(
-    (b) => b.slug.toLowerCase() === slug.toLowerCase() && b.isActive
-  );
-  if (!fallbackBrand) {
-    return { brand: null, products: [] };
-  }
-
-  const fallbackProducts = INITIAL_PRODUCTS.filter(
-    (p) =>
-      p.isActive &&
-      (p.brandId === fallbackBrand.id ||
-        p.brandName.toLowerCase() === fallbackBrand.name.toLowerCase())
-  ).map((p) => formatFallbackProduct(p));
-
-  return {
-    brand: {
-      id: fallbackBrand.id,
-      name: fallbackBrand.name,
-      slug: fallbackBrand.slug,
-      logoUrl: fallbackBrand.logoUrl,
-    },
-    products: applyDiscountsToProducts(fallbackProducts),
-  };
+  return { brand: null, products: [] };
 }
 
 export async function getProductsByCategorySlug(
@@ -390,39 +342,10 @@ export async function getProductsByCategorySlug(
       };
     }
   } catch (error) {
-    console.warn("Database unavailable, using fallback category lookup:", error);
+    console.error("[Storefront] Failed to load category lookup from database:", error);
   }
 
-  const fallbackCategory = INITIAL_CATEGORIES.find(
-    (c) => c.slug.toLowerCase() === slug.toLowerCase() && c.isActive
-  );
-  if (!fallbackCategory) {
-    return { category: null, products: [] };
-  }
-
-  // Include children categories
-  const childIds = INITIAL_CATEGORIES.filter(
-    (c) => c.parentId === fallbackCategory.id && c.isActive
-  ).map((c) => c.id);
-  const matchingCategoryIds = [fallbackCategory.id, ...childIds];
-
-  const fallbackProducts = INITIAL_PRODUCTS.filter(
-    (p) =>
-      p.isActive &&
-      (matchingCategoryIds.includes(p.categoryId) ||
-        p.categoryName.toLowerCase() === fallbackCategory.name.toLowerCase())
-  ).map((p) => formatFallbackProduct(p));
-
-  return {
-    category: {
-      id: fallbackCategory.id,
-      name: fallbackCategory.name,
-      slug: fallbackCategory.slug,
-      parentId: fallbackCategory.parentId,
-      parentName: fallbackCategory.parentName,
-    },
-    products: applyDiscountsToProducts(fallbackProducts),
-  };
+  return { category: null, products: [] };
 }
 
 export async function getProductBySlugOrId(
@@ -494,58 +417,7 @@ export async function getProductBySlugOrId(
       );
     }
   } catch (error) {
-    console.warn("Database unavailable, using fallback product lookup:", error);
-  }
-
-  // Exact or normalized fallback match
-  let fallback = INITIAL_PRODUCTS.find(
-    (p) =>
-      p.isActive &&
-      (p.id.toLowerCase() === identifier ||
-        p.slug.toLowerCase() === identifier)
-  );
-
-  // Resilient typo matching (e.g., "down-gong" -> "dawn-gong", "outdoor-matt" -> "outdoor-mat", "new-02" -> "news-02")
-  if (!fallback) {
-    const normalized = identifier
-      .replace(/down-gong/g, "dawn-gong")
-      .replace(/outdoor-matt/g, "outdoor-mat")
-      .replace(/new-02/g, "news-02")
-      .replace(/new-03/g, "news-03");
-
-    fallback = INITIAL_PRODUCTS.find(
-      (p) =>
-        p.isActive &&
-        (p.slug.toLowerCase() === normalized ||
-          p.id.toLowerCase() === normalized)
-    );
-  }
-
-  if (fallback) {
-    let seriesProducts: StorefrontSeriesItem[] = [];
-    if (fallback.productSeriesId) {
-      const siblings = INITIAL_PRODUCTS.filter(
-        (p) => p.productSeriesId === fallback!.productSeriesId && p.isActive
-      );
-      seriesProducts = siblings.map((sib) => ({
-        id: sib.id,
-        name: sib.name,
-        slug: sib.slug,
-        price: Number(sib.price),
-        discountPrice: sib.discountPrice ? Number(sib.discountPrice) : null,
-        dimensions: sib.dimensions ?? null,
-        weightGrams: sib.weightGrams ?? 250,
-        capacityNote: sib.capacityNote ?? null,
-        image:
-          sib.images[0] ||
-          "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=800&q=80",
-        isCurrent: sib.id === fallback!.id,
-      }));
-    }
-
-    return applyDiscountToSingleProduct(
-      formatFallbackProduct(fallback, seriesProducts)
-    );
+    console.error("[Storefront] Failed to load product lookup from database:", error);
   }
 
   return null;
@@ -686,127 +558,6 @@ function formatPrismaProduct(
     images,
     variants,
   };
-}
-
-type FallbackProductRecord = {
-  id: string;
-  name: string;
-  slug: string;
-  sku: string;
-  description: string;
-  price: number;
-  discountPrice?: number | null;
-  stock: number;
-  lowStockThreshold?: number;
-  weightGrams?: number;
-  dimensions?: string | null;
-  capacityNote?: string | null;
-  productSeriesId?: string | null;
-  productSeriesName?: string | null;
-  isNewArrival?: boolean;
-  isActive: boolean;
-  brandId: string;
-  brandName: string;
-  categoryId: string;
-  categoryName: string;
-  images?: string[];
-  variants?: {
-    id: string;
-    size: string;
-    color: string;
-    colorGroup?: string | null;
-    colorHex?: string | null;
-    image?: string | null;
-    stock: number;
-    lowStockThreshold?: number;
-    sku?: string;
-  }[];
-};
-
-function formatFallbackProduct(
-  p: FallbackProductRecord,
-  seriesProducts?: StorefrontSeriesItem[]
-): StorefrontProduct {
-  const images = (p.images ?? []).map((url: string, idx: number) => ({
-    id: `img-${idx}`,
-    url,
-    isPrimary: idx === 0,
-    sortOrder: idx,
-  }));
-
-  const variants: StorefrontVariant[] = (p.variants ?? []).map((v) => ({
-    id: v.id,
-    sku: v.sku,
-    size: v.size,
-    color: v.color,
-    colorGroup: v.colorGroup ?? null,
-    colorHex: v.colorHex ?? null,
-    image: v.image ?? null,
-    stock: v.stock,
-    lowStockThreshold: v.lowStockThreshold ?? p.lowStockThreshold ?? 5,
-  }));
-
-  const totalStock =
-    variants.length > 0
-      ? variants.reduce((sum, v) => sum + v.stock, 0)
-      : p.stock;
-
-  return {
-    id: p.id,
-    name: p.name,
-    slug: p.slug,
-    sku: p.sku,
-    description: p.description,
-    price: Number(p.price),
-    discountPrice: p.discountPrice ? Number(p.discountPrice) : null,
-    stock: totalStock,
-    lowStockThreshold: p.lowStockThreshold ?? 5,
-    dimensions: p.dimensions ?? null,
-    weightGrams: p.weightGrams ?? 250,
-    capacityNote: p.capacityNote ?? null,
-    productSeriesId: p.productSeriesId ?? null,
-    productSeries: p.productSeriesId
-      ? {
-          id: p.productSeriesId,
-          name: p.productSeriesName ?? "Product Series",
-          slug: slugifyFallback(p.productSeriesName ?? "Product Series"),
-        }
-      : null,
-    seriesProducts: seriesProducts && seriesProducts.length > 0 ? seriesProducts : undefined,
-    isNewArrival: p.isNewArrival ?? false,
-    isActive: p.isActive,
-    brand: {
-      id: p.brandId,
-      name: p.brandName,
-      slug: slugifyFallback(p.brandName),
-    },
-    category: {
-      id: p.categoryId,
-      name: p.categoryName,
-      slug: slugifyFallback(p.categoryName),
-    },
-    images:
-      images.length > 0
-        ? images
-        : [
-            {
-              id: "img-0",
-              url: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1200&q=85",
-              isPrimary: true,
-              sortOrder: 0,
-            },
-          ],
-    variants,
-  };
-}
-
-function slugifyFallback(text: string): string {
-  return text
-    .toLowerCase()
-    .trim()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/[\s_-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
 }
 
 import { getActiveStorefrontBanners } from "@/lib/banner-store.server";

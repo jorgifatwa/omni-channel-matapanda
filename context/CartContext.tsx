@@ -51,6 +51,8 @@ type AddToCartInput = {
 
 type CartContextType = {
   items: CartItem[];
+  /** True once the cart has been restored from browser storage */
+  isHydrated: boolean;
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
   addItem: (item: AddToCartInput) => void;
@@ -345,6 +347,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     <CartContext.Provider
       value={{
         items,
+        isHydrated: hydrated,
         isOpen,
         setIsOpen,
         addItem,
