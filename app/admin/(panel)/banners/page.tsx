@@ -34,6 +34,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { AlertDialog } from "@/components/ui/alert-dialog";
+import { UploadErrorDialog, readUploadError } from "@/components/admin/UploadErrorDialog";
 import {
   type AdminBannerItem,
   type BannerType,
@@ -58,6 +59,7 @@ export default function AdminBannersPage() {
   const [modalOpen, setModalOpen] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isUploading, setIsUploading] = React.useState(false);
+  const [uploadError, setUploadError] = React.useState<string | null>(null);
   const [isUploadingMobile, setIsUploadingMobile] = React.useState(false);
   const [editingBanner, setEditingBanner] = React.useState<AdminBannerItem | null>(null);
   const [deleteTarget, setDeleteTarget] = React.useState<AdminBannerItem | null>(null);
@@ -188,14 +190,16 @@ export default function AdminBannersPage() {
         body: formData,
       });
 
-      if (!res.ok) throw new Error("Upload gagal");
+      if (!res.ok) throw new Error(await readUploadError(res));
       const data = await res.json();
       if (data.url) {
         setImageUrl(data.url);
         showToast("success", "Foto banner berhasil diunggah!");
       }
-    } catch {
-      showToast("error", "Gagal mengunggah foto banner. Silakan masukkan URL gambar.");
+    } catch (err) {
+      setUploadError(
+        `${err instanceof Error ? err.message : "Gagal mengunggah gambar."}\n\nUpload foto banner gagal. Silakan masukkan URL gambar.`
+      );
     } finally {
       setIsUploading(false);
     }
@@ -217,14 +221,16 @@ export default function AdminBannersPage() {
         body: formData,
       });
 
-      if (!res.ok) throw new Error("Upload gagal");
+      if (!res.ok) throw new Error(await readUploadError(res));
       const data = await res.json();
       if (data.url) {
         setMobileImageUrl(data.url);
         showToast("success", "Foto banner mobile berhasil diunggah!");
       }
-    } catch {
-      showToast("error", "Gagal mengunggah foto banner mobile. Silakan masukkan URL gambar.");
+    } catch (err) {
+      setUploadError(
+        `${err instanceof Error ? err.message : "Gagal mengunggah gambar."}\n\nUpload foto banner mobile gagal. Silakan masukkan URL gambar.`
+      );
     } finally {
       setIsUploadingMobile(false);
     }
@@ -1148,6 +1154,7 @@ export default function AdminBannersPage() {
         description={`Apakah Anda yakin ingin menghapus slide "${deleteTarget?.title}"? Tindakan ini tidak dapat dibatalkan.`}
         onConfirm={handleDeleteConfirm}
       />
+      <UploadErrorDialog message={uploadError} onClose={() => setUploadError(null)} />
     </div>
   );
 }

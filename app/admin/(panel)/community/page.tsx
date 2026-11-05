@@ -31,6 +31,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { AlertDialog } from "@/components/ui/alert-dialog";
+import { UploadErrorDialog, readUploadError } from "@/components/admin/UploadErrorDialog";
 import { type CommunityPost } from "@/lib/community-store";
 import { adminFetchJson, adminRequestJson, errorMessage } from "@/lib/admin-request";
 
@@ -45,6 +46,7 @@ export default function AdminCommunityPage() {
   const [modalOpen, setModalOpen] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isUploading, setIsUploading] = React.useState(false);
+  const [uploadError, setUploadError] = React.useState<string | null>(null);
   const [editingPost, setEditingPost] = React.useState<CommunityPost | null>(null);
   const [deleteTarget, setDeleteTarget] = React.useState<CommunityPost | null>(null);
 
@@ -141,13 +143,15 @@ export default function AdminCommunityPage() {
         body: formData,
       });
 
-      if (!res.ok) throw new Error("Upload gagal");
+      if (!res.ok) throw new Error(await readUploadError(res));
       const json = await res.json();
-      if (!json.url) throw new Error("Upload gagal");
+      if (!json.url) throw new Error("Server tidak mengembalikan URL gambar.");
       setImage(json.url);
       showToast("success", "Gambar berhasil diunggah.");
-    } catch {
-      showToast("error", "Gagal mengunggah gambar. Silakan coba lagi atau masukkan URL gambar.");
+    } catch (err) {
+      setUploadError(
+        `${err instanceof Error ? err.message : "Gagal mengunggah gambar."}\n\nUpload gambar gagal. Silakan coba lagi atau masukkan URL gambar.`
+      );
     } finally {
       setIsUploading(false);
     }
@@ -816,6 +820,7 @@ export default function AdminCommunityPage() {
         description={`Apakah Anda yakin ingin menghapus postingan @${deleteTarget?.accountHandle}? Tindakan ini tidak dapat dibatalkan.`}
         onConfirm={handleDeleteConfirm}
       />
+      <UploadErrorDialog message={uploadError} onClose={() => setUploadError(null)} />
     </div>
   );
 }

@@ -24,6 +24,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { AlertDialog } from "@/components/ui/alert-dialog";
+import { UploadErrorDialog } from "@/components/admin/UploadErrorDialog";
 import { useAdminStore } from "@/context/AdminStoreContext";
 import { type AdminBrand, slugify } from "@/lib/admin-data";
 
@@ -45,6 +46,7 @@ export default function AdminBrandsPage() {
   const [isActive, setIsActive] = React.useState(true);
   const [isUploading, setIsUploading] = React.useState(false);
   const [formError, setFormError] = React.useState<string | null>(null);
+  const [uploadError, setUploadError] = React.useState<string | null>(null);
 
   const openCreateModal = () => {
     setEditingBrand(null);
@@ -85,10 +87,14 @@ export default function AdminBrandsPage() {
         method: "POST",
         body: formData,
       });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.url) setLogoUrl(data.url);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.url) {
+        setLogoUrl(data.url);
+      } else {
+        setUploadError(data.error || "Gagal mengunggah logo.");
       }
+    } catch {
+      setUploadError("Koneksi terputus saat mengunggah logo. Silakan coba lagi.");
     } finally {
       setIsUploading(false);
     }
@@ -359,6 +365,7 @@ export default function AdminBrandsPage() {
           }
         }}
       />
+      <UploadErrorDialog message={uploadError} onClose={() => setUploadError(null)} />
     </div>
   );
 }

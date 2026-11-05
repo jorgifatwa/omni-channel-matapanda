@@ -36,6 +36,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { AlertDialog } from "@/components/ui/alert-dialog";
+import { UploadErrorDialog } from "@/components/admin/UploadErrorDialog";
 import { useAdminStore } from "@/context/AdminStoreContext";
 import {
   type AdminProduct,
@@ -76,6 +77,7 @@ export default function AdminProductsPage() {
   const [isUploading, setIsUploading] = React.useState(false);
   const [variants, setVariants] = React.useState<AdminProductVariant[]>([]);
   const [formError, setFormError] = React.useState<string | null>(null);
+  const [uploadError, setUploadError] = React.useState<string | null>(null);
 
   const openCreateModal = () => {
     setEditingProduct(null);
@@ -150,6 +152,8 @@ export default function AdminProductsPage() {
     setIsUploading(true);
     try {
       const uploadedUrls: string[] = [];
+      const failed: string[] = [];
+      let lastError = "";
       for (const file of Array.from(files)) {
         const formData = new FormData();
         formData.append("file", file);
@@ -157,12 +161,20 @@ export default function AdminProductsPage() {
           method: "POST",
           body: formData,
         });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.url) uploadedUrls.push(data.url);
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.url) {
+          uploadedUrls.push(data.url);
+        } else {
+          failed.push(file.name);
+          lastError = data.error || "Gagal mengunggah gambar";
         }
       }
       setImages((prev) => [...prev, ...uploadedUrls]);
+      if (failed.length > 0) {
+        setUploadError(`${lastError}\n\nFile gagal: ${failed.join(", ")}`);
+      }
+    } catch {
+      setUploadError("Koneksi terputus saat mengunggah gambar. Silakan coba lagi.");
     } finally {
       setIsUploading(false);
     }
@@ -440,7 +452,7 @@ export default function AdminProductsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Master Product</h1>
           <p className="text-sm text-neutral-500 dark:text-neutral-400">
-            Kelola katalog produk, varian ukuran/warna, stok, dan foto Cloudinary.
+            Kelola katalog produk, varian ukuran/warna, stok, dan foto produk.
           </p>
         </div>
 
@@ -491,7 +503,7 @@ export default function AdminProductsPage() {
               {editingProduct ? "Edit Produk" : "Tambah Produk Baru"}
             </DialogTitle>
             <DialogDescription>
-              Lengkapi informasi produk, foto Cloudinary, serta daftar varian
+              Lengkapi informasi produk, foto produk, serta daftar varian
               ukuran dan warna di bawah ini.
             </DialogDescription>
           </DialogHeader>
@@ -650,7 +662,7 @@ export default function AdminProductsPage() {
               </div>
             </div>
 
-            {/* Multiple Image Upload (Cloudinary Drag & Drop + Reorder + Delete) */}
+            {/* Multiple Image Upload (Backblaze B2 Drag & Drop + Reorder + Delete) */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="flex items-center gap-2">
@@ -700,7 +712,7 @@ export default function AdminProductsPage() {
                 <UploadCloud className="mx-auto h-7 w-7 text-neutral-400 mb-2" />
                 <p className="text-xs font-medium">
                   Drag &amp; drop foto produk di sini, atau pilih file untuk
-                  diunggah ke Cloudinary
+                  diunggah ke Backblaze B2
                 </p>
                 <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-1">
                   Format: JPG, PNG, WEBP • Rasio 1:1 (min. 1000x1000px, rekomendasi 1200x1200px)
@@ -1063,6 +1075,7 @@ export default function AdminProductsPage() {
           }
         }}
       />
+      <UploadErrorDialog message={uploadError} onClose={() => setUploadError(null)} />
     </div>
   );
 }

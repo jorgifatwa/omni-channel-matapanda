@@ -102,7 +102,7 @@ const CHECKS = [
     ],
   },
   {
-    category: "3. Media Storage (Backblaze B2 / Cloudinary)",
+    category: "3. Media Storage (Backblaze B2)",
     items: [
       {
         key: "STORAGE_ENDPOINT",

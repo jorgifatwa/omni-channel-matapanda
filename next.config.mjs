@@ -35,14 +35,6 @@ const nextConfig = {
         protocol: "https",
         hostname: "**.tokopedia.net",
       },
-      {
-        protocol: "https",
-        hostname: "**.r2.dev",
-      },
-      {
-        protocol: "https",
-        hostname: "res.cloudinary.com",
-      },
     ],
   },
   async headers() {

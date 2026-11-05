@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { getStorageClient, uploadToStorage } from "@/lib/storage";
 
+/**
+ * Admin image upload. Files go ONLY to Backblaze B2 (private bucket,
+ * served via /api/media). There is no fallback provider.
+ */
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
@@ -14,68 +18,28 @@ export async function POST(request: Request) {
       );
     }
 
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    if (!getStorageClient()) {
+      console.error("Upload rejected: STORAGE_* env vars are not configured");
+      return NextResponse.json(
+        { error: "Penyimpanan gambar (Backblaze B2) belum dikonfigurasi" },
+        { status: 500 }
+      );
+    }
+
+    const buffer = Buffer.from(await file.arrayBuffer());
     const mimeType = file.type || "image/jpeg";
     const fileName = file.name || "upload.jpg";
 
-    // 1. Primary: S3-compatible object storage (Backblaze B2, private bucket
-    //    served through /api/media)
-    if (getStorageClient()) {
-      try {
-        const result = await uploadToStorage(buffer, fileName, mimeType, folder);
-        return NextResponse.json({
-          url: result.url,
-          publicId: result.key,
-          provider: "backblaze_b2",
-        });
-      } catch (storageError) {
-        console.error("Object storage upload error:", storageError);
-        // If storage fails, proceed to fallback options below
-      }
-    }
-
-    // 2. Secondary: Cloudinary REST API fallback
-    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-    const uploadPreset =
-      process.env.CLOUDINARY_UPLOAD_PRESET || "matapanda_unsigned";
-
-    if (cloudName && cloudName !== "demo" && cloudName !== "your-cloud-name") {
-      const cloudinaryForm = new FormData();
-      cloudinaryForm.append("file", file);
-      cloudinaryForm.append("upload_preset", uploadPreset);
-
-      const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-        {
-          method: "POST",
-          body: cloudinaryForm,
-        }
-      );
-
-      if (response.ok) {
-        const result = await response.json();
-        return NextResponse.json({
-          url: result.secure_url,
-          publicId: result.public_id,
-          provider: "cloudinary",
-        });
-      }
-    }
-
-    // 3. Sandbox Development Fallback: Base64 data URI
-    const base64 = buffer.toString("base64");
-    const dataUrl = `data:${mimeType};base64,${base64}`;
-
+    const result = await uploadToStorage(buffer, fileName, mimeType, folder);
     return NextResponse.json({
-      url: dataUrl,
-      publicId: `local_${Date.now()}`,
-      provider: "local_sandbox",
+      url: result.url,
+      publicId: result.key,
+      provider: "backblaze_b2",
     });
   } catch (error) {
-    console.error("Upload error:", error);
+    console.error("Backblaze B2 upload error:", error);
     return NextResponse.json(
-      { error: "Gagal mengunggah gambar" },
+      { error: "Gagal mengunggah gambar ke Backblaze B2" },
       { status: 500 }
     );
   }
