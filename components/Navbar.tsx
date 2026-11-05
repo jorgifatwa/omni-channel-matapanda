@@ -1296,7 +1296,7 @@ export default function Navbar() {
                         <p className="text-xs font-black text-[#396254] dark:text-[#dcf58d]">
                           {formatPrice(product.discountPrice ?? product.price)}
                         </p>
-                        {product.discountPrice && (
+                        {Boolean(product.discountPrice) && (
                           <p className="text-[10px] text-neutral-400 line-through">
                             {formatPrice(product.price)}
                           </p>

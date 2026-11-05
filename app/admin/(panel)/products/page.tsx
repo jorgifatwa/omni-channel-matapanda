@@ -360,7 +360,7 @@ export default function AdminProductsPage() {
           <p className="font-semibold text-xs">
             {formatIDR(row.original.discountPrice ?? row.original.price)}
           </p>
-          {row.original.discountPrice && (
+          {Boolean(row.original.discountPrice) && (
             <p className="text-[10px] text-neutral-400 line-through">
               {formatIDR(row.original.price)}
             </p>

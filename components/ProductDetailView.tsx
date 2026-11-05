@@ -357,7 +357,7 @@ export default function ProductDetailView({
                   <span>NEW</span>
                 </span>
               )}
-              {product.discountPrice && (
+              {Boolean(product.discountPrice) && (
                 <span className="inline-flex items-center bg-[#ED96D7] text-white text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-sm font-heading">
                   <span>
                     {product.discount?.discountPercent
@@ -470,14 +470,14 @@ export default function ProductDetailView({
             <span className="text-2xl sm:text-3xl font-black text-[#396254] dark:text-[#dcf58d] font-heading tracking-tight">
               {formatPrice(displayPrice)}
             </span>
-            {product.discountPrice && (
+            {Boolean(product.discountPrice) && (
               <span className="text-sm sm:text-base text-neutral-400 dark:text-neutral-500 line-through">
                 {formatPrice(product.price)}
               </span>
             )}
-            {product.discount?.discountPercent && (
+            {Boolean(product.discount?.discountPercent) && (
               <span className="text-xs font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/40 px-2.5 py-0.5 rounded-full font-heading">
-                Hemat {product.discount.discountPercent}%
+                Hemat {product.discount?.discountPercent}%
               </span>
             )}
             <span className="text-xs text-neutral-400 dark:text-neutral-500 font-mono ml-auto">

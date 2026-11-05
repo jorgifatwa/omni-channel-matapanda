@@ -85,7 +85,7 @@ export default function CompareSeriesSection({
                   <span className="font-black text-sm text-[#396254] dark:text-[#dcf58d] font-heading">
                     {formatIDR(item.discountPrice ?? item.price)}
                   </span>
-                  {item.discountPrice && (
+                  {Boolean(item.discountPrice) && (
                     <span className="text-xs text-neutral-400 dark:text-neutral-500 line-through">
                       {formatIDR(item.price)}
                     </span>

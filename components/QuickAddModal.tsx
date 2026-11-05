@@ -230,7 +230,7 @@ export default function QuickAddModal({
                   <span>NEW</span>
                 </span>
               )}
-              {product.discountPrice && (
+              {Boolean(product.discountPrice) && (
                 <span className="inline-flex items-center bg-red-600 text-white text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-sm">
                   <span>
                     {product.discount?.discountPercent
@@ -256,7 +256,7 @@ export default function QuickAddModal({
                   <span className="text-base sm:text-lg font-black text-[#396254] dark:text-[#dcf58d] font-heading">
                     {formatPrice(displayPrice)}
                   </span>
-                  {product.discountPrice && (
+                  {Boolean(product.discountPrice) && (
                     <span className="text-xs sm:text-sm text-neutral-400 dark:text-neutral-500 line-through font-medium">
                       {formatPrice(product.price)}
                     </span>

@@ -257,7 +257,7 @@ export default function ProductCard({
           )}
 
           {/* Top Left Badges: SALE */}
-          {product.discountPrice && (
+          {Boolean(product.discountPrice) && (
             <div className="absolute top-2.5 left-2.5 z-20 flex flex-col gap-1 items-start pointer-events-none">
               <span className="bg-red-600 text-white text-[9px] sm:text-[10px] uppercase font-bold tracking-[0.14em] px-2 py-0.5 shadow-sm">
                 {product.discount?.discountPercent
@@ -434,7 +434,7 @@ export default function ProductCard({
             <span className="text-xs sm:text-[13px] font-bold text-black tracking-tight">
               {formatPrice(displayPrice)}
             </span>
-            {product.discountPrice && (
+            {Boolean(product.discountPrice) && (
               <span className="text-xs text-neutral-400 line-through">
                 {formatPrice(product.price)}
               </span>
