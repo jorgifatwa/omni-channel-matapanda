@@ -4,6 +4,13 @@ import { INITIAL_ORDERS, type AdminOrder, type AdminOrderItem } from "@/lib/admi
 import crypto from "crypto";
 import { OrderStatus, PaymentStatus, ShipmentStatus, CourierType } from "@prisma/client";
 
+function toCourierType(courier: unknown): CourierType {
+  const code = String(courier || "").toUpperCase().replace(/[^A-Z]/g, "");
+  return (Object.values(CourierType) as string[]).includes(code)
+    ? (code as CourierType)
+    : CourierType.JNE;
+}
+
 function isValidUuid(id?: string | null): boolean {
   if (!id) return false;
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
@@ -81,7 +88,7 @@ export async function GET() {
           paymentStatus: pStatus,
           orderStatus: oStatus,
           shipmentStatus: sStatus,
-          courier: (o.shipment?.courier as "JNE" | "DHL") || "JNE",
+          courier: o.shipment?.courier || "JNE",
           courierService: o.shipment?.serviceName || "REG",
           trackingNumber: o.shipment?.trackingNumber || "-",
           items: o.items.map((it) => ({
@@ -220,7 +227,7 @@ export async function POST(request: Request) {
           shipment: {
             create: {
               id: crypto.randomUUID(),
-              courier: courier === "DHL" ? CourierType.DHL : CourierType.JNE,
+              courier: toCourierType(courier),
               serviceName: courierService || "REG",
               trackingNumber: trackingNumber && trackingNumber !== "-" ? trackingNumber : null,
               status: (shipmentStatus as ShipmentStatus) || ShipmentStatus.PENDING,

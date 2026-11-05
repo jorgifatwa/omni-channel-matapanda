@@ -25,6 +25,9 @@ import { saveOrderLocally } from "@/context/AdminStoreContext";
 import { type AdminOrder } from "@/lib/admin-data";
 
 interface ShippingOption {
+  id: string;
+  courier: string;
+  courierName: string;
   service: string;
   name: string;
   cost: number;
@@ -155,8 +158,8 @@ export default function CheckoutPage() {
     let isCancelled = false;
 
     async function fetchShippingCost() {
-      // Only fetch if city or address is being entered
-      if (!city || city.trim().length < 2) {
+      // Only fetch if city is being entered (min 3 chars to save RajaOngkir quota)
+      if (!city || city.trim().length < 3) {
         setShippingRates([]);
         setSelectedRate(null);
         return;
@@ -172,15 +175,19 @@ export default function CheckoutPage() {
             destinationCountryCode: isDomestic ? "ID" : "INTL",
             destinationProvince: province,
             destinationCity: city,
+            destinationPostalCode: isDomestic ? postalCode : "",
             weightGrams: 500,
           }),
         });
 
         if (res.ok) {
           const data = await res.json();
-          if (!isCancelled && data.rates && data.rates.length > 0) {
-            setShippingRates(data.rates);
-            setSelectedRate(data.rates[0]);
+          if (!isCancelled) {
+            const rates: ShippingOption[] = data.rates || [];
+            setShippingRates(rates);
+            setSelectedRate((prev) =>
+              rates.find((r) => r.id === prev?.id) || rates[0] || null
+            );
             setShippingProvider(data.provider || "");
           }
         }
@@ -193,12 +200,12 @@ export default function CheckoutPage() {
       }
     }
 
-    const timer = setTimeout(fetchShippingCost, 350);
+    const timer = setTimeout(fetchShippingCost, 800);
     return () => {
       isCancelled = true;
       clearTimeout(timer);
     };
-  }, [country, province, city, isDomestic]);
+  }, [country, province, city, postalCode, isDomestic]);
 
   // When changing country, reset city and trigger appropriate courier
   const handleCountryChange = (newCountry: string) => {
@@ -227,14 +234,14 @@ export default function CheckoutPage() {
     setIsProcessingPayment(true);
 
     const orderNumber = `ZDC-${Date.now().toString().slice(-8)}`;
-    const courierType = isDomestic ? "JNE" : "DHL";
+    const courierType = selectedRate?.courier || (isDomestic ? "JNE" : "DHL");
     const courierService = selectedRate
       ? selectedRate.name
       : isDomestic
       ? "JNE REG"
       : "DHL Express Worldwide";
     const trackingNumber = isDomestic
-      ? `JNE0098${Math.floor(10000000 + Math.random() * 90000000)}`
+      ? `${courierType}0098${Math.floor(10000000 + Math.random() * 90000000)}`
       : `DHL${Math.floor(1000000000 + Math.random() * 9000000000)}`;
 
     const newOrder: AdminOrder = {
@@ -735,7 +742,7 @@ export default function CheckoutPage() {
                     </h2>
                     <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-[#d5c6ff]/30 text-[#396254] dark:text-[#d5c6ff] flex items-center gap-1">
                       <MapPin className="h-3.5 w-3.5" />
-                      {isDomestic ? "Domestik (JNE)" : "Internasional (DHL)"}
+                      {isDomestic ? "Domestik (JNE, J&T, SiCepat, dll)" : "Internasional (DHL)"}
                     </span>
                   </div>
 
@@ -754,7 +761,7 @@ export default function CheckoutPage() {
                         onChange={(e) => handleCountryChange(e.target.value)}
                         className="appearance-none w-full h-14 pt-5 pb-1.5 px-4 pr-10 rounded-2xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-base text-neutral-900 dark:text-white focus:outline-none focus:border-[#396254] focus:ring-2 focus:ring-[#d5c6ff]/50 cursor-pointer shadow-sm font-medium"
                       >
-                        <option value="Indonesia">Indonesia (Kurir JNE Express)</option>
+                        <option value="Indonesia">Indonesia (JNE, J&T, SiCepat, dll)</option>
                         <option value="Singapore">Singapore (DHL Express)</option>
                         <option value="Malaysia">Malaysia (DHL Express)</option>
                         <option value="Japan">Japan (DHL Express)</option>
@@ -890,7 +897,7 @@ export default function CheckoutPage() {
                     <h3 className="text-lg sm:text-xl font-black text-[#396254] dark:text-white flex items-center gap-2">
                       <Truck className="h-5 w-5 text-[#396254] dark:text-[#dcf58d]" />
                       <span>
-                        3. Opsi Kurir ({isDomestic ? "JNE Express" : "DHL Express"})
+                        3. Opsi Kurir ({isDomestic ? "Domestik" : "DHL Express"})
                       </span>
                     </h3>
                     {isLoadingShipping && (
@@ -902,7 +909,7 @@ export default function CheckoutPage() {
                   </div>
 
                   {/* Empty state when address/city is not filled */}
-                  {!city || city.trim().length < 2 ? (
+                  {!city || city.trim().length < 3 ? (
                     <div className="w-full rounded-3xl border-2 border-dashed border-[#396254]/20 bg-[#396254]/5 dark:bg-neutral-900/40 px-6 py-8 text-xs text-neutral-600 dark:text-neutral-400 text-center flex flex-col items-center justify-center gap-2">
                       <div className="w-12 h-12 rounded-2xl bg-[#d5c6ff]/40 flex items-center justify-center text-[#396254]">
                         <MapPin className="h-6 w-6" />
@@ -911,7 +918,7 @@ export default function CheckoutPage() {
                         Masukkan kota tujuan di atas terlebih dahulu
                       </p>
                       <p className="text-[11px] text-neutral-500 max-w-sm">
-                        Opsi layanan kurir {isDomestic ? "JNE Express" : "DHL Express Worldwide"} dan ongkos kirim akan muncul otomatis di sini
+                        Opsi layanan kurir {isDomestic ? "JNE, J&T, SiCepat, dan lainnya" : "DHL Express Worldwide"} dan ongkos kirim akan muncul otomatis di sini
                       </p>
                     </div>
                   ) : shippingRates.length === 0 && !isLoadingShipping ? (
@@ -921,10 +928,10 @@ export default function CheckoutPage() {
                   ) : (
                     <div className="space-y-3">
                       {shippingRates.map((rate) => {
-                        const isSelected = selectedRate?.service === rate.service;
+                        const isSelected = selectedRate?.id === rate.id;
                         return (
                           <label
-                            key={rate.service}
+                            key={rate.id}
                             onClick={() => setSelectedRate(rate)}
                             className={`flex items-center justify-between p-4.5 rounded-2xl border-2 cursor-pointer transition-all ${
                               isSelected
@@ -947,7 +954,7 @@ export default function CheckoutPage() {
                                   <span>{rate.name}</span>
                                   {isDomestic ? (
                                     <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-[#d5c6ff]/40 text-[#396254] font-bold">
-                                      JNE
+                                      {rate.courierName}
                                     </span>
                                   ) : (
                                     <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold">
@@ -974,9 +981,9 @@ export default function CheckoutPage() {
                           </label>
                         );
                       })}
-                      {shippingProvider === "rajaongkir_starter" && (
+                      {shippingProvider === "rajaongkir" && (
                         <p className="text-[11px] text-neutral-400 pt-1 text-right font-medium">
-                          Tarif resmi dihitung via RajaOngkir Live API (JNE)
+                          Tarif resmi dihitung via RajaOngkir Live API
                         </p>
                       )}
                     </div>
@@ -1320,7 +1327,7 @@ export default function CheckoutPage() {
               </div>
               <p className="text-[11px] leading-relaxed text-neutral-600 dark:text-neutral-400">
                 {isDomestic
-                  ? "Seluruh pesanan dalam negeri dikirim langsung dari Jakarta menggunakan JNE Express terpercaya berasuransi penuh."
+                  ? "Seluruh pesanan dalam negeri dikirim langsung dari Bandung menggunakan kurir pilihan Anda."
                   : "Pesanan internasional dikirim dengan prioritas tinggi via DHL Express Worldwide terlacak langsung."}
               </p>
             </div>

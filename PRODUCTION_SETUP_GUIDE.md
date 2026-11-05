@@ -167,18 +167,23 @@ Midtrans memproses pembayaran otomatis di Indonesia melalui QRIS (GoPay, OVO, Sh
 
 ## 5. Integrasi Ongkos Kirim (RajaOngkir)
 
-Digunakan untuk menghitung ongkos kirim real-time JNE, TIKI, dan POS Indonesia ke seluruh kota/kabupaten di Indonesia.
+Digunakan untuk menghitung ongkos kirim real-time JNE, J&T, SiCepat, AnterAja, POS Indonesia, dan kurir lain ke seluruh Indonesia melalui API RajaOngkir by Komerce (`https://rajaongkir.komerce.id/api/v1`).
 
 ### Langkah-langkah:
-1. Daftar akun di [RajaOngkir](https://rajaongkir.com/).
-2. Masuk ke panel akun Anda dan salin **API Key**.
-3. Tentukan Kota Asal Pengiriman Toko (**Origin City ID**):
-   - Contoh: Jakarta Selatan = `153`, Jakarta Pusat = `152`, Bandung = `23`, Surabaya = `444`.
+1. Daftar / login di [RajaOngkir](https://rajaongkir.com/).
+2. Salin **API Key** (Shipping Cost API) dari dashboard.
+3. Tentukan **Origin ID** toko (ID kelurahan versi Komerce, bukan City ID lama):
+   ```bash
+   curl -H "key: API_KEY_ANDA" "https://rajaongkir.komerce.id/api/v1/destination/domestic-destination?search=kiaracondong&limit=10&offset=0"
+   ```
+   Pilih `id` kelurahan lokasi pickup Anda. Jika dikosongkan, aplikasi mencari otomatis dari `RAJAONGKIR_ORIGIN_SEARCH` dan memakai hasil pertama.
 4. **Konfigurasi di `.env` Production**:
    ```env
    RAJAONGKIR_API_KEY="api-key-rajaongkir-anda"
-   RAJAONGKIR_ORIGIN_CITY_ID="153"
+   RAJAONGKIR_ORIGIN_ID="4922"
+   RAJAONGKIR_COURIERS="jne,jnt,sicepat,anteraja,pos"
    ```
+5. Terapkan perubahan enum kurir ke database: `npx prisma migrate deploy` (atau `npx prisma db push`).
 
 ---
 
@@ -276,9 +281,10 @@ R2_SECRET_ACCESS_KEY="r2-secret-access-key"
 R2_BUCKET_NAME="nama-bucket-anda"
 R2_PUBLIC_URL="https://assets.domain-anda.com"
 
-# LOGISTIK (RAJAONGKIR)
+# LOGISTIK (RAJAONGKIR by Komerce)
 RAJAONGKIR_API_KEY="api-key-rajaongkir"
-RAJAONGKIR_ORIGIN_CITY_ID="153"
+RAJAONGKIR_ORIGIN_ID="4922"
+RAJAONGKIR_COURIERS="jne,jnt,sicepat,anteraja,pos"
 
 # PAYMENT GATEWAY (MIDTRANS)
 MIDTRANS_IS_PRODUCTION="true"

@@ -87,10 +87,11 @@ R2_BUCKET_NAME="matapanda-images"
 R2_PUBLIC_URL="https://pub-your-bucket-id.r2.dev"
 
 # ==========================================
-# RAJAONGKIR (Domestic Indonesia Shipping - JNE Real-Time)
+# RAJAONGKIR by Komerce (JNE, J&T, SiCepat, AnterAja, POS - Real-Time)
 # ==========================================
 RAJAONGKIR_API_KEY="your-rajaongkir-api-key"
-RAJAONGKIR_ORIGIN_CITY_ID="153" # 153 = Jakarta Selatan (it's matapanda Origin)
+RAJAONGKIR_ORIGIN_ID="4922" # 4922 = Babakan Sari, Kiaracondong, Bandung
+RAJAONGKIR_COURIERS="jne,jnt,sicepat,anteraja,pos"
 
 # ==========================================
 # MIDTRANS PAYMENT GATEWAY (Sandbox / Production)

@@ -32,6 +32,16 @@ enum PaymentStatus {
 enum CourierType {
   JNE
   DHL
+  JNT
+  SICEPAT
+  ANTERAJA
+  POS
+  TIKI
+  NINJA
+  LION
+  SAP
+  IDE
+  WAHANA
 }
 
 enum ShipmentStatus {

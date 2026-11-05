@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import {
   calculateRajaOngkirRates,
-  resolveRajaOngkirCityId,
+  getOriginId,
+  isRajaOngkirConfigured,
+  resolveDestinationId,
   type ShippingRateOption,
 } from "@/lib/rajaongkir";
 
@@ -11,8 +13,8 @@ export async function POST(request: Request) {
     const {
       destinationCountry = "Indonesia",
       destinationCountryCode = "ID",
-      destinationProvince = "Jakarta",
       destinationCity = "Jakarta",
+      destinationPostalCode = "",
       weightGrams = 500,
     } = body;
 
@@ -21,39 +23,34 @@ export async function POST(request: Request) {
       destinationCountry.toLowerCase().includes("indonesia");
 
     if (isDomestic) {
-      const originCityId =
-        process.env.RAJAONGKIR_ORIGIN_CITY_ID || "23"; // 23 = Kota Bandung (Kiara Condong Origin)
-      const destinationCityId = resolveRajaOngkirCityId(
-        destinationCity,
-        destinationProvince
-      );
-
-      // 1. Try Live RajaOngkir Starter API if configured
-      const rajaOngkirKey = process.env.RAJAONGKIR_API_KEY;
-      if (
-        rajaOngkirKey &&
-        rajaOngkirKey !== "your-rajaongkir-api-key" &&
-        rajaOngkirKey !== "demo-rajaongkir-key"
-      ) {
+      // 1. Live RajaOngkir (Komerce) API: JNE, J&T, SiCepat, AnterAja, POS, ...
+      if (isRajaOngkirConfigured()) {
         try {
-          const liveRates = await calculateRajaOngkirRates(
-            originCityId,
-            destinationCityId,
-            weightGrams,
-            "jne"
-          );
+          const [originId, destinationId] = await Promise.all([
+            getOriginId(),
+            resolveDestinationId(String(destinationCity), String(destinationPostalCode)),
+          ]);
 
-          if (liveRates && liveRates.length > 0) {
-            return NextResponse.json({
-              courier: "JNE",
-              provider: "rajaongkir_starter",
-              destination: destinationCity,
-              destinationCityId,
-              originCityId,
-              country: "Indonesia",
-              weightGrams,
-              rates: liveRates,
-            });
+          if (destinationId) {
+            const liveRates = await calculateRajaOngkirRates(
+              originId,
+              destinationId,
+              Number(weightGrams) || 500
+            );
+
+            if (liveRates.length > 0) {
+              return NextResponse.json({
+                provider: "rajaongkir",
+                destination: destinationCity,
+                destinationId,
+                originId,
+                country: "Indonesia",
+                weightGrams,
+                rates: liveRates,
+              });
+            }
+          } else {
+            console.warn(`[RajaOngkir] Destination not found for "${destinationCity}"`);
           }
         } catch (roError) {
           console.warn(
@@ -97,6 +94,9 @@ export async function POST(request: Request) {
 
       const fallbackRates: ShippingRateOption[] = [
         {
+          id: "JNE_REG",
+          courier: "JNE",
+          courierName: "JNE",
           service: "REG",
           name: "JNE Reguler (REG)",
           cost: regRate * weightKg,
@@ -104,6 +104,9 @@ export async function POST(request: Request) {
           estimatedDays: "2-3 Hari",
         },
         {
+          id: "JNE_YES",
+          courier: "JNE",
+          courierName: "JNE",
           service: "YES",
           name: "JNE Yakin Esok Sampai (YES)",
           cost: yesRate * weightKg,
@@ -111,6 +114,9 @@ export async function POST(request: Request) {
           estimatedDays: "1 Hari (Besok Sampai)",
         },
         {
+          id: "JNE_OKE",
+          courier: "JNE",
+          courierName: "JNE",
           service: "OKE",
           name: "JNE Ongkos Kirim Ekonomis (OKE)",
           cost: okeRate * weightKg,
@@ -120,7 +126,6 @@ export async function POST(request: Request) {
       ];
 
       return NextResponse.json({
-        courier: "JNE",
         provider: "local_estimation",
         destination: destinationCity,
         country: "Indonesia",
@@ -158,13 +163,15 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({
-      courier: "DHL",
       provider: "dhl_express",
       destination: destinationCity,
       country: destinationCountry,
       weightGrams,
       rates: [
         {
+          id: "DHL_EXPRESS_WORLDWIDE",
+          courier: "DHL",
+          courierName: "DHL Express",
           service: "EXPRESS_WORLDWIDE",
           name: "DHL Express Worldwide (Air Priority)",
           cost: dhlCostIDR,

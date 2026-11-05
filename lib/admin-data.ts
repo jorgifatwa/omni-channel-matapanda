@@ -110,7 +110,8 @@ export type AdminOrder = {
     | "IN_TRANSIT"
     | "OUT_FOR_DELIVERY"
     | "DELIVERED";
-  courier: "JNE" | "DHL";
+  /** Uppercase courier code, e.g. "JNE", "JNT", "SICEPAT", "DHL" */
+  courier: string;
   courierService: string;
   trackingNumber: string;
   items: AdminOrderItem[];
