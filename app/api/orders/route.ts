@@ -26,6 +26,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Data pesanan tidak valid." }, { status: 400 });
   }
 
+  // Contact & address must be real buyer input (no placeholder fallbacks).
+  const input = body as {
+    customerEmail?: unknown;
+    customerPhone?: unknown;
+    shippingAddress?: { street?: unknown; city?: unknown } | null;
+  };
+  const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(str(input.customerEmail))) {
+    return NextResponse.json({ error: "Email pembeli wajib diisi dengan benar." }, { status: 400 });
+  }
+  if (str(input.customerPhone).replace(/\D/g, "").length < 8) {
+    return NextResponse.json({ error: "Nomor handphone / WhatsApp wajib diisi." }, { status: 400 });
+  }
+  if (!str(input.shippingAddress?.street) || !str(input.shippingAddress?.city)) {
+    return NextResponse.json({ error: "Alamat dan kota pengiriman wajib diisi." }, { status: 400 });
+  }
+
   let pricing: OrderPricing;
   try {
     pricing = await priceCheckoutOrder(body as Record<string, unknown>);

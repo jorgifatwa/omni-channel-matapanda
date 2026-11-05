@@ -18,7 +18,6 @@ import {
   TrendingDown,
   Download,
   CalendarDays,
-  Sparkles,
   RefreshCw,
   XCircle,
   PackageCheck,
@@ -360,15 +359,7 @@ function DashboardContent() {
       {/* Top Header & Export Action */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-            {analyticsData?.isFromDatabase && (
-              <Badge variant="outline" className="text-[10px] gap-1 font-mono">
-                <Sparkles className="h-3 w-3 text-emerald-500" />
-                Live DB
-              </Badge>
-            )}
-          </div>
+          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-sm text-neutral-500 dark:text-neutral-400">
             Ringkasan performa penjualan, analitik periode, dan laporan transaksi it&apos;s matapanda.
           </p>

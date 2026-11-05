@@ -173,7 +173,7 @@ function TrackingContent() {
           Lacak Paketmu
         </h1>
         <p className="text-xs sm:text-sm text-neutral-600 leading-relaxed font-medium">
-          Masukkan Nomor Order ID (contoh: <span className="font-mono font-bold text-[#396254] bg-[#d5c6ff]/30 px-2 py-0.5 rounded-md">ZDC-2026-9812</span>) atau Nomor Resi Kurir Anda untuk cek posisi paketmu secara instan!
+          Masukkan Nomor Order ID (contoh: <span className="font-mono font-bold text-[#396254] bg-[#d5c6ff]/30 px-2 py-0.5 rounded-md">ZDC-12345678</span>) atau Nomor Resi Kurir Anda untuk cek posisi paketmu secara instan!
         </p>
       </div>
 
@@ -196,7 +196,7 @@ function TrackingContent() {
                 id="searchKey"
                 type="text"
                 required
-                placeholder="Contoh: ZDC-2026-9812 atau JNE009823718291"
+                placeholder="Contoh: ZDC-12345678 atau JNE009823718291"
                 value={searchKey}
                 onChange={(e) => setSearchKey(e.target.value)}
                 className="w-full rounded-2xl border border-neutral-300 py-3.5 pl-4 pr-10 text-sm text-black placeholder:text-neutral-400 focus:border-[#396254] focus:outline-none focus:ring-2 focus:ring-[#396254]/20 transition-all font-medium"

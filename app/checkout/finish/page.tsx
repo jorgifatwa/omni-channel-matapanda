@@ -91,7 +91,7 @@ function FinishContent() {
                   Yess! Pesanan Kamu Sukses
                 </h1>
                 <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-300 leading-relaxed max-w-md mx-auto">
-                  Transaksi Midtrans kamu telah terverifikasi otomatis (Settlement). Paket imutmu sedang disiapkan dengan penuh cinta oleh tim it&apos;smatapanda!
+                  Pembayaran kamu sudah diterima. Status pesanan akan diperbarui otomatis dan paketmu segera disiapkan oleh tim it&apos;smatapanda. Simpan Nomor Order ID di bawah untuk melacak pesanan.
                 </p>
               </div>
 
@@ -104,34 +104,14 @@ function FinishContent() {
                   </span>
                 </div>
 
-                <div className="flex items-center justify-between border-b border-[#396254]/10 dark:border-neutral-700/60 pb-3">
+                <div className="flex items-center justify-between">
                   <span className="text-neutral-500 dark:text-neutral-400 font-medium">Status Pembayaran</span>
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#dcf58d] font-bold text-[#396254] text-[11px] shadow-sm">
                     <PackageCheck className="h-3.5 w-3.5" />
-                    LUNAS (Settlement)
+                    Berhasil
                   </span>
                 </div>
 
-                <div className="flex items-center justify-between border-b border-[#396254]/10 dark:border-neutral-700/60 pb-3">
-                  <span className="text-neutral-500 dark:text-neutral-400 font-medium">Metode Kurir</span>
-                  <span className="font-bold text-neutral-900 dark:text-neutral-100 flex items-center gap-1.5 bg-[#d5c6ff]/30 px-2.5 py-1 rounded-full">
-                    <Truck className="h-3.5 w-3.5 text-[#396254]" />
-                    JNE Express (Reguler)
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between pt-1">
-                  <span className="text-neutral-500 dark:text-neutral-400 font-medium">Waktu Transaksi</span>
-                  <span className="text-neutral-700 dark:text-neutral-300 font-medium">
-                    {new Date().toLocaleDateString("id-ID", {
-                      day: "numeric",
-                      month: "long",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </span>
-                </div>
               </div>
 
               {/* Action Buttons */}
