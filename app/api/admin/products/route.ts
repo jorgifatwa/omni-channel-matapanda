@@ -119,48 +119,71 @@ export async function POST(request: Request) {
 
     try {
       // 1. Ensure a valid brand exists
-      let validBrandId = brandId;
-      if (!isValidUuid(validBrandId)) {
+      // The admin form falls back to a hard-coded UUID when the DB has no
+      // brands yet, so check the row actually exists, not just the format.
+      let validBrandId: string | null = null;
+      if (isValidUuid(brandId)) {
+        const found = await prisma.brand.findFirst({
+          where: { id: brandId, deletedAt: null },
+          select: { id: true },
+        });
+        validBrandId = found?.id ?? null;
+      }
+      if (!validBrandId) {
         const defaultBrand = await prisma.brand.findFirst({
           where: { isActive: true, deletedAt: null },
+          select: { id: true },
         });
-        if (defaultBrand) {
-          validBrandId = defaultBrand.id;
-        } else {
-          const createdBrand = await prisma.brand.create({
-            data: {
-              name: "it'smatapanda",
-              slug: "itsmatapanda",
-              logoUrl: "/matapanda-logo.png",
-            },
-          });
-          validBrandId = createdBrand.id;
-        }
+        validBrandId =
+          defaultBrand?.id ??
+          (
+            await prisma.brand.upsert({
+              where: { slug: "itsmatapanda" },
+              update: { isActive: true, deletedAt: null },
+              create: {
+                name: "it'smatapanda",
+                slug: "itsmatapanda",
+                logoUrl: "/matapanda-logo.png",
+              },
+              select: { id: true },
+            })
+          ).id;
       }
 
       // 2. Ensure a valid category exists
-      let validCategoryId = categoryId;
-      if (!isValidUuid(validCategoryId)) {
+      let validCategoryId: string | null = null;
+      if (isValidUuid(categoryId)) {
+        const found = await prisma.category.findFirst({
+          where: { id: categoryId, deletedAt: null },
+          select: { id: true },
+        });
+        validCategoryId = found?.id ?? null;
+      }
+      if (!validCategoryId) {
         const defaultCat = await prisma.category.findFirst({
           where: { isActive: true, deletedAt: null },
+          select: { id: true },
         });
-        if (defaultCat) {
-          validCategoryId = defaultCat.id;
-        } else {
-          const createdCat = await prisma.category.create({
-            data: {
-              name: "Sling & Crossbody",
-              slug: "sling-crossbody",
-            },
-          });
-          validCategoryId = createdCat.id;
-        }
+        validCategoryId =
+          defaultCat?.id ??
+          (
+            await prisma.category.upsert({
+              where: { slug: "sling-crossbody" },
+              update: { isActive: true, deletedAt: null },
+              create: { name: "Sling & Crossbody", slug: "sling-crossbody" },
+              select: { id: true },
+            })
+          ).id;
       }
 
-      // 3. Check productSeriesId validity
+      // 3. Check productSeriesId validity (must exist, otherwise no series)
       let validSeriesId: string | null = null;
       if (isValidUuid(productSeriesId)) {
-        validSeriesId = productSeriesId;
+        const found = await prisma.productSeries.findFirst({
+          where: { id: productSeriesId },
+          select: { id: true },
+        });
+        validSeriesId = found?.id ?? null;
       }
 
       // 4. Calculate total stock from variants if provided
