@@ -52,16 +52,9 @@ function RegisterForm() {
 
       // Broadcast notification event to admin tabs
       try {
-        if (typeof window !== "undefined") {
-          const newNotif = data.notification || {
-            id: `notif-${Date.now()}`,
-            type: "NEW_CUSTOMER",
-            title: "Customer Baru Terdaftar",
-            message: `${name.trim()} (${email.trim()}) baru saja mendaftar akun customer it'smatapanda.`,
-            link: "/admin/customers",
-            isRead: false,
-            createdAt: new Date().toISOString(),
-          };
+        // Only announce a notification that the server actually saved
+        if (typeof window !== "undefined" && data.notification) {
+          const newNotif = data.notification;
 
           // Save latest event in localStorage to trigger storage listener
           window.localStorage.setItem(
