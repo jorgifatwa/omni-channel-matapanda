@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Loader2, CheckCircle2, AlertCircle, Mail, MessageCircle, MapPin, FileEdit, Truck, CreditCard, RotateCcw, Tag } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle, Mail, MessageCircle, FileEdit, Truck, CreditCard, RotateCcw, Tag } from "lucide-react";
 import AnnouncementBar from "@/components/AnnouncementBar";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -74,7 +74,7 @@ export default function ContactPage() {
           </div>
 
           {/* Quick Contact Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 max-w-3xl mx-auto">
             <div className="rounded-3xl border-2 border-[#396254]/15 bg-white dark:bg-neutral-900 p-6 space-y-2.5 text-center shadow-sm hover:border-[#396254]/40 hover:-translate-y-1 transition-all">
               <div className="w-12 h-12 mx-auto rounded-2xl bg-[#dcf58d] text-[#396254] flex items-center justify-center shadow-xs">
                 <Mail className="h-5 w-5" />
@@ -101,19 +101,6 @@ export default function ContactPage() {
               </p>
               <span className="text-xs font-bold text-[#396254] dark:text-[#dcf58d]">
                 +62 812-3456-7890
-              </span>
-            </div>
-
-            <div className="rounded-3xl border-2 border-[#396254]/15 bg-white dark:bg-neutral-900 p-6 space-y-2.5 text-center shadow-sm hover:border-[#396254]/40 hover:-translate-y-1 transition-all">
-              <div className="w-12 h-12 mx-auto rounded-2xl bg-[#ED96D7]/40 text-[#396254] flex items-center justify-center shadow-xs">
-                <MapPin className="h-5 w-5" />
-              </div>
-              <h3 className="text-sm font-black text-[#396254] dark:text-white">Creative Studio</h3>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                Pop-up retail &amp; exhibition
-              </p>
-              <span className="text-xs font-bold text-[#396254] dark:text-[#dcf58d]">
-                Jakarta Selatan, Indonesia
               </span>
             </div>
           </div>
@@ -250,7 +237,7 @@ export default function ContactPage() {
                   <span>Pengiriman &amp; Ekspedisi</span>
                 </h3>
                 <p className="text-xs text-neutral-600 dark:text-neutral-300 leading-relaxed">
-                  Pesanan dikirim pada hari Senin &ndash; Jumat menggunakan JNE Express (domestik) dan DHL Express (internasional). Resi otomatis dikirimkan ke email terdaftar setelah order berstatus lunas.
+                  Pesanan dikirim dari Bandung pada hari Senin &ndash; Jumat. Untuk pengiriman dalam negeri, kamu bisa memilih kurir saat checkout (JNE, J&amp;T, SiCepat, AnterAja, atau POS Indonesia); pengiriman internasional menggunakan DHL Express. Nomor resi diinformasikan setelah pesanan dikirim.
                 </p>
               </div>
 
