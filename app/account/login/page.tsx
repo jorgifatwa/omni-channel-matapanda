@@ -151,12 +151,14 @@ function LoginForm() {
             </button>
           </form>
 
-          {/* Quick Demo Credentials Info */}
-          <div className="mt-6 pt-5 border-t border-neutral-100 text-center">
-            <p className="text-[11px] text-neutral-500 font-medium">
-              Demo: <span className="font-mono text-[#396254] font-bold bg-[#d5c6ff]/30 px-2 py-0.5 rounded-md">customer@itsmatapanda.com</span> / <span className="font-mono text-neutral-800 font-bold">customer123</span>
-            </p>
-          </div>
+          {/* Quick Demo Credentials Info (local development only) */}
+          {process.env.NODE_ENV !== "production" && (
+            <div className="mt-6 pt-5 border-t border-neutral-100 text-center">
+              <p className="text-[11px] text-neutral-500 font-medium">
+                Demo: <span className="font-mono text-[#396254] font-bold bg-[#d5c6ff]/30 px-2 py-0.5 rounded-md">customer@itsmatapanda.com</span> / <span className="font-mono text-neutral-800 font-bold">customer123</span>
+              </p>
+            </div>
+          )}
 
           <div className="mt-6 pt-5 border-t border-neutral-100 text-center">
             <p className="text-xs text-neutral-600 font-medium">

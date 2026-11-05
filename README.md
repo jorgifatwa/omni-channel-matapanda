@@ -73,9 +73,9 @@ DATABASE_URL="postgresql://postgres:postgres@localhost:5432/matapanda_db?schema=
 # NEXTAUTH CONFIGURATION
 # ==========================================
 NEXTAUTH_URL="http://localhost:3000"
-NEXTAUTH_SECRET="matapanda-super-secret-jwt-key-change-in-production-2026"
+NEXTAUTH_SECRET="hasil-dari-npm-run-generate-keys"
 ADMIN_DEFAULT_EMAIL="jorgifatwaambia@gmail.com"
-ADMIN_DEFAULT_PASSWORD="admin123"
+ADMIN_DEFAULT_PASSWORD="ganti-dengan-password-kuat"
 
 # ==========================================
 # CLOUDFLARE R2 (Primary Image Storage - S3 Compatible, Zero Egress)
@@ -189,8 +189,8 @@ Buka browser di:
 - **Admin Login**: [http://localhost:3000/admin/login](http://localhost:3000/admin/login)
 
 ### Kredensial Akun Default:
-- **Admin**: `jorgifatwaambia@gmail.com` / `admin123`
-- **Customer Demo**: `customer@itsmatapanda.com` / `customer123`
+- **Admin**: email & password dari `ADMIN_DEFAULT_EMAIL` / `ADMIN_DEFAULT_PASSWORD` di `.env` (akun dibuat otomatis saat login pertama atau saat `npm run seed`; setelah itu hanya password di database yang berlaku).
+- **Customer Demo** (hanya mode development): `customer@itsmatapanda.com` / `customer123`
 
 ---
 

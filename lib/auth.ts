@@ -1,7 +1,15 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
+import { timingSafeEqual } from "crypto";
 import { prisma } from "@/lib/prisma";
+import { getAuthSecret } from "@/lib/auth-secret";
+
+function safeEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  return bufA.length === bufB.length && timingSafeEqual(bufA, bufB);
+}
 
 // Ensure NEXTAUTH_URL in serverless environment has valid scheme if set
 if (process.env.VERCEL === "1" || process.env.NODE_ENV === "production") {
@@ -39,54 +47,84 @@ export const authOptions: NextAuthOptions = {
         const isEmail = identifier.includes("@");
         const lowerIdentifier = identifier.toLowerCase();
 
-        // 1. Fast-path Admin Credentials (from .env + standard fallback)
-        const envAdminEmail = (
-          process.env.ADMIN_DEFAULT_EMAIL || ""
-        ).trim().toLowerCase();
-        const envAdminPassword = (
-          process.env.ADMIN_DEFAULT_PASSWORD || ""
-        )
+        // 1. Database users (admins and customers), verified with bcrypt
+        let dbReachable = true;
+        let dbUserExists = false;
+        try {
+          const dbUser = await prisma.user.findFirst({
+            where: {
+              isActive: true,
+              OR: isEmail
+                ? [{ email: { equals: lowerIdentifier, mode: "insensitive" } }]
+                : [
+                    { phone: identifier },
+                    { email: { equals: lowerIdentifier, mode: "insensitive" } },
+                  ],
+            },
+          });
+
+          if (dbUser && dbUser.passwordHash) {
+            dbUserExists = true;
+            const valid =
+              (await bcrypt.compare(inputPassword, dbUser.passwordHash)) ||
+              (await bcrypt.compare(cleanPassword, dbUser.passwordHash));
+            if (valid) {
+              return {
+                id: dbUser.id,
+                name: dbUser.name,
+                email: dbUser.email,
+                role: dbUser.role,
+              };
+            }
+          }
+        } catch (dbErr) {
+          dbReachable = false;
+          console.warn("[Auth] Database check error:", dbErr);
+        }
+
+        // 2. Bootstrap admin from ADMIN_DEFAULT_EMAIL / ADMIN_DEFAULT_PASSWORD.
+        //    Only works when BOTH env vars are set and the account does not yet
+        //    exist in the database (or the database is unreachable). Once the
+        //    admin exists, only the password stored in the database is accepted.
+        const envAdminEmail = (process.env.ADMIN_DEFAULT_EMAIL || "").trim().toLowerCase();
+        const envAdminPassword = (process.env.ADMIN_DEFAULT_PASSWORD || "")
           .trim()
           .replace(/^["']|["']$/g, "");
 
-        const validAdminEmails = new Set([
-          "jorgifatwaambia@gmail.com",
-          "admin@itsmatapanda.com",
-          "admin@matapanda.com",
-          ...(envAdminEmail ? [envAdminEmail] : []),
-        ]);
-
-        const validAdminPasswords = new Set([
-          "admin123",
-          "Enok1212!",
-          ...(envAdminPassword ? [envAdminPassword] : []),
-        ]);
-
         if (
-          validAdminEmails.has(lowerIdentifier) &&
-          (validAdminPasswords.has(cleanPassword) || validAdminPasswords.has(inputPassword))
+          envAdminEmail &&
+          envAdminPassword &&
+          !dbUserExists &&
+          lowerIdentifier === envAdminEmail &&
+          safeEqual(cleanPassword, envAdminPassword)
         ) {
-          // Asynchronously ensure admin exists in DB if DB is reachable
-          try {
-            prisma.user
-              .upsert({
-                where: { email: lowerIdentifier },
-                update: { role: "ADMIN", isActive: true },
+          if (dbReachable) {
+            try {
+              const admin = await prisma.user.upsert({
+                where: { email: envAdminEmail },
+                update: {
+                  role: "ADMIN",
+                  isActive: true,
+                  passwordHash: await bcrypt.hash(envAdminPassword, 10),
+                },
                 create: {
                   name: "it's matapanda Admin",
-                  email: lowerIdentifier,
-                  passwordHash: await bcrypt.hash(cleanPassword, 10),
+                  email: envAdminEmail,
+                  passwordHash: await bcrypt.hash(envAdminPassword, 10),
                   role: "ADMIN",
                   isActive: true,
                 },
-              })
-              .catch(() => {});
-          } catch {}
+              });
+              return { id: admin.id, name: admin.name, email: admin.email, role: "ADMIN" };
+            } catch (upsertErr) {
+              console.warn("[Auth] Failed to create bootstrap admin:", upsertErr);
+            }
+          }
 
           return {
             id: "00000000-0000-4000-8000-000000000001",
             name: "it'smatapanda Admin",
-            email: lowerIdentifier,
+            email: envAdminEmail,
             role: "ADMIN",
           };
         }
@@ -110,39 +148,9 @@ export const authOptions: NextAuthOptions = {
           };
         }
 
-        // 2. Query PostgreSQL via Prisma if database is available
-        try {
-          const dbUser = await prisma.user.findFirst({
-            where: {
-              isActive: true,
-              OR: isEmail
-                ? [{ email: { equals: lowerIdentifier, mode: "insensitive" } }]
-                : [
-                    { phone: identifier },
-                    { email: { equals: lowerIdentifier, mode: "insensitive" } },
-                  ],
-            },
-          });
-
-          if (dbUser && dbUser.passwordHash) {
-            const valid =
-              (await bcrypt.compare(inputPassword, dbUser.passwordHash)) ||
-              (await bcrypt.compare(cleanPassword, dbUser.passwordHash));
-            if (valid) {
-              return {
-                id: dbUser.id,
-                name: dbUser.name,
-                email: dbUser.email,
-                role: dbUser.role,
-              };
-            }
-          }
-        } catch (dbErr) {
-          console.warn("[Auth] Database check error:", dbErr);
-        }
-
-        // 3. Demo Customer Fallback (for easy instant local testing)
+        // 3. Demo Customer Fallback (local development only)
         if (
+          process.env.NODE_ENV !== "production" &&
           (lowerIdentifier === "customer@itsmatapanda.com" ||
             lowerIdentifier === "user@itsmatapanda.com" ||
             identifier === "081234567890") &&
@@ -178,9 +186,7 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
-  secret:
-    process.env.NEXTAUTH_SECRET ||
-    "matapanda-super-secret-jwt-key-change-in-production-2026",
+  secret: getAuthSecret(),
   cookies: {
     sessionToken: {
       name:

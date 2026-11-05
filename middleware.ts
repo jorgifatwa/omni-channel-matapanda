@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { getAuthSecret } from "@/lib/auth-secret";
 
 export async function middleware(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
@@ -18,14 +19,13 @@ export async function middleware(request: NextRequest) {
     request.url.startsWith("https://") ||
     request.headers.get("x-forwarded-proto") === "https";
 
-  const secret =
-    process.env.NEXTAUTH_SECRET ||
-    "matapanda-super-secret-jwt-key-change-in-production-2026";
+  const secret = getAuthSecret();
 
-  const token =
-    (await getToken({ req: request, secret, secureCookie: isHttps })) ||
-    (await getToken({ req: request, secret, secureCookie: !isHttps })) ||
-    (await getToken({ req: request, secret }));
+  const token = secret
+    ? (await getToken({ req: request, secret, secureCookie: isHttps })) ||
+      (await getToken({ req: request, secret, secureCookie: !isHttps })) ||
+      (await getToken({ req: request, secret }))
+    : null;
 
   // 1. Handle /admin routes
   if (pathname.startsWith("/admin")) {
