@@ -230,8 +230,21 @@ export function DataTable<TData, TValue>({
             ))}
           </TableHeader>
 
-          <TableBody>
-            {table.getRowModel().rows?.length ? (
+          <TableBody aria-busy={isLoading && data.length === 0}>
+            {isLoading && data.length === 0 ? (
+              Array.from({ length: 5 }).map((_, r) => (
+                <TableRow key={`skeleton-${r}`} data-testid="table-skeleton-row">
+                  {numberedColumns.map((_, c) => (
+                    <TableCell key={c}>
+                      <div
+                        className="h-4 rounded bg-neutral-200 dark:bg-neutral-800 animate-pulse"
+                        style={{ width: c === 0 ? 20 : `${55 + ((r * 7 + c * 13) % 40)}%` }}
+                      />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id}>
                   {row.getVisibleCells().map((cell) => (
@@ -250,11 +263,9 @@ export function DataTable<TData, TValue>({
                   colSpan={numberedColumns.length}
                   className="h-28 text-center text-sm text-neutral-500 dark:text-neutral-400"
                 >
-                  {isLoading && data.length === 0
-                    ? "Memuat data dari database..."
-                    : data.length === 0
-                      ? emptyMessage
-                      : "Tidak ada data yang cocok dengan pencarian atau filter."}
+                  {data.length === 0
+                    ? emptyMessage
+                    : "Tidak ada data yang cocok dengan pencarian atau filter."}
                 </TableCell>
               </TableRow>
             )}

@@ -209,7 +209,12 @@ export default function AdminInquiriesPage() {
 
       {/* Inquiries Table */}
       <div className="rounded-xl border border-neutral-200 bg-white overflow-hidden dark:border-neutral-800 dark:bg-neutral-900 shadow-sm">
-        {filteredInquiries.length === 0 ? (
+        {loading && inquiries.length === 0 ? (
+          <div className="py-16 flex flex-col items-center justify-center gap-2 text-xs text-neutral-500" aria-busy="true">
+            <RefreshCw className="h-6 w-6 animate-spin text-neutral-400" />
+            <p className="font-medium">Memuat pesan masuk...</p>
+          </div>
+        ) : filteredInquiries.length === 0 ? (
           <div className="py-16 text-center text-xs text-neutral-500">
             <Mail className="h-8 w-8 mx-auto mb-2 text-neutral-400" />
             <p className="font-semibold text-neutral-700 dark:text-neutral-300">

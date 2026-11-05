@@ -198,6 +198,7 @@ export default function AdminOrdersPage() {
       <DataTable
         columns={columns}
         data={orders}
+        isLoading={isLoading}
         searchPlaceholder="Cari Order ID, nama customer, email..."
         filterOptions={[
           {

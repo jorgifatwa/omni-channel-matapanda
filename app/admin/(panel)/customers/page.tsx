@@ -155,6 +155,7 @@ export default function AdminCustomersPage() {
       <DataTable
         columns={columns}
         data={customers}
+        isLoading={isLoading}
         searchPlaceholder="Cari nama, email, no HP, kota..."
       />
 
