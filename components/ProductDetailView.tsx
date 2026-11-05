@@ -208,6 +208,7 @@ export default function ProductDetailView({
       discountPriceNumber: typeof product.discountPrice === "number" ? product.discountPrice : undefined,
       image: activeImage,
       categoryName: product.category?.name || "Bag",
+      categoryId: product.category?.id ?? null,
       inStock: !isSoldOut,
     });
     setLoveAnimation(added ? "pop" : "deflate");
@@ -277,6 +278,7 @@ export default function ProductDetailView({
     // Add item preserving ${productId}__${size}__${color} key
     addItem({
       productId: product.id,
+      categoryId: product.category?.id ?? null,
       name: product.name,
       price: String(displayPrice),
       priceNumber: displayPrice,

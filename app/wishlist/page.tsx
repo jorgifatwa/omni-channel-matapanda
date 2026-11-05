@@ -36,6 +36,7 @@ export default function WishlistPage() {
   const handleMoveToCart = (item: (typeof items)[0]) => {
     addItem({
       productId: item.id,
+      categoryId: item.categoryId ?? null,
       name: item.name,
       price: item.price,
       priceNumber: item.priceNumber,
@@ -50,6 +51,7 @@ export default function WishlistPage() {
     items.forEach((item) => {
       addItem({
         productId: item.id,
+        categoryId: item.categoryId ?? null,
         name: item.name,
         price: item.price,
         priceNumber: item.priceNumber,

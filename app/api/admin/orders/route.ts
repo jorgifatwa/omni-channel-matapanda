@@ -80,6 +80,7 @@ export async function GET() {
         subtotal: Number(o.subtotal),
         shippingCost: Number(o.shippingCost),
         discountAmount: Number(o.discountAmount),
+        couponCode: o.couponCode ?? null,
         totalAmount: Number(o.totalAmount),
         paymentMethod: o.payment?.paymentType || "-",
         midtransTransactionId:
@@ -140,6 +141,8 @@ export async function POST(request: Request) {
       trackingNumber = "-",
       items = [],
       trackingHistory = [],
+      couponCode,
+      checkoutTokenHash,
     } = body;
 
     const email = customerEmail ? customerEmail.trim().toLowerCase() : `guest-${Date.now()}@itsmatapanda.com`;
@@ -212,6 +215,14 @@ export async function POST(request: Request) {
           shippingCost: Number(shippingCost || 0),
           discountAmount: Number(discountAmount || 0),
           totalAmount: Number(totalAmount || 0),
+          couponCode:
+            typeof couponCode === "string" && couponCode.trim()
+              ? couponCode.trim().toUpperCase().slice(0, 64)
+              : null,
+          checkoutTokenHash:
+            typeof checkoutTokenHash === "string" && /^[0-9a-f]{64}$/.test(checkoutTokenHash)
+              ? checkoutTokenHash
+              : null,
           items: {
             create: orderItems.map((it) => ({
               id: crypto.randomUUID(),

@@ -111,6 +111,8 @@ export default function CheckoutPage() {
   const [discountCode, setDiscountCode] = React.useState("");
   const [couponError, setCouponError] = React.useState<string | null>(null);
   const [orderError, setOrderError] = React.useState<string | null>(null);
+  // Secret token from the server proving this browser created the order
+  const checkoutTokenRef = React.useRef<string | null>(null);
   const [paymentInitError, setPaymentInitError] = React.useState<string | null>(null);
   const [isRetryingPayment, setIsRetryingPayment] = React.useState(false);
   const [isApplyingCoupon, setIsApplyingCoupon] = React.useState(false);
@@ -297,7 +299,9 @@ export default function CheckoutPage() {
     //    Server menghitung ulang harga, diskon dan total dari database; pakai hasil server.
     let savedOrder: AdminOrder;
     try {
-      savedOrder = (await createCheckoutOrder(newOrder)).order;
+      const created = await createCheckoutOrder(newOrder);
+      savedOrder = created.order;
+      checkoutTokenRef.current = created.checkoutToken;
     } catch (err) {
       console.error("[Checkout] Failed to save order:", err);
       setOrderError(
@@ -314,7 +318,7 @@ export default function CheckoutPage() {
       const res = await fetch("/api/payment/create-transaction", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderNumber }),
+        body: JSON.stringify({ orderNumber, checkoutToken: checkoutTokenRef.current }),
       });
 
       // 2. Pesanan sudah tersimpan di database (status awal PENDING) dengan total dari server.
@@ -356,7 +360,10 @@ export default function CheckoutPage() {
       const res = await fetch("/api/payment/create-transaction", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderNumber: createdOrder.orderNumber }),
+        body: JSON.stringify({
+          orderNumber: createdOrder.orderNumber,
+          checkoutToken: checkoutTokenRef.current,
+        }),
       });
       const snapRes = await res.json().catch(() => ({}));
       if (res.ok && snapRes.redirect_url) {

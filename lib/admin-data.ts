@@ -99,6 +99,8 @@ export type AdminOrder = {
   subtotal: number;
   shippingCost: number;
   discountAmount: number;
+  /** Voucher code used at checkout, if any */
+  couponCode?: string | null;
   totalAmount: number;
   paymentMethod: string;
   midtransTransactionId: string;

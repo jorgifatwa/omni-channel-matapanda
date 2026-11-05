@@ -109,6 +109,7 @@ export default function ProductCard({
       discountPriceNumber: typeof product.discountPrice === "number" ? product.discountPrice : undefined,
       image: primaryImage,
       categoryName: product.category?.name || "Bag",
+      categoryId: product.category?.id ?? null,
       inStock: !isSoldOut,
     });
     setWishlistToast(true);
@@ -136,6 +137,7 @@ export default function ProductCard({
 
     addItem({
       productId: product.id,
+      categoryId: product.category?.id ?? null,
       name: product.name,
       price: String(displayPrice),
       priceNumber: displayPrice,

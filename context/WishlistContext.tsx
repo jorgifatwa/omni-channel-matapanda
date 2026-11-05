@@ -12,6 +12,7 @@ export type WishlistItem = {
   discountPriceNumber?: number | null;
   image: string;
   categoryName?: string;
+  categoryId?: string | null;
   inStock?: boolean;
   addedAt: string;
 };
@@ -26,6 +27,7 @@ export type AddToWishlistInput = {
   discountPriceNumber?: number | null;
   image: string;
   categoryName?: string;
+  categoryId?: string | null;
   inStock?: boolean;
 };
 
@@ -151,6 +153,7 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
             discountPriceNumber: discPriceNum,
             image: input.image,
             categoryName: input.categoryName || "Bag",
+            categoryId: input.categoryId ?? null,
             inStock: input.inStock ?? true,
             addedAt: new Date().toISOString(),
           };

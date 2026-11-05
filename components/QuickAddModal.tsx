@@ -177,6 +177,7 @@ export default function QuickAddModal({
 
     addItem({
       productId: product.id,
+      categoryId: product.category?.id ?? null,
       name: product.name,
       price: String(displayPrice),
       priceNumber: displayPrice,

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createHash, randomBytes } from "crypto";
 import { POST as createOrderInDatabase } from "@/app/api/admin/orders/route";
 import { priceCheckoutOrder, OrderPricingError, type OrderPricing } from "@/lib/order-pricing";
 import { incrementCouponUsage, releaseCouponUsage } from "@/lib/coupon-store";
@@ -62,8 +63,13 @@ export async function POST(request: Request) {
     }
   }
 
+  // Secret token proving this buyer created the order; only its hash is stored.
+  const checkoutToken = randomBytes(24).toString("hex");
+  const checkoutTokenHash = createHash("sha256").update(checkoutToken).digest("hex");
+
   const sanitized = {
     ...body,
+    couponCode: pricing.couponCode || null,
     subtotal: pricing.subtotal,
     shippingCost: pricing.shippingCost,
     discountAmount: pricing.discountAmount,
@@ -95,7 +101,7 @@ export async function POST(request: Request) {
       new Request(request.url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(sanitized),
+        body: JSON.stringify({ ...sanitized, checkoutTokenHash }),
       })
     );
   } catch (err) {
@@ -126,6 +132,7 @@ export async function POST(request: Request) {
         id: data.order?.id,
         orderNumber: data.order?.orderNumber ?? sanitized.orderNumber,
       },
+      checkoutToken,
       pricing: {
         subtotal: pricing.subtotal,
         bundleDiscount: pricing.bundleDiscount,

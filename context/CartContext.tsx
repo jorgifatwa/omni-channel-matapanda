@@ -24,6 +24,8 @@ export type CartItem = {
   color: string;
   quantity: number;
   maxStock?: number;
+  /** Product category, used for category-targeted promo campaigns */
+  categoryId?: string | null;
 };
 
 export type AppliedCoupon = {
@@ -47,6 +49,7 @@ type AddToCartInput = {
   color: string;
   quantity?: number;
   maxStock?: number;
+  categoryId?: string | null;
 };
 
 type CartContextType = {
@@ -212,6 +215,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           color: input.color,
           quantity: Math.min(max, qtyToAdd),
           maxStock: input.maxStock,
+          categoryId: input.categoryId ?? null,
         },
       ];
     });

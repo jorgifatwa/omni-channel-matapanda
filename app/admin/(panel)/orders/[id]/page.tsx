@@ -289,7 +289,9 @@ function OrderDetail({
                 </div>
                 {order.discountAmount > 0 && (
                   <div className="flex justify-between text-emerald-600">
-                    <span>Diskon</span>
+                    <span>
+                      Diskon{order.couponCode ? ` (Voucher ${order.couponCode})` : ""}
+                    </span>
                     <span>-{formatIDR(order.discountAmount)}</span>
                   </div>
                 )}

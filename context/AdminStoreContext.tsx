@@ -155,7 +155,7 @@ export type CheckoutOrderPricing = {
  */
 export async function createCheckoutOrder(
   order: CheckoutOrderPayload
-): Promise<{ order: AdminOrder; pricing: CheckoutOrderPricing }> {
+): Promise<{ order: AdminOrder; pricing: CheckoutOrderPricing; checkoutToken: string }> {
   let res: Response;
   try {
     res = await fetch("/api/orders", {
@@ -178,8 +178,9 @@ export async function createCheckoutOrder(
   const data = (await res.json().catch(() => ({}))) as {
     order?: Partial<AdminOrder>;
     pricing?: CheckoutOrderPricing;
+    checkoutToken?: string;
   };
-  if (!data.order || !data.pricing || !Array.isArray(data.order.items)) {
+  if (!data.order || !data.pricing || !Array.isArray(data.order.items) || !data.checkoutToken) {
     throw new Error("Gagal menyimpan pesanan: respons server tidak lengkap.");
   }
   const items: AdminOrderItem[] = data.order.items.map((it, idx) => ({
@@ -206,6 +207,7 @@ export async function createCheckoutOrder(
       totalAmount: data.pricing.totalAmount,
     } as AdminOrder,
     pricing: data.pricing,
+    checkoutToken: data.checkoutToken,
   };
 }
 

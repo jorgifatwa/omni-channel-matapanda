@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { createHash, timingSafeEqual } from "crypto";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 /**
  * Creates (or reuses) a Midtrans Snap transaction for an order that already
@@ -64,6 +67,30 @@ export async function POST(request: Request) {
 
   if (!order) {
     return NextResponse.json({ error: "Pesanan tidak ditemukan." }, { status: 404 });
+  }
+
+  // Only the buyer who created the order (secret checkout token) or an admin
+  // may start payment, so order numbers alone can't expose customer details.
+  const providedToken =
+    typeof (body as { checkoutToken?: unknown }).checkoutToken === "string"
+      ? ((body as { checkoutToken: string }).checkoutToken).trim()
+      : "";
+  let authorized = false;
+  if (providedToken && order.checkoutTokenHash) {
+    const providedHash = createHash("sha256").update(providedToken).digest();
+    const storedHash = Buffer.from(order.checkoutTokenHash, "hex");
+    authorized =
+      storedHash.length === providedHash.length && timingSafeEqual(storedHash, providedHash);
+  }
+  if (!authorized) {
+    const session = await getServerSession(authOptions).catch(() => null);
+    authorized = (session?.user as { role?: string } | undefined)?.role === "ADMIN";
+  }
+  if (!authorized) {
+    return NextResponse.json(
+      { error: "Akses pembayaran untuk pesanan ini tidak valid. Silakan checkout ulang." },
+      { status: 403 }
+    );
   }
 
   if (order.status !== "PENDING" || (order.payment && order.payment.status !== "PENDING")) {

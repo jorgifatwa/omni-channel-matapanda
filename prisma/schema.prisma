@@ -250,6 +250,11 @@ model Order {
   totalAmount    Decimal     @db.Decimal(12, 2)
   currency       String      @default("IDR")
   notes          String?
+  /// Voucher code applied at checkout (uppercase), if any
+  couponCode     String?
+  /// SHA-256 hash of the secret token returned to the buyer at checkout;
+  /// required to start payment for this order
+  checkoutTokenHash String?
   items          OrderItem[]
   payment        Payment?
   shipment       Shipment?
