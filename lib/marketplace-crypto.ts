@@ -17,10 +17,15 @@ const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 12; // 96-bit IV recommended for GCM
 
 function getEncryptionKey(): Buffer {
-  const keyHex = process.env.MARKETPLACE_ENCRYPTION_KEY;
-  if (!keyHex || keyHex.length !== 64) {
+  // Tolerate values pasted into a dashboard with surrounding quotes/whitespace.
+  const keyHex = (process.env.MARKETPLACE_ENCRYPTION_KEY ?? "")
+    .trim()
+    .replace(/^["']|["']$/g, "")
+    .trim();
+  if (keyHex.length !== 64 || !/^[0-9a-fA-F]+$/.test(keyHex)) {
     throw new Error(
-      "[marketplace-crypto] MARKETPLACE_ENCRYPTION_KEY must be a 64-character hex string (32 bytes). " +
+      `[marketplace-crypto] MARKETPLACE_ENCRYPTION_KEY must be a 64-character hex string (32 bytes); ` +
+        `got ${keyHex.length ? `${keyHex.length} characters` : "an empty value"}. ` +
         "Generate one with: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\""
     );
   }
