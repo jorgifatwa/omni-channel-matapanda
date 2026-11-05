@@ -23,7 +23,13 @@ export interface OrderItemToDeduct {
   quantity: number;
 }
 
-export async function onWebsiteOrderPlaced(items: OrderItemToDeduct[]): Promise<{
+export async function onWebsiteOrderPlaced(
+  items: OrderItemToDeduct[],
+  options: {
+    /** True when the caller already reduced website stock (Midtrans webhook). */
+    websiteStockAlreadyDeducted?: boolean;
+  } = {}
+): Promise<{
   success: boolean;
   deductedCount: number;
 }> {
@@ -70,7 +76,9 @@ export async function onWebsiteOrderPlaced(items: OrderItemToDeduct[]): Promise<
 
       for (const match of matches) {
         const qty = Number(item.quantity) || 1;
-        const newStock = Math.max(0, match.websiteStock - qty);
+        const newStock = options.websiteStockAlreadyDeducted
+          ? Math.max(0, match.websiteStock)
+          : Math.max(0, match.websiteStock - qty);
 
         console.log(
           `[Omnichannel Sync] Website order for SKU ${match.sku} (Qty: ${qty}). Updating ${match.platform} stock to ${newStock}...`

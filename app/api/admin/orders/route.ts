@@ -227,6 +227,9 @@ export async function POST(request: Request) {
             create: orderItems.map((it) => ({
               id: crypto.randomUUID(),
               productId: it.productId as string,
+              variantId: isValidUuid((it as { variantId?: string | null }).variantId)
+                ? (it as { variantId?: string }).variantId
+                : null,
               productName: it.productName || "Produk",
               sku: it.sku || "IMP-ITEM",
               size: it.size || "Standard",

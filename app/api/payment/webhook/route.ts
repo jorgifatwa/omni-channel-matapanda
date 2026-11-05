@@ -104,7 +104,7 @@ export async function POST(request: Request) {
   try {
     order = await prisma.order.findUnique({
       where: { orderNumber: orderId },
-      include: { payment: true },
+      include: { payment: true, items: true },
     });
 
     if (!order) {
@@ -152,6 +152,31 @@ export async function POST(request: Request) {
           data: { status: "PAID" },
         });
         markedPaid = res.count === 1;
+
+        // Reduce website stock exactly once, in the same transaction.
+        if (markedPaid) {
+          for (const item of currentOrder.items) {
+            if (item.variantId) {
+              await tx.productVariant.updateMany({
+                where: { id: item.variantId },
+                data: { stock: { decrement: item.quantity } },
+              });
+            }
+            await tx.product.updateMany({
+              where: { id: item.productId },
+              data: { stock: { decrement: item.quantity } },
+            });
+          }
+          const productIds = currentOrder.items.map((it) => it.productId);
+          await tx.productVariant.updateMany({
+            where: { productId: { in: productIds }, stock: { lt: 0 } },
+            data: { stock: 0 },
+          });
+          await tx.product.updateMany({
+            where: { id: { in: productIds }, stock: { lt: 0 } },
+            data: { stock: 0 },
+          });
+        }
       } else if (paymentStatus === "CANCEL" || paymentStatus === "DENY" || paymentStatus === "EXPIRE") {
         await tx.order.updateMany({
           where: { id: currentOrder.id, status: "PENDING" },
@@ -227,7 +252,8 @@ async function runPaidSideEffects(orderUuid: string, paymentType?: string) {
         variantId: it.variantId,
         sku: it.sku,
         quantity: it.quantity,
-      }))
+      })),
+      { websiteStockAlreadyDeducted: true }
     ).catch((err) => console.warn("[Midtrans Webhook] Pemotongan stok marketplace gagal:", err));
   }
 
