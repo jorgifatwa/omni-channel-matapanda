@@ -247,7 +247,7 @@ export default function ContactPage() {
                   <span>Metode Pembayaran</span>
                 </h3>
                 <p className="text-xs text-neutral-600 dark:text-neutral-300 leading-relaxed">
-                  Seluruh transaksi terenkripsi aman via Midtrans Snap. Kami menerima QRIS, Virtual Account BCA/Mandiri/BRI/BNI, GoPay, dan Kartu Kredit.
+                  Seluruh transaksi terenkripsi aman via Midtrans. Kami menerima QRIS, GoPay, ShopeePay, dan Virtual Account BCA/BNI/BRI/Mandiri/Permata.
                 </p>
               </div>
 

@@ -1,5 +1,6 @@
 {
   "crons": [
-    { "path": "/api/integrations/refresh-tokens", "schedule": "0 20 * * *" }
+    { "path": "/api/integrations/refresh-tokens", "schedule": "0 20 * * *" },
+    { "path": "/api/payment/expire-orders", "schedule": "0 21 * * *" }
   ]
 }

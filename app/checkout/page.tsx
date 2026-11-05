@@ -23,10 +23,10 @@ import { useCart } from "@/context/CartContext";
 import { type CurrencyCode } from "@/lib/products";
 import { createCheckoutOrder, type CheckoutOrderPayload } from "@/context/AdminStoreContext";
 import { type AdminOrder } from "@/lib/admin-data";
-import SnapPaymentStep, {
-  CheckoutStepper,
-  type SnapSession,
-} from "@/components/checkout/SnapPaymentStep";
+import PaymentStep, { type PaymentStart } from "@/components/checkout/PaymentStep";
+import PaymentMethodPicker from "@/components/checkout/PaymentMethodPicker";
+import { CheckoutStepper } from "@/components/checkout/CheckoutStepper";
+import { PAYMENT_METHOD_LABELS, type PaymentMethod } from "@/lib/payment-methods";
 
 interface ShippingOption {
   id: string;
@@ -119,25 +119,38 @@ export default function CheckoutPage() {
   const checkoutTokenRef = React.useRef<string | null>(null);
   const [paymentInitError, setPaymentInitError] = React.useState<string | null>(null);
   const [isRetryingPayment, setIsRetryingPayment] = React.useState(false);
-  // Active Midtrans Snap Embed session (langkah 2: Pembayaran)
-  const [snapSession, setSnapSession] = React.useState<SnapSession | null>(null);
+  // Metode pembayaran yang dipilih di langkah 1, dan sesi pembayaran aktif (langkah 2)
+  const [paymentMethod, setPaymentMethod] = React.useState<PaymentMethod>("qris");
+  const [paymentStart, setPaymentStart] = React.useState<PaymentStart | null>(null);
 
-  const toSnapSession = (data: {
-    token?: string;
-    redirect_url?: string;
-    clientKey?: string | null;
-    isLive?: boolean;
-    expiresAt?: string | null;
-  }): SnapSession | null =>
-    data.token && data.redirect_url
-      ? {
-          token: data.token,
-          redirectUrl: data.redirect_url,
-          clientKey: data.clientKey ?? null,
-          isLive: Boolean(data.isLive),
-          expiresAt: data.expiresAt ?? null,
-        }
-      : null;
+  /** Creates the Midtrans charge for the chosen method; errors are shown in langkah 2. */
+  const startPayment = async (orderNumber: string, method: PaymentMethod): Promise<PaymentStart> => {
+    try {
+      const res = await fetch("/api/payment/charge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderNumber, checkoutToken: checkoutTokenRef.current, method }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.instructions) {
+        return { method, instructions: data.instructions, error: null, isLive: Boolean(data.isLive) };
+      }
+      console.error("[Checkout] charge gagal:", res.status, data);
+      return {
+        method,
+        instructions: null,
+        error: data.error || "Tagihan pembayaran gagal dibuat. Silakan pilih metode lain atau coba lagi.",
+        isLive: false,
+      };
+    } catch {
+      return {
+        method,
+        instructions: null,
+        error: "Tidak dapat menghubungi server pembayaran. Periksa koneksi internet lalu coba lagi.",
+        isLive: false,
+      };
+    }
+  };
   const [isApplyingCoupon, setIsApplyingCoupon] = React.useState(false);
 
   const handleApplyCheckoutCoupon = async () => {
@@ -284,7 +297,7 @@ export default function CheckoutPage() {
       shippingCost,
       discountAmount: totalDiscount,
       totalAmount: grandTotal,
-      paymentMethod: "Midtrans Snap (VA / QRIS / Credit Card)",
+      paymentMethod: PAYMENT_METHOD_LABELS[paymentMethod],
       midtransTransactionId: `MT-TRX-${Date.now().toString().slice(-9)}`,
       paymentStatus: "PENDING",
       orderStatus: "PENDING",
@@ -336,72 +349,27 @@ export default function CheckoutPage() {
       return;
     }
 
-    try {
-      // 1. Inisiasi Transaksi Midtrans Snap. Server menghitung nominal & item dari database.
-      const res = await fetch("/api/payment/create-transaction", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderNumber, checkoutToken: checkoutTokenRef.current }),
-      });
-
-      // 2. Pesanan sudah tersimpan di database (status awal PENDING) dengan total dari server.
-      //    Pemakaian kupon sudah dicatat oleh server saat pesanan disimpan.
-      setCreatedOrder(savedOrder);
-
-      const snapRes = await res.json().catch(() => ({}));
-      const session = res.ok ? toSnapSession(snapRes) : null;
-      if (session) {
-        // Langkah 2: form pembayaran Midtrans tampil di halaman ini (Snap Embed)
-        setSnapSession(session);
-        window.scrollTo({ top: 0, behavior: "smooth" });
-        return;
-      }
-
-      // Pesanan tersimpan, tetapi halaman pembayaran gagal dibuat
-      console.error("[Checkout] create-transaction gagal:", res.status, snapRes);
-      setPaymentInitError(
-        snapRes.error || "Halaman pembayaran Midtrans gagal dibuat. Silakan hubungi admin toko."
-      );
-      setOrderSuccess(true);
-      clearCart();
-    } catch (err) {
-      // Pesanan sudah tersimpan; hanya inisiasi pembayaran yang gagal
-      console.error("Payment submission error:", err);
-      setPaymentInitError("Tidak dapat menghubungi server pembayaran. Silakan hubungi admin toko.");
-      setCreatedOrder(savedOrder);
-      setOrderSuccess(true);
-      clearCart();
-    } finally {
-      setIsProcessingPayment(false);
-    }
+    // 1. Pesanan sudah tersimpan (status PENDING, total dari server). Buat tagihan
+    //    Midtrans untuk metode yang dipilih; langkah 2 menampilkan instruksinya.
+    //    Pemakaian kupon sudah dicatat oleh server saat pesanan disimpan.
+    const start = await startPayment(orderNumber, paymentMethod);
+    setCreatedOrder(savedOrder);
+    setPaymentStart(start);
+    setIsProcessingPayment(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Buka ulang halaman pembayaran Midtrans untuk pesanan yang sudah dibuat.
-  // Status lunas hanya diperbarui oleh webhook Midtrans, bukan dari browser.
+  // Buka ulang langkah pembayaran untuk pesanan yang sudah dibuat.
+  // Status lunas hanya diperbarui oleh server (webhook / status Midtrans), bukan dari browser.
   const handleRetryPayment = async () => {
     if (!createdOrder) return;
     setIsRetryingPayment(true);
     setPaymentInitError(null);
     try {
-      const res = await fetch("/api/payment/create-transaction", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orderNumber: createdOrder.orderNumber,
-          checkoutToken: checkoutTokenRef.current,
-        }),
-      });
-      const snapRes = await res.json().catch(() => ({}));
-      const session = res.ok ? toSnapSession(snapRes) : null;
-      if (session) {
-        setSnapSession(session);
-        setOrderSuccess(false);
-        window.scrollTo({ top: 0, behavior: "smooth" });
-        return;
-      }
-      setPaymentInitError(snapRes.error || "Halaman pembayaran Midtrans gagal dibuat.");
-    } catch {
-      setPaymentInitError("Tidak dapat menghubungi server pembayaran.");
+      const start = await startPayment(createdOrder.orderNumber, paymentMethod);
+      setPaymentStart(start);
+      setOrderSuccess(false);
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } finally {
       setIsRetryingPayment(false);
     }
@@ -457,10 +425,11 @@ export default function CheckoutPage() {
         {/* Left Column: Checkout Form */}
         <div className="lg:col-span-7 bg-[#fafaf8] dark:bg-neutral-950 flex justify-center lg:justify-end border-b lg:border-b-0 lg:border-r border-[#396254]/10 dark:border-neutral-800">
           <div className="w-full max-w-[760px] px-6 sm:px-10 lg:px-14 py-8 sm:py-11">
-            {snapSession && createdOrder ? (
-              <SnapPaymentStep
+            {paymentStart && createdOrder ? (
+              <PaymentStep
                 order={createdOrder}
-                session={snapSession}
+                checkoutToken={checkoutTokenRef.current}
+                start={paymentStart}
                 totalLabel={formatCheckoutPrice(createdOrder.totalAmount, currency)}
                 onPaid={clearCart}
               />
@@ -487,7 +456,7 @@ export default function CheckoutPage() {
 
                   <p className="text-sm text-neutral-700 dark:text-neutral-300 leading-relaxed">
                     Pesananmu telah dibuat dengan status <strong className="text-amber-800 dark:text-amber-300">Menunggu Pembayaran (Pending)</strong>. Selesaikan tagihan sebesar{" "}
-                    <strong className="text-[#396254] dark:text-[#dcf58d]">{formatCheckoutPrice(createdOrder.totalAmount, currency)}</strong> via Midtrans Snap.
+                    <strong className="text-[#396254] dark:text-[#dcf58d]">{formatCheckoutPrice(createdOrder.totalAmount, currency)}</strong> via Midtrans.
                   </p>
 
                   {/* Order Summary Box */}
@@ -558,7 +527,7 @@ export default function CheckoutPage() {
                       ) : (
                         <>
                           <CreditCard className="h-4 w-4" />
-                          <span>Bayar Sekarang via Midtrans</span>
+                          <span>Lanjutkan Pembayaran</span>
                         </>
                       )}
                     </button>
@@ -973,49 +942,20 @@ export default function CheckoutPage() {
                   )}
                 </section>
 
-                {/* Payment Section (Midtrans Snap) */}
+                {/* Payment Section (Midtrans Core API) */}
                 <section className="mt-9">
                   <h2 className="text-lg sm:text-xl font-black text-[#396254] dark:text-white flex items-center gap-2">
                     <CreditCard className="h-4 w-4" />
                     <span>4. Metode Pembayaran</span>
                   </h2>
                   <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 mt-1 mb-4">
-                    Seluruh transaksi aman &amp; terenkripsi resmi via Midtrans Payment Gateway.
+                    Pilih cara bayar. Instruksi pembayaran tampil di halaman berikutnya dan status terkonfirmasi otomatis.
                   </p>
-
-                  <div className="rounded-3xl border-2 border-[#396254]/15 dark:border-neutral-800 overflow-hidden shadow-sm bg-white dark:bg-neutral-900">
-                    <div className="bg-[#396254]/10 dark:bg-neutral-800/80 px-5 py-4 flex items-center justify-between gap-2 border-b border-[#396254]/10 dark:border-neutral-800">
-                      <span className="text-sm font-bold text-[#396254] dark:text-[#dcf58d] flex items-center gap-2">
-                        <span>Midtrans Snap Payment</span>
-                        <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-[#dcf58d] text-[#396254] font-black">
-                          Auto-Verified
-                        </span>
-                      </span>
-
-                      <div className="flex items-center gap-1.5">
-                        <span className="inline-flex items-center justify-center h-6 px-2.5 rounded-lg bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-[10px] font-extrabold text-blue-800 tracking-tight shadow-xs">
-                          BCA
-                        </span>
-                        <span className="inline-flex items-center justify-center h-6 px-2.5 rounded-lg bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-[10px] font-bold text-sky-600 shadow-xs">
-                          gopay
-                        </span>
-                        <span className="inline-flex items-center justify-center h-6 px-2.5 rounded-lg bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-[10px] font-bold text-red-600 shadow-xs">
-                          QRIS
-                        </span>
-                        <span
-                          aria-label="Mastercard"
-                          className="inline-flex items-center justify-center h-6 px-2.5 rounded-lg bg-neutral-900 shadow-xs"
-                        >
-                          <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
-                          <span className="w-2.5 h-2.5 rounded-full bg-amber-400 -ml-1 opacity-90" />
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="bg-[#fafaf8] dark:bg-neutral-900/60 px-5 py-5 text-xs sm:text-sm text-neutral-600 dark:text-neutral-300 text-center leading-relaxed">
-                      Klik <strong>Lanjut ke Pembayaran</strong>. Pilihan pembayaran Midtrans (QRIS, Virtual Account BCA/Mandiri/BRI/BNI, GoPay, atau Kartu Kredit) akan tampil langsung di halaman ini.
-                    </div>
-                  </div>
+                  <PaymentMethodPicker
+                    value={paymentMethod}
+                    onChange={setPaymentMethod}
+                    disabled={isProcessingPayment}
+                  />
                 </section>
 
                 {/* Pay Now Submit Button */}
@@ -1054,7 +994,7 @@ export default function CheckoutPage() {
                       </>
                     ) : (
                       <span>
-                        Lanjut ke Pembayaran &bull;{" "}
+                        Bayar dengan {PAYMENT_METHOD_LABELS[paymentMethod]} &bull;{" "}
                         {formatCheckoutPrice(grandTotal, currency)}
                       </span>
                     )}
@@ -1152,7 +1092,7 @@ export default function CheckoutPage() {
             </div>
 
             {/* Discount Code Input / Applied Badge (dikunci saat langkah Pembayaran) */}
-            {snapSession ? null : appliedCoupon ? (
+            {paymentStart ? null : appliedCoupon ? (
               <div className="mt-6 bg-[#dcf58d]/30 dark:bg-[#dcf58d]/10 border-2 border-[#396254]/20 rounded-2xl p-4 flex items-center justify-between gap-3 shadow-xs">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <Ticket className="h-5 w-5 text-[#396254] dark:text-[#dcf58d] shrink-0" />
@@ -1305,7 +1245,7 @@ export default function CheckoutPage() {
                   </span>
                   <span className="text-2xl font-black text-[#396254] dark:text-[#dcf58d]">
                     {formatCheckoutPrice(
-                      snapSession && createdOrder ? createdOrder.totalAmount : grandTotal,
+                      paymentStart && createdOrder ? createdOrder.totalAmount : grandTotal,
                       currency
                     )}
                   </span>

@@ -9,9 +9,11 @@ import { createHash } from "crypto";
  *  3. The product shows up in the admin panel and on the storefront.
  *  4. Buyer adds it to the bag, checks out with the coupon; the server prices the order.
  *  5. Server-side protections: tampered prices ignored, missing contact rejected,
- *     payment page needs the checkout token.
- *  6. Midtrans webhook (signed) marks the order paid; bad signatures are rejected;
- *     replays are idempotent; stock is reduced.
+ *     payment needs the checkout token.
+ *  6. Midtrans Core API: switching method creates a new charge, notifications from
+ *     an old or expired charge never cancel the order, status endpoint resumes
+ *     instructions; signed webhook marks the order paid; bad signatures are
+ *     rejected; replays are idempotent; stock is reduced.
  *  7. Admin sees the paid order; buyer can track it.
  *  8. Cleanup: test product + coupon are removed.
  *
@@ -188,9 +190,10 @@ test.describe.serial("E2E: admin setup → buyer checkout → payment → admin 
     const orderResPromise = page.waitForResponse(
       (r) => r.url().endsWith("/api/orders") && r.request().method() === "POST"
     );
-    const payResPromise = page.waitForResponse((r) => r.url().includes("/api/payment/create-transaction"));
+    const payResPromise = page.waitForResponse((r) => r.url().includes("/api/payment/charge"));
 
-    const payBtn = page.locator("button[type='submit']").filter({ hasText: /Lanjut ke Pembayaran/i });
+    await page.getByTestId("pay-method-qris").click();
+    const payBtn = page.locator("button[type='submit']").filter({ hasText: /Bayar dengan QRIS/i });
     await expect(payBtn).toBeEnabled({ timeout: 15_000 });
     await payBtn.click();
 
@@ -212,12 +215,24 @@ test.describe.serial("E2E: admin setup → buyer checkout → payment → admin 
 
     const payRes = await payResPromise;
     if (SERVER_KEY) {
-      // Snap token created → Midtrans form is embedded in OUR checkout page (Snap Embed)
-      expect(payRes.status()).toBe(200);
-      await expect(page.getByTestId("snap-payment-step")).toBeVisible();
-      await expect(page.locator("#snap-container iframe")).toBeAttached({ timeout: 30_000 });
+      // Core API charge → our own payment page renders the QRIS code
+      expect(payRes.status(), await payRes.text()).toBe(200);
+      const pay = await payRes.json();
+      expect(pay.instructions.method).toBe("qris");
+      expect(pay.instructions.midtransOrderId).toBe(state.orderNumber);
+      expect(pay.instructions.amount).toBe(state.totalAmount);
+      await expect(page.getByTestId("payment-step")).toBeVisible();
+      await expect(page.getByTestId("qr-image")).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByTestId("payment-waiting")).toBeVisible();
       expect(page.url()).toContain("/checkout");
-      await expect(page.getByText(/Selesaikan pembayaran sebelum/i)).toBeVisible();
+
+      // Switch method in the UI: BCA VA number appears
+      await page.getByRole("button", { name: "Ganti metode" }).click();
+      await page.getByTestId("pay-method-bca_va").click();
+      const switchRes = page.waitForResponse((r) => r.url().includes("/api/payment/charge"));
+      await page.getByTestId("pay-confirm").click();
+      expect((await switchRes).status()).toBe(200);
+      await expect(page.getByTestId("va-number")).toBeVisible();
     }
   });
 
@@ -255,21 +270,71 @@ test.describe.serial("E2E: admin setup → buyer checkout → payment → admin 
     });
     expect((await fakePaid.json()).order.paymentStatus).toBe("PENDING");
 
-    // Payment page needs the secret checkout token
-    const noToken = await request.post("/api/payment/create-transaction", {
-      data: { orderNumber: state.orderNumber },
+    // Payment needs the secret checkout token
+    const noToken = await request.post("/api/payment/charge", {
+      data: { orderNumber: state.orderNumber, method: "qris" },
     });
     expect([403, 503]).toContain(noToken.status());
-    const wrongToken = await request.post("/api/payment/create-transaction", {
-      data: { orderNumber: state.orderNumber, checkoutToken: "0".repeat(48) },
+    const wrongToken = await request.post("/api/payment/charge", {
+      data: { orderNumber: state.orderNumber, checkoutToken: "0".repeat(48), method: "qris" },
     });
     expect([403, 503]).toContain(wrongToken.status());
+    const statusNoToken = await request.post("/api/payment/status", {
+      data: { orderNumber: state.orderNumber },
+    });
+    expect(statusNoToken.status()).toBe(403);
+    const badMethod = await request.post("/api/payment/charge", {
+      data: { orderNumber: state.orderNumber, checkoutToken: state.checkoutToken, method: "credit_card" },
+    });
+    expect(badMethod.status()).toBe(400);
   });
 
   test("6. webhook Midtrans: tanda tangan palsu ditolak, settlement menandai lunas", async ({ request }) => {
     test.skip(!SERVER_KEY, "MIDTRANS_SERVER_KEY belum di-set di .env");
     const orderId = state.orderNumber!;
     const gross = `${state.totalAmount}.00`;
+    const notify = (id: string, status: string) =>
+      request.post("/api/payment/webhook", {
+        data: {
+          order_id: id,
+          status_code: status === "settlement" ? "200" : "202",
+          gross_amount: gross,
+          transaction_status: status,
+          payment_type: "qris",
+          signature_key: signature(id, status === "settlement" ? "200" : "202", gross),
+        },
+      });
+    const orderState = async () => {
+      const { orders } = await (await admin.get("/api/admin/orders")).json();
+      return orders.find((o: { orderNumber: string }) => o.orderNumber === orderId);
+    };
+
+    // The UI switched QRIS (orderId) -> BCA VA (orderId-2). The old charge's
+    // expire notification must be ignored.
+    const stale = await notify(orderId, "expire");
+    expect(stale.status(), await stale.text()).toBe(200);
+    expect((await stale.json()).status).toBe("ignored");
+    expect((await orderState()).orderStatus).toBe("PENDING");
+
+    // The current charge expiring (e.g. a QR after 30 min) keeps the order payable
+    const expired = await notify(`${orderId}-2`, "expire");
+    expect(expired.status()).toBe(200);
+    let o = await orderState();
+    expect(o.orderStatus).toBe("PENDING");
+    expect(o.paymentStatus).toBe("EXPIRE");
+
+    // A new charge gets the next id; the status endpoint resumes its instructions
+    const recharge = await request.post("/api/payment/charge", {
+      data: { orderNumber: orderId, checkoutToken: state.checkoutToken, method: "qris" },
+    });
+    expect(recharge.status(), await recharge.text()).toBe(200);
+    expect((await recharge.json()).instructions.midtransOrderId).toBe(`${orderId}-3`);
+    const status = await request.post("/api/payment/status", {
+      data: { orderNumber: orderId, checkoutToken: state.checkoutToken },
+    });
+    const statusJson = await status.json();
+    expect(statusJson.paymentStatus).toBe("PENDING");
+    expect(statusJson.instructions?.qrUrl).toBeTruthy();
 
     const forged = await request.post("/api/payment/webhook", {
       data: {
@@ -282,15 +347,16 @@ test.describe.serial("E2E: admin setup → buyer checkout → payment → admin 
     });
     expect(forged.status()).toBe(401);
 
+    const paidId = `${orderId}-3`;
     const notification = {
-      order_id: orderId,
+      order_id: paidId,
       status_code: "200",
       gross_amount: gross,
       transaction_status: "settlement",
       fraud_status: "accept",
       payment_type: "bank_transfer",
       transaction_id: `e2e-${RUN_ID}`,
-      signature_key: signature(orderId, "200", gross),
+      signature_key: signature(paidId, "200", gross),
     };
     const ok = await request.post("/api/payment/webhook", { data: notification });
     expect(ok.status(), await ok.text()).toBe(200);
@@ -299,9 +365,10 @@ test.describe.serial("E2E: admin setup → buyer checkout → payment → admin 
     const replay = await request.post("/api/payment/webhook", { data: notification });
     expect(replay.status()).toBe(200);
 
-    const ordersRes = await admin.get("/api/admin/orders");
-    const { orders } = await ordersRes.json();
-    const order = orders.find((o: { orderNumber: string }) => o.orderNumber === orderId);
+    // A late expire from an older charge never downgrades a paid order
+    await notify(`${orderId}-2`, "expire");
+    o = await orderState();
+    const order = o;
     expect(order, "order tersimpan di database").toBeTruthy();
     expect(order.paymentStatus).toBe("SETTLEMENT");
     expect(order.orderStatus).toBe("PAID");
@@ -312,6 +379,16 @@ test.describe.serial("E2E: admin setup → buyer checkout → payment → admin 
     const productJson = await productRes.json();
     const stock = (productJson.product ?? productJson).stock;
     expect(stock).toBe(PRODUCT_STOCK - 1);
+
+    // Status endpoint agrees and a new charge is refused
+    const after = await request.post("/api/payment/status", {
+      data: { orderNumber: orderId, checkoutToken: state.checkoutToken },
+    });
+    expect((await after.json()).paymentStatus).toBe("SETTLEMENT");
+    const again = await request.post("/api/payment/charge", {
+      data: { orderNumber: orderId, checkoutToken: state.checkoutToken, method: "qris" },
+    });
+    expect(again.status()).toBe(409);
   });
 
   test("7. admin melihat pesanan, pembeli bisa melacak", async ({ browser, page }) => {

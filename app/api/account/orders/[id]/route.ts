@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { paymentMethodLabel } from "@/lib/payment-methods";
 
 export const dynamic = "force-dynamic";
 
@@ -82,7 +83,7 @@ export async function GET(
           currency: order.currency || "IDR",
           payment: {
             status: order.payment?.status || (order.status === "PAID" ? "SETTLEMENT" : "PENDING"),
-            paymentType: order.payment?.paymentType || "-",
+            paymentType: paymentMethodLabel(order.payment?.paymentType),
             snapRedirectUrl: order.payment?.snapRedirectUrl || null,
             paidAt: order.payment?.paidAt?.toISOString() || null,
           },

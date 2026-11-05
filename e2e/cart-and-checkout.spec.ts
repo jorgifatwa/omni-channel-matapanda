@@ -53,22 +53,17 @@ test.describe("Cart Drawer & Checkout E2E Tests", () => {
     // 8. Wait for shipping rates to calculate and appear
     await expect(page.locator("label").filter({ hasText: /JNE/i }).first()).toBeVisible({ timeout: 15000 });
 
-    // 9. Intercept /api/payment/create-transaction to capture snap token reliably
-    let snapToken = "";
-    await page.route("**/api/payment/create-transaction", async (route) => {
-      const response = await route.fetch();
-      const json = await response.json();
-      if (json?.token) snapToken = json.token;
-      await route.fulfill({ response });
-    });
-
-    // 10. Click the Pay Now submit button
-    const payNowButton = page.locator("button[type='submit']").filter({ hasText: /Pay now/i });
+    // 9. Choose QRIS and pay: the server creates a Midtrans Core API charge
+    await page.getByTestId("pay-method-qris").click();
+    const chargePromise = page.waitForResponse((r) => r.url().includes("/api/payment/charge"));
+    const payNowButton = page.locator("button[type='submit']").filter({ hasText: /Bayar dengan QRIS/i });
     await expect(payNowButton).toBeEnabled({ timeout: 10000 });
     await payNowButton.click();
 
-    // 11. Verify Midtrans token was generated and redirected to Midtrans payment portal
-    await expect.poll(() => snapToken, { timeout: 15000 }).toBeTruthy();
-    await page.waitForURL(/.*(midtrans\.com|checkout).*/, { timeout: 20000 });
+    // 10. Our own payment page shows the QRIS code (no redirect to Midtrans)
+    const charge = await chargePromise;
+    expect(charge.status()).toBe(200);
+    await expect(page.getByTestId("qr-image")).toBeVisible({ timeout: 15000 });
+    expect(page.url()).toContain("/checkout");
   });
 });

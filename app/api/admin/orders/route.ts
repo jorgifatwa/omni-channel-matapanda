@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { type AdminOrder, type AdminOrderItem } from "@/lib/admin-data";
 import crypto from "crypto";
 import { OrderStatus, PaymentStatus, ShipmentStatus, CourierType } from "@prisma/client";
+import { paymentMethodLabel } from "@/lib/payment-methods";
 
 function toCourierType(courier: unknown): CourierType {
   const code = String(courier || "").toUpperCase().replace(/[^A-Z]/g, "");
@@ -82,7 +83,7 @@ export async function GET() {
         discountAmount: Number(o.discountAmount),
         couponCode: o.couponCode ?? null,
         totalAmount: Number(o.totalAmount),
-        paymentMethod: o.payment?.paymentType || "-",
+        paymentMethod: paymentMethodLabel(o.payment?.paymentType),
         midtransTransactionId:
           o.payment?.midtransTransactionId || o.payment?.midtransOrderId || "-",
         paymentStatus: pStatus,
@@ -244,7 +245,7 @@ export async function POST(request: Request) {
               id: crypto.randomUUID(),
               midtransOrderId: cleanOrderNumber,
               midtransTransactionId: midtransTransactionId || null,
-              paymentType: paymentMethod || "Midtrans Snap",
+              paymentType: paymentMethod || "Midtrans",
               status: (paymentStatus as PaymentStatus) || PaymentStatus.PENDING,
               grossAmount: Number(totalAmount || 0),
             },

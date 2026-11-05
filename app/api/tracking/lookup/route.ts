@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { paymentMethodLabel } from "@/lib/payment-methods";
 
 export const dynamic = "force-dynamic";
 
@@ -85,7 +86,7 @@ export async function POST(request: Request) {
           currency: order.currency || "IDR",
           payment: {
             status: order.payment?.status || (order.status === "PAID" ? "SETTLEMENT" : "PENDING"),
-            paymentType: order.payment?.paymentType || "-",
+            paymentType: paymentMethodLabel(order.payment?.paymentType),
           },
           shipment: {
             courier: order.shipment?.courier || "-",
