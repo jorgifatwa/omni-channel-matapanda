@@ -39,6 +39,48 @@ interface ShippingOption {
   description?: string;
 }
 
+/** All 38 Indonesian provinces (the store ships within Indonesia only). */
+const PROVINCES = [
+  "Aceh",
+  "Sumatera Utara",
+  "Sumatera Barat",
+  "Riau",
+  "Kepulauan Riau",
+  "Jambi",
+  "Sumatera Selatan",
+  "Kepulauan Bangka Belitung",
+  "Bengkulu",
+  "Lampung",
+  "DKI Jakarta",
+  "Banten",
+  "Jawa Barat",
+  "Jawa Tengah",
+  "DI Yogyakarta",
+  "Jawa Timur",
+  "Bali",
+  "Nusa Tenggara Barat",
+  "Nusa Tenggara Timur",
+  "Kalimantan Barat",
+  "Kalimantan Tengah",
+  "Kalimantan Selatan",
+  "Kalimantan Timur",
+  "Kalimantan Utara",
+  "Sulawesi Utara",
+  "Gorontalo",
+  "Sulawesi Tengah",
+  "Sulawesi Barat",
+  "Sulawesi Selatan",
+  "Sulawesi Tenggara",
+  "Maluku",
+  "Maluku Utara",
+  "Papua",
+  "Papua Barat",
+  "Papua Barat Daya",
+  "Papua Tengah",
+  "Papua Pegunungan",
+  "Papua Selatan",
+] as const;
+
 function formatCheckoutPrice(amountInIDR: number) {
   return `Rp ${amountInIDR.toLocaleString("id-ID")},00`;
 }
@@ -74,8 +116,8 @@ export default function CheckoutPage() {
   const { data: session } = useSession();
 
   // Customer & Address Form States
-  const [country, setCountry] = React.useState("Indonesia");
-  const [province, setProvince] = React.useState("Jakarta");
+  const country = "Indonesia"; // domestic shipping only
+  const [province, setProvince] = React.useState("");
   const [city, setCity] = React.useState("");
   const [address, setAddress] = React.useState("");
   const [apartment, setApartment] = React.useState("");
@@ -169,9 +211,7 @@ export default function CheckoutPage() {
   const [isLoadingShipping, setIsLoadingShipping] = React.useState(false);
   const [shippingProvider, setShippingProvider] = React.useState<string>("");
 
-  const isDomestic = country === "Indonesia";
-
-  // Debounced auto-fetch shipping costs when country, province, or city changes
+  // Debounced auto-fetch shipping costs when province, city or postal code changes
   React.useEffect(() => {
     let isCancelled = false;
 
@@ -189,11 +229,9 @@ export default function CheckoutPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            destinationCountry: country,
-            destinationCountryCode: isDomestic ? "ID" : "INTL",
             destinationProvince: province,
             destinationCity: city,
-            destinationPostalCode: isDomestic ? postalCode : "",
+            destinationPostalCode: postalCode,
             weightGrams: 500,
           }),
         });
@@ -223,20 +261,7 @@ export default function CheckoutPage() {
       isCancelled = true;
       clearTimeout(timer);
     };
-  }, [country, province, city, postalCode, isDomestic]);
-
-  // When changing country, reset city and trigger appropriate courier
-  const handleCountryChange = (newCountry: string) => {
-    setCountry(newCountry);
-    setCity("");
-    setShippingRates([]);
-    setSelectedRate(null);
-    if (newCountry === "Indonesia") {
-      setProvince("Jakarta");
-    } else {
-      setProvince("");
-    }
-  };
+  }, [province, city, postalCode]);
 
   const shippingCost = selectedRate ? selectedRate.cost : 0;
   const grandTotal = Math.max(0, checkoutSubtotal - totalDiscount) + shippingCost;
@@ -252,15 +277,9 @@ export default function CheckoutPage() {
     setIsProcessingPayment(true);
 
     const orderNumber = `ZDC-${Date.now().toString().slice(-8)}`;
-    const courierType = selectedRate?.courier || (isDomestic ? "JNE" : "DHL");
-    const courierService = selectedRate
-      ? selectedRate.name
-      : isDomestic
-      ? "JNE REG"
-      : "DHL Express Worldwide";
-    const trackingNumber = isDomestic
-      ? `${courierType}0098${Math.floor(10000000 + Math.random() * 90000000)}`
-      : `DHL${Math.floor(1000000000 + Math.random() * 9000000000)}`;
+    const courierType = selectedRate?.courier || "JNE";
+    const courierService = selectedRate ? selectedRate.name : "JNE REG";
+    const trackingNumber = `${courierType}0098${Math.floor(10000000 + Math.random() * 90000000)}`;
 
     // Harga & total di bawah hanya perkiraan dari keranjang. Server menghitung
     // ulang semuanya dari database dan pesanan memakai hasil hitungan server.
@@ -311,7 +330,7 @@ export default function CheckoutPage() {
           timestamp: new Date().toISOString().replace("T", " ").slice(0, 16),
           status: "PENDING",
           description: `Order berhasil dibuat. Menunggu penyelesaian pembayaran tagihan via Midtrans.`,
-          location: isDomestic ? "Jakarta Selatan (Origin)" : "Jakarta International Gateway",
+          location: "Bandung (Origin)",
         },
       ],
       createdAt: new Date().toISOString().slice(0, 10),
@@ -682,39 +701,11 @@ export default function CheckoutPage() {
                     </h2>
                     <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-[#d5c6ff]/30 text-[#396254] dark:text-[#d5c6ff] flex items-center gap-1">
                       <MapPin className="h-3.5 w-3.5" />
-                      {isDomestic ? "Domestik (JNE, J&T, SiCepat, dll)" : "Internasional (DHL)"}
+                      Seluruh Indonesia
                     </span>
                   </div>
 
                   <div className="space-y-3.5">
-                    {/* Country / Region Select */}
-                    <div className="relative">
-                      <label
-                        htmlFor="checkout-country"
-                        className="block absolute top-1.5 left-4 text-[11px] text-[#396254] dark:text-neutral-400 pointer-events-none font-bold"
-                      >
-                        Negara / Wilayah
-                      </label>
-                      <select
-                        id="checkout-country"
-                        value={country}
-                        onChange={(e) => handleCountryChange(e.target.value)}
-                        className="appearance-none w-full h-14 pt-5 pb-1.5 px-4 pr-10 rounded-2xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-base text-neutral-900 dark:text-white focus:outline-none focus:border-[#396254] focus:ring-2 focus:ring-[#d5c6ff]/50 cursor-pointer shadow-sm font-medium"
-                      >
-                        <option value="Indonesia">Indonesia (JNE, J&T, SiCepat, dll)</option>
-                        <option value="Singapore">Singapore (DHL Express)</option>
-                        <option value="Malaysia">Malaysia (DHL Express)</option>
-                        <option value="Japan">Japan (DHL Express)</option>
-                        <option value="South Korea">South Korea (DHL Express)</option>
-                        <option value="United States">United States (DHL Express)</option>
-                        <option value="United Kingdom">United Kingdom (DHL Express)</option>
-                        <option value="Australia">Australia (DHL Express)</option>
-                        <option value="Germany">Germany (DHL Express)</option>
-                        <option value="France">France (DHL Express)</option>
-                      </select>
-                      <ChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
-                    </div>
-
                     {/* First Name & Last Name */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                       <input
@@ -758,11 +749,7 @@ export default function CheckoutPage() {
                       <input
                         type="text"
                         required
-                        placeholder={
-                          isDomestic
-                            ? "Kota Tujuan (misal: Jakarta Selatan, Bandung, Surabaya, Medan)"
-                            : "City / District (e.g. Tokyo, Singapore, New York)"
-                        }
+                        placeholder="Kota Tujuan / Kabupaten (misal: Jakarta Selatan, Bandung, Surabaya)"
                         value={city}
                         onChange={(e) => setCity(e.target.value)}
                         className="w-full h-13 py-3.5 px-4 rounded-2xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-base text-neutral-900 dark:text-white placeholder:text-neutral-400 focus:outline-none focus:border-[#396254] focus:ring-2 focus:ring-[#d5c6ff]/50 shadow-sm"
@@ -771,8 +758,7 @@ export default function CheckoutPage() {
 
                     {/* Province & Postal Code */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                      {isDomestic ? (
-                        <div className="relative">
+                      <div className="relative">
                           <label
                             htmlFor="checkout-province"
                             className="block absolute top-1.5 left-4 text-[11px] text-[#396254] dark:text-neutral-400 pointer-events-none font-bold"
@@ -781,30 +767,22 @@ export default function CheckoutPage() {
                           </label>
                           <select
                             id="checkout-province"
+                            required
                             value={province}
                             onChange={(e) => setProvince(e.target.value)}
                             className="appearance-none w-full h-14 pt-5 pb-1.5 px-4 pr-10 rounded-2xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-base text-neutral-900 dark:text-white focus:outline-none focus:border-[#396254] focus:ring-2 focus:ring-[#d5c6ff]/50 cursor-pointer shadow-sm font-medium"
                           >
-                            <option value="Jakarta">DKI Jakarta</option>
-                            <option value="West Java">Jawa Barat</option>
-                            <option value="Banten">Banten</option>
-                            <option value="Central Java">Jawa Tengah</option>
-                            <option value="East Java">Jawa Timur</option>
-                            <option value="Bali">Bali</option>
-                            <option value="North Sumatra">Sumatera Utara</option>
-                            <option value="South Sulawesi">Sulawesi Selatan</option>
+                            <option value="" disabled>
+                              Pilih provinsi
+                            </option>
+                            {PROVINCES.map((p) => (
+                              <option key={p} value={p}>
+                                {p}
+                              </option>
+                            ))}
                           </select>
                           <ChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
                         </div>
-                      ) : (
-                        <input
-                          type="text"
-                          placeholder="State / Province / Region"
-                          value={province}
-                          onChange={(e) => setProvince(e.target.value)}
-                          className="w-full h-14 px-4 rounded-2xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-base text-neutral-900 dark:text-white placeholder:text-neutral-400 focus:outline-none focus:border-[#396254] focus:ring-2 focus:ring-[#d5c6ff]/50 shadow-sm"
-                        />
-                      )}
 
                       <input
                         type="text"
@@ -837,7 +815,7 @@ export default function CheckoutPage() {
                     <h3 className="text-lg sm:text-xl font-black text-[#396254] dark:text-white flex items-center gap-2">
                       <Truck className="h-5 w-5 text-[#396254] dark:text-[#dcf58d]" />
                       <span>
-                        3. Opsi Kurir ({isDomestic ? "Domestik" : "DHL Express"})
+                        3. Opsi Kurir
                       </span>
                     </h3>
                     {isLoadingShipping && (
@@ -858,7 +836,7 @@ export default function CheckoutPage() {
                         Masukkan kota tujuan di atas terlebih dahulu
                       </p>
                       <p className="text-[11px] text-neutral-500 max-w-sm">
-                        Opsi layanan kurir {isDomestic ? "JNE, J&T, SiCepat, dan lainnya" : "DHL Express Worldwide"} dan ongkos kirim akan muncul otomatis di sini
+                        Opsi layanan kurir JNE, J&T, SiCepat, dan lainnya beserta ongkos kirim akan muncul otomatis di sini
                       </p>
                     </div>
                   ) : shippingRates.length === 0 && !isLoadingShipping ? (
@@ -892,15 +870,9 @@ export default function CheckoutPage() {
                               <div>
                                 <p className="text-sm font-bold text-neutral-900 dark:text-white flex items-center gap-2">
                                   <span>{rate.name}</span>
-                                  {isDomestic ? (
-                                    <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-[#d5c6ff]/40 text-[#396254] font-bold">
-                                      {rate.courierName}
-                                    </span>
-                                  ) : (
-                                    <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold">
-                                      DHL Air
-                                    </span>
-                                  )}
+                                  <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-[#d5c6ff]/40 text-[#396254] font-bold">
+                                    {rate.courierName}
+                                  </span>
                                 </p>
                                 <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
                                   Estimasi tiba: <strong>{rate.estimatedDays}</strong>
@@ -1243,9 +1215,7 @@ export default function CheckoutPage() {
                 <span>Garansi Pengiriman it&apos;smatapanda</span>
               </div>
               <p className="text-[11px] leading-relaxed text-neutral-600 dark:text-neutral-400">
-                {isDomestic
-                  ? "Seluruh pesanan dalam negeri dikirim langsung dari Bandung menggunakan kurir pilihan Anda."
-                  : "Pesanan internasional dikirim dengan prioritas tinggi via DHL Express Worldwide terlacak langsung."}
+                Seluruh pesanan dikirim langsung dari Bandung ke seluruh Indonesia menggunakan kurir pilihan Anda.
               </p>
             </div>
           </div>

@@ -23,10 +23,10 @@ export const SHIPPING_RATES_DATA = {
       ],
     },
     {
-      id: "international-orders",
+      id: "domestic-only",
       bullet: true,
       content: [
-        "For orders shipped outside of Indonesia (Singapore, Malaysia, and selected international regions), please contact our Customer Care team via WhatsApp or hello@itsmatapanda.com to arrange international courier dispatch.",
+        "We currently ship within Indonesia only. Orders are dispatched from our Bandung studio using the courier you choose at checkout (JNE, J&T, SiCepat, AnterAja, or POS Indonesia).",
       ],
     },
     {

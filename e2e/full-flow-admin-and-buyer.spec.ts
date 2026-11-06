@@ -177,7 +177,7 @@ test.describe.serial("E2E: admin setup → buyer checkout → payment → admin 
     await page.getByPlaceholder("Nama belakang").fill("Buyer");
     await page.getByPlaceholder(/Alamat jalan lengkap/i).fill("Jl. Pengujian No. 1");
     await page.getByPlaceholder(/Kota Tujuan/i).fill("Bandung");
-    await page.locator("#checkout-province").selectOption("West Java");
+    await page.locator("#checkout-province").selectOption("Jawa Barat");
     await page.getByPlaceholder("Kode pos").fill("40281");
     await page.getByPlaceholder(/Nomor Handphone/i).fill(BUYER_PHONE);
 

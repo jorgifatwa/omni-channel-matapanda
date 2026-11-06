@@ -376,7 +376,7 @@ function OrderDetail({
                 <span>Update Status Manual</span>
               </CardTitle>
               <CardDescription>
-                Update status transaksi atau input nomor resi dari JNE / DHL.
+                Update status transaksi atau input nomor resi dari kurir (JNE, J&T, SiCepat, dll).
               </CardDescription>
             </CardHeader>
             <CardContent>

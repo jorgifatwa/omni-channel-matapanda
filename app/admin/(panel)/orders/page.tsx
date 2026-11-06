@@ -185,7 +185,7 @@ export default function AdminOrdersPage() {
         </h1>
         <p className="text-sm text-neutral-500 dark:text-neutral-400">
           Daftar seluruh transaksi masuk, status pembayaran Midtrans, dan resi
-          pengiriman JNE / DHL.
+          pengiriman kurir.
         </p>
       </div>
 

@@ -32,7 +32,7 @@ const DEFAULT_COURIERS: CourierCode[] = ["jne", "jnt", "sicepat", "anteraja", "p
 export interface ShippingRateOption {
   /** Unique key for this option, e.g. "JNT_EZ" */
   id: string;
-  /** Uppercase courier code saved on the order, e.g. "JNE", "JNT", "DHL" */
+  /** Uppercase courier code saved on the order, e.g. "JNE", "JNT", "SICEPAT" */
   courier: string;
   /** Human-readable courier name, e.g. "J&T" */
   courierName: string;

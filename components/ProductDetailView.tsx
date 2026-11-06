@@ -762,10 +762,10 @@ export default function ProductDetailView({
                     </div>
                     <div>
                       <p className="font-bold text-neutral-900 dark:text-neutral-100 uppercase tracking-wider text-[11px] font-heading">
-                        Pengiriman Seluruh Indonesia &amp; Internasional
+                        Pengiriman Seluruh Indonesia
                       </p>
                       <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-0.5">
-                        Didukung oleh JNE, POS Indonesia, dan DHL Express. Nomor resi otomatis diperbarui setelah pesanan dikirim.
+                        Didukung oleh JNE, J&amp;T, SiCepat, AnterAja, dan POS Indonesia. Nomor resi otomatis diperbarui setelah pesanan dikirim.
                       </p>
                     </div>
                   </div>

@@ -10,19 +10,14 @@ import {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    // The store only ships within Indonesia (no international / DHL option).
     const {
-      destinationCountry = "Indonesia",
-      destinationCountryCode = "ID",
       destinationCity = "Jakarta",
       destinationPostalCode = "",
       weightGrams = 500,
     } = body;
 
-    const isDomestic =
-      destinationCountryCode.toUpperCase() === "ID" ||
-      destinationCountry.toLowerCase().includes("indonesia");
-
-    if (isDomestic) {
+    {
       // 1. Live RajaOngkir (Komerce) API: JNE, J&T, SiCepat, AnterAja, POS, ...
       if (isRajaOngkirConfigured()) {
         try {
@@ -134,52 +129,6 @@ export async function POST(request: Request) {
       });
     }
 
-    // International -> Calculate DHL Express Worldwide Rates
-    const weightKg = Math.max(0.5, weightGrams / 1000);
-    const country = destinationCountry.toLowerCase();
-
-    let dhlCostIDR = 260000;
-    let estimatedDays = "2-4 Business Days";
-
-    if (country.includes("singapore") || country.includes("malaysia")) {
-      dhlCostIDR = 220000 + Math.round(weightKg * 60000);
-      estimatedDays = "1-2 Business Days";
-    } else if (country.includes("japan") || country.includes("korea")) {
-      dhlCostIDR = 340000 + Math.round(weightKg * 90000);
-      estimatedDays = "2-3 Business Days";
-    } else if (country.includes("united states") || country.includes("usa")) {
-      dhlCostIDR = 480000 + Math.round(weightKg * 140000);
-      estimatedDays = "3-5 Business Days";
-    } else if (
-      country.includes("united kingdom") ||
-      country.includes("germany") ||
-      country.includes("france")
-    ) {
-      dhlCostIDR = 450000 + Math.round(weightKg * 130000);
-      estimatedDays = "3-5 Business Days";
-    } else {
-      dhlCostIDR = 520000 + Math.round(weightKg * 150000);
-      estimatedDays = "4-7 Business Days";
-    }
-
-    return NextResponse.json({
-      provider: "dhl_express",
-      destination: destinationCity,
-      country: destinationCountry,
-      weightGrams,
-      rates: [
-        {
-          id: "DHL_EXPRESS_WORLDWIDE",
-          courier: "DHL",
-          courierName: "DHL Express",
-          service: "EXPRESS_WORLDWIDE",
-          name: "DHL Express Worldwide (Air Priority)",
-          cost: dhlCostIDR,
-          currency: "IDR",
-          estimatedDays,
-        },
-      ],
-    });
   } catch (error) {
     console.error("Shipping cost calculation error:", error);
     return NextResponse.json(

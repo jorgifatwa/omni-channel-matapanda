@@ -237,7 +237,7 @@ export default function ContactPage() {
                   <span>Pengiriman &amp; Ekspedisi</span>
                 </h3>
                 <p className="text-xs text-neutral-600 dark:text-neutral-300 leading-relaxed">
-                  Pesanan dikirim dari Bandung pada hari Senin &ndash; Jumat. Untuk pengiriman dalam negeri, kamu bisa memilih kurir saat checkout (JNE, J&amp;T, SiCepat, AnterAja, atau POS Indonesia); pengiriman internasional menggunakan DHL Express. Nomor resi diinformasikan setelah pesanan dikirim.
+                  Pesanan dikirim dari Bandung pada hari Senin &ndash; Jumat. Pengiriman hanya ke seluruh Indonesia; kamu bisa memilih kurir saat checkout (JNE, J&amp;T, SiCepat, AnterAja, atau POS Indonesia). Nomor resi diinformasikan setelah pesanan dikirim.
                 </p>
               </div>
 

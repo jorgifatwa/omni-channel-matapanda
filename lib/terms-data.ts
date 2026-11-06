@@ -52,7 +52,7 @@ export const TERMS_SECTIONS: TermsSection[] = [
     title: "Non-disclosure",
     content: [
       "it'smatapanda tidak akan pernah menjual, menyewakan, memperdagangkan, atau menyebarluaskan data pribadi Anda kepada pihak ketiga mana pun untuk tujuan komersial mereka tanpa persetujuan eksplisit dari Anda.",
-      "Data Anda hanya dibagikan kepada mitra pihak ketiga terpercaya yang secara langsung mendukung operasional pesanan Anda (seperti penyedia jasa kurir logistik JNE/DHL/SiCepat untuk pengiriman paket, dan payment gateway Midtrans untuk pemrosesan transaksi yang dienkripsi secara ketat).",
+      "Data Anda hanya dibagikan kepada mitra pihak ketiga terpercaya yang secara langsung mendukung operasional pesanan Anda (seperti penyedia jasa kurir logistik JNE/J&T/SiCepat untuk pengiriman paket, dan payment gateway Midtrans untuk pemrosesan transaksi yang dienkripsi secara ketat).",
     ],
   },
   {

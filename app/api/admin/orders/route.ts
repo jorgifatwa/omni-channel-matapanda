@@ -196,7 +196,7 @@ export async function POST(request: Request) {
             city: shippingAddress.city || "-",
             province: shippingAddress.province || "-",
             postalCode: shippingAddress.postalCode || "-",
-            country: shippingAddress.country || "-",
+            country: "Indonesia", // the store only ships within Indonesia
           },
         });
       }
@@ -259,7 +259,7 @@ export async function POST(request: Request) {
               status: (shipmentStatus as ShipmentStatus) || ShipmentStatus.PENDING,
               shippingCost: Number(shippingCost || 0),
               destinationCity: shippingAddress?.city || "-",
-              destinationCountry: shippingAddress?.country || "-",
+              destinationCountry: "Indonesia",
               trackingHistory: Array.isArray(trackingHistory) ? trackingHistory : [],
             },
           },
