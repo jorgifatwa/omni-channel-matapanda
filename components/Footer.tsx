@@ -245,12 +245,12 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* 3. Bottom Bar: Socials, Payment Methods & Copyright */}
+        {/* 3. Bottom Bar: Socials & Copyright */}
         <div className="mt-14 pt-8 border-t border-neutral-200 flex flex-col md:flex-row items-center justify-between gap-6">
           {/* Social Icons */}
           <div className="flex items-center gap-4 text-black">
             <a
-              href="https://instagram.com"
+              href="https://www.instagram.com/itsmatapanda/"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Instagram"
@@ -272,35 +272,28 @@ export default function Footer() {
               </svg>
             </a>
             <a
-              href="https://linkedin.com"
+              href="https://shopee.co.id/itsmatapanda?entryPoint=ShopBySearch&searchKeyword=itsmatapanda"
               target="_blank"
               rel="noopener noreferrer"
-              aria-label="LinkedIn"
+              aria-label="Shopee"
               className="p-1.5 hover:opacity-70 transition-opacity"
             >
               <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z"/>
+                <path d="M7.2 7.2V6.6a4.8 4.8 0 0 1 9.6 0v.6h3.3a.9.9 0 0 1 .9.96l-.84 12.6A2.4 2.4 0 0 1 17.77 23H6.23a2.4 2.4 0 0 1-2.39-2.24L3 8.16a.9.9 0 0 1 .9-.96h3.3Zm1.8 0h6V6.6a3 3 0 0 0-6 0v.6Z" />
+                <text x="12" y="19.2" textAnchor="middle" fontSize="10.5" fontWeight="900" fill="white" fontFamily="Arial, sans-serif">S</text>
               </svg>
             </a>
             <a
-              href="https://tiktok.com"
+              href="https://www.tiktok.com/@matapanda_id"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="TikTok"
-              className="p-1.5 hover:opacity-70 transition-opacity font-bold text-xs"
+              className="p-1.5 hover:opacity-70 transition-opacity"
             >
-              TikTok
+              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z" />
+              </svg>
             </a>
-          </div>
-
-          {/* Payment Badges */}
-          <div className="flex items-center gap-2 flex-wrap justify-center text-[10px] text-[#396254] dark:text-[#dcf58d] font-bold font-mono">
-            <span className="px-2.5 py-1 border border-[#396254]/20 bg-white dark:bg-neutral-900 rounded-lg shadow-2xs">VISA</span>
-            <span className="px-2.5 py-1 border border-[#396254]/20 bg-white dark:bg-neutral-900 rounded-lg shadow-2xs">MASTERCARD</span>
-            <span className="px-2.5 py-1 border border-[#396254]/20 bg-white dark:bg-neutral-900 rounded-lg shadow-2xs">MIDTRANS</span>
-            <span className="px-2.5 py-1 border border-[#396254]/20 bg-white dark:bg-neutral-900 rounded-lg shadow-2xs">QRIS</span>
-            <span className="px-2.5 py-1 border border-[#396254]/20 bg-white dark:bg-neutral-900 rounded-lg shadow-2xs">BCA VA</span>
-            <span className="px-2.5 py-1 border border-[#396254]/20 bg-white dark:bg-neutral-900 rounded-lg shadow-2xs">GOPAY</span>
           </div>
 
           {/* Copyright & Scroll To Top */}
