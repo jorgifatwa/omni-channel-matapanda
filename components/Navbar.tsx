@@ -8,7 +8,6 @@ import {
   Search,
   User,
   ShoppingBag,
-  ChevronDown,
   Menu,
   Plus,
   Minus,
@@ -50,7 +49,6 @@ import {
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 import WishlistDrawer from "@/components/WishlistDrawer";
-import { CURRENCIES, type CurrencyCode } from "@/lib/products";
 
 interface SearchProduct {
   id: string;
@@ -65,56 +63,6 @@ interface SearchProduct {
   hasDiscount?: boolean;
 }
 
-function CurrencyFlag({ code }: { code: CurrencyCode }) {
-  if (code === "USD") {
-    return (
-      <span
-        aria-hidden="true"
-        className="inline-flex flex-col w-5 h-3.5 rounded-[1px] overflow-hidden border border-neutral-200 shrink-0 relative bg-white"
-      >
-        <span className="w-full h-1/3 bg-red-600" />
-        <span className="w-full h-1/3 bg-white" />
-        <span className="w-full h-1/3 bg-red-600" />
-        <span className="absolute top-0 left-0 w-2.5 h-2 bg-blue-800" />
-      </span>
-    );
-  }
-
-  if (code === "SGD") {
-    return (
-      <span
-        aria-hidden="true"
-        className="inline-flex flex-col w-5 h-3.5 rounded-[1px] overflow-hidden border border-neutral-200 shrink-0 relative"
-      >
-        <span className="w-full h-1/2 bg-red-600" />
-        <span className="w-full h-1/2 bg-white" />
-        <span className="absolute top-0.5 left-0.5 w-1.5 h-1.5 rounded-full bg-white" />
-      </span>
-    );
-  }
-
-  if (code === "JPY") {
-    return (
-      <span
-        aria-hidden="true"
-        className="inline-flex items-center justify-center w-5 h-3.5 rounded-[1px] overflow-hidden border border-neutral-200 bg-white shrink-0"
-      >
-        <span className="w-2 h-2 rounded-full bg-red-600" />
-      </span>
-    );
-  }
-
-  // Default: IDR (Indonesia Flag)
-  return (
-    <span
-      aria-hidden="true"
-      className="inline-flex flex-col w-5 h-3.5 rounded-[1px] overflow-hidden border border-neutral-200 shrink-0"
-    >
-      <span className="w-full h-1/2 bg-red-600" />
-      <span className="w-full h-1/2 bg-white" />
-    </span>
-  );
-}
 
 const NON_BAG_KEYWORDS = [
   "apparel",
@@ -282,8 +230,6 @@ export default function Navbar() {
     removeItem,
     totalItems,
     subtotal,
-    currency,
-    setCurrency,
     formatPrice,
     appliedCoupon,
     couponDiscount,
@@ -388,7 +334,7 @@ export default function Navbar() {
               </Link>
             </div>
 
-            {/* Right: Search, Wishlist, Account, Cart Bag, Currency */}
+            {/* Right: Search, Wishlist, Account, Cart Bag */}
             <div className="flex items-center justify-end gap-1 sm:gap-2 z-10 shrink-0">
               {/* Search Icon Button (Icon only) */}
               <Button
@@ -997,43 +943,6 @@ export default function Navbar() {
                 </SheetContent>
               </Sheet>
 
-              {/* Currency Selector (Visible on sm screens and up; on mobile, accessible via Hamburger Menu) */}
-              <div className="hidden sm:inline-flex shrink-0">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={`h-9 pl-2 pr-1.5 gap-1.5 text-xs font-semibold focus-visible:ring-0 transition-colors ${
-                        menuOpen
-                          ? "text-[#396254] hover:bg-[#396254]/10"
-                          : "text-black hover:bg-neutral-100"
-                      }`}
-                    >
-                      <CurrencyFlag code={currency} />
-                      <span className="hidden sm:inline">{currency}</span>
-                      <ChevronDown className="h-3 w-3 opacity-60" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-36 p-1 bg-white text-black shadow-lg border border-neutral-200">
-                    {CURRENCIES.map((c) => (
-                      <DropdownMenuItem
-                        key={c.code}
-                        onClick={() => setCurrency(c.code)}
-                        className="cursor-pointer text-xs flex items-center justify-between py-2"
-                      >
-                        <div className="flex items-center gap-2">
-                          <CurrencyFlag code={c.code} />
-                          <span className={currency === c.code ? "font-bold text-black" : "text-neutral-700"}>
-                            {c.code}
-                          </span>
-                        </div>
-                        {currency === c.code && <Check className="h-3 w-3 text-black" />}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
             </div>
           </div>
         </div>
@@ -1177,27 +1086,6 @@ export default function Navbar() {
                     </span>
                   )}
                 </button>
-              </div>
-
-              {/* Currency Selector Pill */}
-              <div className="pt-2 flex items-center gap-2">
-                <span className="text-xs text-[#396254]/80">Currency:</span>
-                <div className="inline-flex rounded-full bg-[#396254]/10 p-1 border border-[#396254]/20">
-                  {CURRENCIES.map((c) => (
-                    <button
-                      key={c.code}
-                      type="button"
-                      onClick={() => setCurrency(c.code)}
-                      className={`px-3 py-1 rounded-full text-xs font-semibold uppercase transition-all ${
-                        currency === c.code
-                          ? "bg-[#396254] text-white shadow-sm"
-                          : "text-[#396254]/80 hover:text-white"
-                      }`}
-                    >
-                      {c.code}
-                    </button>
-                  ))}
-                </div>
               </div>
             </div>
           </nav>

@@ -20,7 +20,6 @@ import {
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useCart } from "@/context/CartContext";
-import { type CurrencyCode } from "@/lib/products";
 import { createCheckoutOrder, type CheckoutOrderPayload } from "@/context/AdminStoreContext";
 import { type AdminOrder } from "@/lib/admin-data";
 import PaymentStep, { type PaymentStart } from "@/components/checkout/PaymentStep";
@@ -40,25 +39,14 @@ interface ShippingOption {
   description?: string;
 }
 
-function formatCheckoutPrice(amountInIDR: number, currency: CurrencyCode) {
-  switch (currency) {
-    case "USD":
-      return `$${(amountInIDR / 15800).toFixed(2)}`;
-    case "SGD":
-      return `S$${(amountInIDR / 11800).toFixed(2)}`;
-    case "JPY":
-      return `¥${Math.round(amountInIDR / 105).toLocaleString("en-US")}`;
-    case "IDR":
-    default:
-      return `Rp ${amountInIDR.toLocaleString("id-ID")},00`;
-  }
+function formatCheckoutPrice(amountInIDR: number) {
+  return `Rp ${amountInIDR.toLocaleString("id-ID")},00`;
 }
 
 export default function CheckoutPage() {
   const {
     items,
     isHydrated,
-    currency,
     clearCart,
     appliedCoupon,
     couponDiscount,
@@ -430,7 +418,7 @@ export default function CheckoutPage() {
                 order={createdOrder}
                 checkoutToken={checkoutTokenRef.current}
                 start={paymentStart}
-                totalLabel={formatCheckoutPrice(createdOrder.totalAmount, currency)}
+                totalLabel={formatCheckoutPrice(createdOrder.totalAmount)}
                 onPaid={clearCart}
               />
             ) : orderSuccess && createdOrder ? (
@@ -456,7 +444,7 @@ export default function CheckoutPage() {
 
                   <p className="text-sm text-neutral-700 dark:text-neutral-300 leading-relaxed">
                     Pesananmu telah dibuat dengan status <strong className="text-amber-800 dark:text-amber-300">Menunggu Pembayaran (Pending)</strong>. Selesaikan tagihan sebesar{" "}
-                    <strong className="text-[#396254] dark:text-[#dcf58d]">{formatCheckoutPrice(createdOrder.totalAmount, currency)}</strong> via Midtrans.
+                    <strong className="text-[#396254] dark:text-[#dcf58d]">{formatCheckoutPrice(createdOrder.totalAmount)}</strong> via Midtrans.
                   </p>
 
                   {/* Order Summary Box */}
@@ -489,7 +477,7 @@ export default function CheckoutPage() {
                     <div className="flex justify-between pt-1 font-black text-sm">
                       <span className="text-neutral-700 dark:text-neutral-300">Total Tagihan</span>
                       <span className="text-[#396254] dark:text-[#dcf58d]">
-                        {formatCheckoutPrice(createdOrder.totalAmount, currency)}
+                        {formatCheckoutPrice(createdOrder.totalAmount)}
                       </span>
                     </div>
                   </div>
@@ -613,7 +601,7 @@ export default function CheckoutPage() {
                     <div className="flex justify-between pt-1 font-black text-sm">
                       <span className="text-neutral-700 dark:text-neutral-300">Total Dibayar</span>
                       <span className="text-[#396254] dark:text-[#dcf58d]">
-                        {formatCheckoutPrice(createdOrder.totalAmount, currency)}
+                        {formatCheckoutPrice(createdOrder.totalAmount)}
                       </span>
                     </div>
                   </div>
@@ -922,7 +910,7 @@ export default function CheckoutPage() {
 
                             <div className="text-right">
                               <span className="text-sm font-black text-[#396254] dark:text-[#dcf58d] block">
-                                {formatCheckoutPrice(rate.cost, currency)}
+                                {formatCheckoutPrice(rate.cost)}
                               </span>
                               {rate.cost === 0 && (
                                 <span className="text-[10px] text-emerald-600 font-bold bg-emerald-100 px-2 py-0.5 rounded-full">
@@ -995,7 +983,7 @@ export default function CheckoutPage() {
                     ) : (
                       <span>
                         Bayar dengan {PAYMENT_METHOD_LABELS[paymentMethod]} &bull;{" "}
-                        {formatCheckoutPrice(grandTotal, currency)}
+                        {formatCheckoutPrice(grandTotal)}
                       </span>
                     )}
                   </button>
@@ -1084,7 +1072,7 @@ export default function CheckoutPage() {
                     <p className={`text-sm sm:text-base font-black shrink-0 ${
                       isGift ? "text-emerald-700 dark:text-emerald-400" : "text-[#396254] dark:text-[#dcf58d]"
                     }`}>
-                      {isGift ? "GRATIS" : formatCheckoutPrice(item.priceNumber * item.quantity, currency)}
+                      {isGift ? "GRATIS" : formatCheckoutPrice(item.priceNumber * item.quantity)}
                     </p>
                   </div>
                 );
@@ -1103,11 +1091,11 @@ export default function CheckoutPage() {
                       </span>
                       {couponDiscount > 0 ? (
                         <span className="text-xs bg-[#dcf58d] text-[#396254] font-black px-2.5 py-0.5 rounded-full shadow-xs">
-                          Hemat {formatCheckoutPrice(couponDiscount, currency)}
+                          Hemat {formatCheckoutPrice(couponDiscount)}
                         </span>
                       ) : (
                         <span className="text-xs bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full">
-                          Min. belanja {formatCheckoutPrice(appliedCoupon.minSpend, currency)}
+                          Min. belanja {formatCheckoutPrice(appliedCoupon.minSpend)}
                         </span>
                       )}
                     </div>
@@ -1164,7 +1152,7 @@ export default function CheckoutPage() {
               <div className="flex items-center justify-between">
                 <span className="text-neutral-600 dark:text-neutral-400 font-medium">Subtotal</span>
                 <span className="font-bold text-neutral-900 dark:text-white">
-                  {formatCheckoutPrice(checkoutSubtotal, currency)}
+                  {formatCheckoutPrice(checkoutSubtotal)}
                 </span>
               </div>
 
@@ -1175,7 +1163,7 @@ export default function CheckoutPage() {
                     <Sparkles className="h-4 w-4 text-purple-600 dark:text-purple-400 shrink-0" />
                     <span>Paket Diskon ({appliedBundle?.name || "Min. Belanja"})</span>
                   </span>
-                  <span className="text-xs">-{formatCheckoutPrice(bundleDiscount, currency)}</span>
+                  <span className="text-xs">-{formatCheckoutPrice(bundleDiscount)}</span>
                 </div>
               )}
 
@@ -1197,7 +1185,7 @@ export default function CheckoutPage() {
                     <Ticket className="h-4 w-4" />
                     <span>Diskon Kupon ({appliedCoupon.code})</span>
                   </span>
-                  <span>-{formatCheckoutPrice(couponDiscount, currency)}</span>
+                  <span>-{formatCheckoutPrice(couponDiscount)}</span>
                 </div>
               )}
 
@@ -1218,7 +1206,7 @@ export default function CheckoutPage() {
                       Menghitung...
                     </span>
                   ) : selectedRate ? (
-                    formatCheckoutPrice(selectedRate.cost, currency)
+                    formatCheckoutPrice(selectedRate.cost)
                   ) : (
                     <span className="text-xs text-neutral-400 italic">
                       Belum dipilih
@@ -1240,14 +1228,9 @@ export default function CheckoutPage() {
                   </span>
                 </div>
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-xs font-bold text-neutral-400">
-                    {currency}
-                  </span>
                   <span className="text-2xl font-black text-[#396254] dark:text-[#dcf58d]">
                     {formatCheckoutPrice(
-                      paymentStart && createdOrder ? createdOrder.totalAmount : grandTotal,
-                      currency
-                    )}
+                      paymentStart && createdOrder ? createdOrder.totalAmount : grandTotal)}
                   </span>
                 </div>
               </div>

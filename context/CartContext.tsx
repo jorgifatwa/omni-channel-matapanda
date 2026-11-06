@@ -106,15 +106,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           setItems(parsed);
         }
       }
-      const savedCurrency = window.localStorage.getItem(CURRENCY_STORAGE_KEY);
-      if (
-        savedCurrency === "IDR" ||
-        savedCurrency === "USD" ||
-        savedCurrency === "SGD" ||
-        savedCurrency === "JPY"
-      ) {
-        setCurrencyState(savedCurrency);
-      }
+      // The store sells in Indonesia only: prices are always IDR. Drop any
+      // currency picked with the old (removed) switcher.
+      window.localStorage.removeItem(CURRENCY_STORAGE_KEY);
       const savedCoupon = window.localStorage.getItem(COUPON_STORAGE_KEY);
       if (savedCoupon) {
         setAppliedCoupon(JSON.parse(savedCoupon));
@@ -167,13 +161,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, [appliedCoupon, hydrated]);
 
-  const setCurrency = React.useCallback((nextCurrency: CurrencyCode) => {
-    setCurrencyState(nextCurrency);
-    try {
-      window.localStorage.setItem(CURRENCY_STORAGE_KEY, nextCurrency);
-    } catch {
-      // Ignore storage errors
-    }
+  // Kept for API compatibility; the storefront only sells in IDR.
+  const setCurrency = React.useCallback(() => {
+    setCurrencyState("IDR");
   }, []);
 
   const formatPrice = React.useCallback(
