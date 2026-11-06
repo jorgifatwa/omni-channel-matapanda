@@ -14,6 +14,8 @@ interface ProductCardProps {
   priority?: boolean;
   onQuickAdd?: (product: StorefrontProduct) => void;
   showNewBadge?: boolean;
+  /** Lower-cased colour picked in the listing filter; the card shows that colour's photo. */
+  activeColor?: string | null;
 }
 
 export default function ProductCard({
@@ -21,6 +23,7 @@ export default function ProductCard({
   priority = false,
   onQuickAdd,
   showNewBadge = false,
+  activeColor = null,
 }: ProductCardProps) {
   const { addItem, formatPrice } = useCart();
   const { openQuickAdd } = useQuickAdd();
@@ -83,6 +86,12 @@ export default function ProductCard({
     }
     return list;
   }, [product.variants, product.images, primaryImage]);
+
+  // Photo of the colour chosen in the listing filter (replaces the default photo)
+  const activeColorImage = activeColor
+    ? colorList.find((c) => c.name.trim().toLowerCase() === activeColor)?.image || null
+    : null;
+  const baseImage = activeColorImage || primaryImage;
 
   const firstColor = colorList[0]?.name || null;
   const hasMultipleColors = colorList.length > 1;
@@ -173,7 +182,7 @@ export default function ProductCard({
         >
           {/* 1. Primary Photo (Gambar 1 - Default saat tidak di-hover) */}
           <Image
-            src={primaryImage}
+            src={baseImage}
             alt={product.name}
             fill
             priority={priority}

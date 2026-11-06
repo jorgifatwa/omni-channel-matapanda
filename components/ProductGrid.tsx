@@ -99,19 +99,24 @@ export default function ProductGrid({
     return Array.from(set.entries()).map(([slug, name]) => ({ slug, name }));
   }, [products]);
 
+  // Distinct variant colours (case-insensitive), with how many products have each
   const colorsList = React.useMemo(() => {
-    const map = new Map<string, string>();
+    const map = new Map<string, { key: string; name: string; hex: string; count: number }>();
     for (const p of products) {
+      const seenInProduct = new Set<string>();
       for (const v of p.variants || []) {
-        if (v.color) {
-          const key = v.color.trim();
-          if (!map.has(key.toLowerCase())) {
-            map.set(key.toLowerCase(), v.colorHex || "#111111");
-          }
+        const name = v.color?.trim();
+        if (!name || name.toLowerCase() === "default") continue;
+        const key = name.toLowerCase();
+        const entry = map.get(key) || { key, name, hex: v.colorHex || "#d4d4d4", count: 0 };
+        if (!seenInProduct.has(key)) {
+          entry.count++;
+          seenInProduct.add(key);
         }
+        if (!map.has(key)) map.set(key, entry);
       }
     }
-    return Array.from(map.entries()).map(([name, hex]) => ({ name, hex }));
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [products]);
 
   // Apply Filtering
@@ -123,16 +128,17 @@ export default function ProductGrid({
         if (catSlug !== selectedCategory) return false;
       }
 
-      // Color filter
+      // Color filter (with "in stock only", the chosen colour itself must be in stock)
       if (selectedColor !== "all") {
-        const hasColor = p.variants?.some(
-          (v) => v.color?.toLowerCase() === selectedColor.toLowerCase()
+        const matching = (p.variants || []).filter(
+          (v) => v.color?.trim().toLowerCase() === selectedColor
         );
-        if (!hasColor) return false;
+        if (matching.length === 0) return false;
+        if (inStockOnly && !matching.some((v) => v.stock > 0)) return false;
       }
 
       // Stock filter
-      if (inStockOnly && p.stock === 0) {
+      if (inStockOnly && p.stock <= 0) {
         return false;
       }
 
@@ -157,9 +163,9 @@ export default function ProductGrid({
           return priceB - priceA;
         });
       case "name-asc":
-        return list.sort((a, b) => a.name.localeCompare(b.name));
+        return list.sort((a, b) => a.name.localeCompare(b.name, "id", { sensitivity: "base" }));
       case "name-desc":
-        return list.sort((a, b) => b.name.localeCompare(a.name));
+        return list.sort((a, b) => b.name.localeCompare(a.name, "id", { sensitivity: "base" }));
       case "featured":
       default:
         return list;
@@ -380,13 +386,14 @@ export default function ProductGrid({
                         All Colours
                       </button>
                       {colorsList.map((c) => {
-                        const isSelected = selectedColor === c.name;
+                        const isSelected = selectedColor === c.key;
                         return (
                           <button
-                            key={c.name}
+                            key={c.key}
                             type="button"
+                            aria-pressed={isSelected}
                             onClick={() => {
-                              setSelectedColor(isSelected ? "all" : c.name);
+                              setSelectedColor(isSelected ? "all" : c.key);
                               setCurrentPage(1);
                             }}
                             className={`h-8 px-3 rounded-full text-xs font-medium flex items-center gap-2 border transition-all ${
@@ -400,6 +407,9 @@ export default function ProductGrid({
                               style={{ backgroundColor: c.hex }}
                             />
                             <span className="capitalize">{c.name}</span>
+                            <span className={isSelected ? "text-white/70" : "text-neutral-400"}>
+                              {c.count}
+                            </span>
                           </button>
                         );
                       })}
@@ -459,7 +469,7 @@ export default function ProductGrid({
                 className="h-10 sm:h-11 px-5 sm:px-6 rounded-full border border-neutral-200 bg-white text-neutral-900 hover:border-black hover:bg-neutral-50 text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all hover:-translate-y-0.5 active:scale-95 shadow-xs cursor-pointer"
               >
                 <ArrowUpDown className="h-3.5 w-3.5 text-neutral-500" />
-                <span>Sort</span>
+                <span>{sortOption === "featured" ? "Sort" : sortLabels[sortOption]}</span>
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
@@ -469,7 +479,10 @@ export default function ProductGrid({
               {(Object.keys(sortLabels) as SortOption[]).map((opt) => (
                 <DropdownMenuItem
                   key={opt}
-                  onClick={() => setSortOption(opt)}
+                  onSelect={() => {
+                    setSortOption(opt);
+                    setCurrentPage(1);
+                  }}
                   className="flex items-center justify-between py-2.5 px-3 text-xs font-semibold cursor-pointer hover:bg-neutral-100 rounded-xl transition-colors"
                 >
                   <span
@@ -569,6 +582,7 @@ export default function ProductGrid({
                 product={product}
                 priority={index < 4}
                 showNewBadge={showNewBadge}
+                activeColor={selectedColor === "all" ? null : selectedColor}
               />
             );
 

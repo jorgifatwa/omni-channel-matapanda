@@ -1,5 +1,6 @@
 "use client";
 
+import { colorNameToHex, resolveSwatchHex } from "@/lib/color-swatch";
 import * as React from "react";
 import { type ColumnDef } from "@tanstack/react-table";
 import {
@@ -139,7 +140,8 @@ export default function AdminProductsPage() {
       (product.variants || []).map((v) => ({
         ...v,
         colorGroup: v.colorGroup ?? "",
-        colorHex: v.colorHex ?? "",
+        // Old rows saved the #000000 default for every colour; repair on edit
+        colorHex: resolveSwatchHex(v.color, v.colorHex) ?? "",
         image: v.image ?? "",
       }))
     );
@@ -218,7 +220,20 @@ export default function AdminProductsPage() {
     value: string | number
   ) => {
     setVariants((prev) =>
-      prev.map((v) => (v.id === id ? { ...v, [field]: value } : v))
+      prev.map((v) => {
+        if (v.id !== id) return v;
+        const next = { ...v, [field]: value };
+        // Keep the swatch in sync with the colour name until the admin picks
+        // a hex manually (empty, the #000000 default, or the previous auto hex).
+        if (field === "color") {
+          const current = (v.colorHex || "").trim().toUpperCase();
+          const previousAuto = (colorNameToHex(v.color) || "").toUpperCase();
+          const untouched = !current || current === "#000000" || current === previousAuto;
+          const auto = colorNameToHex(String(value));
+          if (untouched && auto) next.colorHex = auto;
+        }
+        return next;
+      })
     );
   };
 

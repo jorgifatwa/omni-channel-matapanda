@@ -5,6 +5,7 @@ import {
   type ResolvedDiscount,
 } from "@/lib/discount-engine";
 import { getActiveDiscounts } from "@/lib/discount-store";
+import { resolveSwatchHex } from "@/lib/color-swatch";
 
 /**
  * Active campaigns for storefront display. If the campaign table cannot be
@@ -484,6 +485,7 @@ type PrismaProductRecord = {
     color: string;
     colorGroup?: string | null;
     colorHex?: string | null;
+    image?: string | null;
     stock: number;
     lowStockThreshold?: number | null;
   }[];
@@ -518,7 +520,8 @@ function formatPrismaProduct(
           size: v.size,
           color: v.color,
           colorGroup: v.colorGroup ?? null,
-          colorHex: v.colorHex ?? null,
+          colorHex: resolveSwatchHex(v.color, v.colorHex),
+          image: v.image || null,
           stock: v.stock,
           lowStockThreshold: v.lowStockThreshold ?? p.lowStockThreshold ?? 5,
         }))
