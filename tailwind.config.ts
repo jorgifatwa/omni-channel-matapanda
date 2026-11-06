@@ -11,6 +11,24 @@ const config: Config = {
   	extend: {
   		fontFamily: {
   			sans: ['var(--font-sans)', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+  			heading: ['var(--font-heading, var(--font-sans))', 'system-ui', 'sans-serif'],
+  		},
+  		// Sizes used across the UI that Tailwind v3 doesn't ship by default
+  		// (without these, classes like p-4.5 / h-15 silently produce no CSS).
+  		spacing: {
+  			'4.5': '1.125rem',
+  			'7.5': '1.875rem',
+  			'13': '3.25rem',
+  			'15': '3.75rem',
+  			'18': '4.5rem',
+  			'22': '5.5rem',
+  		},
+  		boxShadow: {
+  			'2xs': '0 1px rgb(0 0 0 / 0.05)',
+  			xs: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+  		},
+  		backdropBlur: {
+  			xs: '2px',
   		},
   		colors: {
   			background: 'hsl(var(--background))',
@@ -64,7 +82,8 @@ const config: Config = {
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
-  			sm: 'calc(var(--radius) - 4px)'
+  			sm: 'calc(var(--radius) - 4px)',
+  			xs: '0.125rem'
   		}
   	}
   },

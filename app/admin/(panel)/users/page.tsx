@@ -626,7 +626,7 @@ export default function AdminUsersPage() {
                             <div className="font-semibold text-xs text-neutral-900 dark:text-neutral-100 flex items-center gap-1.5">
                               <span>{item.name}</span>
                               {isPrimaryAdmin && (
-                                <span className="bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 text-[10px] px-1.5 py-0.2 rounded font-bold">
+                                <span className="bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 text-[10px] px-1.5 py-0.5 rounded font-bold">
                                   Primary
                                 </span>
                               )}
