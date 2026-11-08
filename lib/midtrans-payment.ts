@@ -53,7 +53,7 @@ export type ApplyResult =
   | { kind: "amount_mismatch"; orderNumber: string };
 
 /** Finds the order for a Midtrans order_id (exact order number, or a suffixed retry charge). */
-async function findOrderForMidtransId(midtransOrderId: string) {
+export async function findOrderForMidtransId(midtransOrderId: string) {
   const include = { payment: true, items: true } as const;
   const byPayment = await prisma.payment.findUnique({
     where: { midtransOrderId },

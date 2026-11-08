@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Image from "next/image";
+import { IMAGE_URL_HINT, isRenderableImageUrl } from "@/lib/image-url";
 import {
   Camera,
   Plus,
@@ -164,6 +165,10 @@ export default function AdminCommunityPage() {
       setFormError("URL atau file foto wajib diisi.");
       return;
     }
+    if (!isRenderableImageUrl(image)) {
+      setFormError(`URL foto tidak valid. ${IMAGE_URL_HINT}`);
+      return;
+    }
     if (!caption.trim()) {
       setFormError("Caption postingan wajib diisi.");
       return;
@@ -244,24 +249,34 @@ export default function AdminCommunityPage() {
   };
 
   // Re-order Up / Down
-  const handleMoveOrder = async (index: number, direction: "up" | "down") => {
-    const targetIndex = direction === "up" ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= posts.length) return;
+  // `visibleIndex` is the row's position in the filtered/searched list, so the
+  // swap partner must be the adjacent *visible* post, not the adjacent post in
+  // the full list (which may be hidden by the current filter).
+  const handleMoveOrder = async (visibleIndex: number, direction: "up" | "down") => {
+    const moved = filteredPosts[visibleIndex];
+    const neighbour = filteredPosts[direction === "up" ? visibleIndex - 1 : visibleIndex + 1];
+    if (!moved || !neighbour) return;
+
+    const fromIndex = posts.findIndex((p) => p.id === moved.id);
+    const toIndex = posts.findIndex((p) => p.id === neighbour.id);
+    if (fromIndex < 0 || toIndex < 0) return;
 
     const newList = [...posts];
-    const [moved] = newList.splice(index, 1);
-    newList.splice(targetIndex, 0, moved);
+    newList[fromIndex] = neighbour;
+    newList[toIndex] = moved;
 
     const reorderedList = newList.map((item, idx) => ({
       ...item,
       sortOrder: idx,
     }));
+    const previousOrder = new Map(posts.map((p) => [p.id, p.sortOrder]));
+    const changed = reorderedList.filter((item) => previousOrder.get(item.id) !== item.sortOrder);
 
     setPosts(reorderedList);
 
     try {
       await Promise.all(
-        reorderedList.map((item) =>
+        changed.map((item) =>
           adminRequestJson(
             `/api/admin/community/${item.id}`,
             "PUT",
@@ -595,7 +610,7 @@ export default function AdminCommunityPage() {
                     <Switch
                       checked={post.isActive}
                       onCheckedChange={() => handleToggleActive(post)}
-                      aria-label="Toggle post status"
+                      aria-label={`Status aktif postingan ${post.accountHandle ?? ""}`.trim()}
                     />
                   </div>
 
@@ -674,7 +689,12 @@ export default function AdminCommunityPage() {
               </p>
 
               {/* Photo Preview */}
-              {image && (
+              {!!image.trim() && !isRenderableImageUrl(image) && (
+                <p role="alert" className="text-[11px] text-red-600 dark:text-red-400">
+                  URL foto belum valid. {IMAGE_URL_HINT}
+                </p>
+              )}
+              {isRenderableImageUrl(image) && (
                 <div className="relative aspect-square w-32 rounded-lg overflow-hidden border border-neutral-300 dark:border-neutral-700 mt-2 bg-neutral-100">
                   <Image src={image} alt="Preview" fill className="object-cover" />
                 </div>

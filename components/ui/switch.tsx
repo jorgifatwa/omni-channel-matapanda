@@ -9,6 +9,9 @@ export interface SwitchProps {
   disabled?: boolean;
   className?: string;
   id?: string;
+  /** Accessible name when there is no visible <label htmlFor> (e.g. row toggles). */
+  "aria-label"?: string;
+  "aria-labelledby"?: string;
 }
 
 export function Switch({
@@ -17,6 +20,8 @@ export function Switch({
   disabled,
   className,
   id,
+  "aria-label": ariaLabel,
+  "aria-labelledby": ariaLabelledBy,
 }: SwitchProps) {
   return (
     <button
@@ -24,6 +29,8 @@ export function Switch({
       type="button"
       role="switch"
       aria-checked={checked}
+      aria-label={ariaLabel}
+      aria-labelledby={ariaLabelledBy}
       disabled={disabled}
       onClick={() => onCheckedChange(!checked)}
       className={cn(

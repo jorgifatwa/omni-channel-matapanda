@@ -1,9 +1,31 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
+import { authOptions } from "@/lib/auth";
 import { type AdminUserListItem } from "../route";
 
 const PRIMARY_ADMIN_EMAIL = "jorgifatwaambia@gmail.com";
+const PRIMARY_ADMIN_ID = "00000000-0000-4000-8000-000000000001";
+
+/**
+ * The primary admin and the admin making the request must never lose access:
+ * no demotion to CUSTOMER, no deactivation, no deletion. Otherwise an admin
+ * could lock themselves (or the owner account) out of the dashboard.
+ */
+async function getProtectionReason(target: { id: string; email: string }) {
+  if (
+    target.id === PRIMARY_ADMIN_ID ||
+    target.email.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase()
+  ) {
+    return "Akun administrator utama tidak dapat diturunkan, dinonaktifkan, atau dihapus.";
+  }
+  const session = await getServerSession(authOptions);
+  if (session?.user?.id && session.user.id === target.id) {
+    return "Anda tidak dapat menurunkan role, menonaktifkan, atau menghapus akun Anda sendiri.";
+  }
+  return null;
+}
 
 export async function GET(
   request: Request,
@@ -61,6 +83,27 @@ export async function PUT(
       role,
       isActive,
     } = body;
+
+    const losesAccess =
+      (role !== undefined && role !== "ADMIN") ||
+      (isActive !== undefined && !isActive);
+    if (losesAccess) {
+      const target = await prisma.user.findUnique({
+        where: { id: params.id },
+        select: { id: true, email: true, role: true },
+      });
+      if (!target) {
+        return NextResponse.json({ error: "User tidak ditemukan" }, { status: 404 });
+      }
+      // Demoting a customer to CUSTOMER is a no-op, so only guard real access loss.
+      const demotes = role !== undefined && role !== "ADMIN" && target.role === "ADMIN";
+      if (demotes || (isActive !== undefined && !isActive)) {
+        const reason = await getProtectionReason(target);
+        if (reason) {
+          return NextResponse.json({ error: reason }, { status: 403 });
+        }
+      }
+    }
 
     const dataToUpdate: Record<string, unknown> = {};
 
@@ -138,14 +181,9 @@ export async function DELETE(
         return NextResponse.json({ error: "User tidak ditemukan" }, { status: 404 });
       }
 
-      if (
-        targetUser.email.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() ||
-        params.id === "00000000-0000-4000-8000-000000000001"
-      ) {
-        return NextResponse.json(
-          { error: "Akun administrator utama tidak dapat dihapus." },
-          { status: 403 }
-        );
+      const reason = await getProtectionReason(targetUser);
+      if (reason) {
+        return NextResponse.json({ error: reason }, { status: 403 });
       }
 
       await prisma.user.update({

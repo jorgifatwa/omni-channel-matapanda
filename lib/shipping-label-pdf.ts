@@ -2,10 +2,54 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { AdminOrder } from "./admin-data";
 import { formatIDR } from "./products";
+import { STORE_ADDRESS, STORE_PHONE } from "@/lib/store-info";
 
 /**
  * Generate and download a 100mm x 150mm (A6 standard thermal shipping label) PDF.
  */
+/** Shipment column default; orders created before weights were saved still hold it. */
+const LEGACY_DEFAULT_WEIGHT = 250;
+
+/**
+ * Parcel weight for the label: the weight saved on the order (products +
+ * packaging), or a rough estimate (~0.4 kg per item) for older orders.
+ */
+/**
+ * Payment badge for shipping labels. The store has no COD, so every parcel is
+ * NON-COD; "LUNAS" is only printed once the payment has actually settled.
+ */
+/** Tracking number for labels; the API stores "no resi yet" as "-", which must fall back too. */
+export function labelTrackingNumber(order: Pick<AdminOrder, "trackingNumber" | "orderNumber">): string {
+  const resi = (order.trackingNumber || "").trim();
+  return resi && resi !== "-" ? resi : `MP-${order.orderNumber}`;
+}
+
+/** "JNE - REG" from courier "JNE" + service "JNE REG" (services often repeat the courier name). */
+export function courierLabel(
+  order: Pick<AdminOrder, "courier" | "courierService">,
+  fallbackService = "REG"
+): string {
+  const courier = (order.courier || "").trim();
+  let service = (order.courierService || "").trim();
+  if (courier && service.toLowerCase().startsWith(courier.toLowerCase())) {
+    service = service.slice(courier.length).replace(/^[\s\-:]+/, "").trim();
+  }
+  return `${courier} - ${service || fallbackService}`;
+}
+
+export function shippingLabelPaymentBadge(paymentStatus: AdminOrder["paymentStatus"]): string {
+  return paymentStatus === "SETTLEMENT" ? "NON-COD (LUNAS)" : "NON-COD (BELUM LUNAS)";
+}
+
+export function formatParcelWeight(order: Pick<AdminOrder, "weightGrams" | "items">): string {
+  const grams = Number(order.weightGrams);
+  if (Number.isFinite(grams) && grams > 0 && grams !== LEGACY_DEFAULT_WEIGHT) {
+    return `${(grams / 1000).toLocaleString("id-ID", { maximumFractionDigits: 2 })} kg`;
+  }
+  const qty = order.items.reduce((sum, it) => sum + it.quantity, 0);
+  return `~${(qty * 0.4).toFixed(1)} kg (estimasi)`;
+}
+
 export function generateShippingLabelPDF(order: AdminOrder): void {
   // Thermal shipping label standard: 100mm width x 150mm height
   const doc = new jsPDF({
@@ -32,10 +76,10 @@ export function generateShippingLabelPDF(order: AdminOrder): void {
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
-  doc.text("Official Store Jakarta", margin + 3, y + 4);
+  doc.text("Official Store Bandung", margin + 3, y + 4);
 
   // Courier Badge (Right aligned)
-  const courierText = `${order.courier} - ${order.courierService || "REG"}`;
+  const courierText = courierLabel(order);
   doc.setFillColor(0, 0, 0);
   doc.rect(pageWidth - margin - 35, margin + 2, 33, 9, "F");
   doc.setTextColor(255, 255, 255);
@@ -51,7 +95,7 @@ export function generateShippingLabelPDF(order: AdminOrder): void {
 
   // 2. Simulated High-Contrast Barcode for Tracking Number
   y += 3;
-  const trackingNumber = order.trackingNumber || `MP-${order.orderNumber}`;
+  const trackingNumber = labelTrackingNumber(order);
   const barcodeX = margin + 8;
   const barcodeWidth = 74;
   const barcodeHeight = 12;
@@ -103,8 +147,9 @@ export function generateShippingLabelPDF(order: AdminOrder): void {
   doc.setDrawColor(0, 0, 0);
   doc.rect(pageWidth - margin - 35, y - 2.5, 33, 7.5);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.text("NON-COD (LUNAS)", pageWidth - margin - 18.5, y + 2.5, { align: "center" });
+  const paymentBadge = shippingLabelPaymentBadge(order.paymentStatus);
+  doc.setFontSize(paymentBadge.length > 16 ? 6 : 7.5);
+  doc.text(paymentBadge, pageWidth - margin - 18.5, y + 2.5, { align: "center" });
 
   // Divider
   y += 7.5;
@@ -155,11 +200,11 @@ export function generateShippingLabelPDF(order: AdminOrder): void {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(0, 0, 0);
-  doc.text("it's matapanda Jakarta (Official)", margin + 3, y + 7.5);
+  doc.text("it's matapanda Bandung (Official)", margin + 3, y + 7.5);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
-  doc.text("Jl. Senopati No. 42, Kebayoran Baru, Jakarta Selatan 12190 | Telp: +62 812-9876-5432", margin + 3, y + 11.5);
+  doc.text(`${STORE_ADDRESS} | Telp: ${STORE_PHONE}`, margin + 3, y + 11.5);
 
   // Divider
   y += 14;
@@ -194,7 +239,7 @@ export function generateShippingLabelPDF(order: AdminOrder): void {
   const totalQty = order.items.reduce((sum, it) => sum + it.quantity, 0);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(6.5);
-  doc.text(`Total Kuantitas: ${totalQty} pcs | Est. Berat: ~${(totalQty * 0.4).toFixed(1)} kg`, margin + 3, 137);
+  doc.text(`Total Kuantitas: ${totalQty} pcs | Berat: ${formatParcelWeight(order)}`, margin + 3, 137);
 
   // 7. Footer Instructions
   doc.setFillColor(0, 0, 0);
@@ -278,9 +323,9 @@ export function generatePackingSlipPDF(order: AdminOrder): void {
   doc.text(order.orderStatus, margin + 30, y + 13);
   doc.text(order.paymentStatus === "SETTLEMENT" ? "LUNAS (Settlement)" : order.paymentStatus, margin + 30, y + 18);
   doc.text(order.paymentMethod, margin + 30, y + 23);
-  doc.text(`${order.courier} (${order.courierService || "Standard"})`, margin + 30, y + 28);
+  doc.text(courierLabel(order, "Standard"), margin + 30, y + 28);
   doc.setFont("courier", "bold");
-  doc.text(order.trackingNumber || "-", margin + 30, y + 33);
+  doc.text(order.trackingNumber && order.trackingNumber !== "-" ? order.trackingNumber : "Belum Tersedia", margin + 30, y + 33);
 
   // Right Column: Shipping Destination
   const rightX = margin + colWidth + 8;

@@ -19,7 +19,7 @@ import { createHash } from "crypto";
  *
  * Needs in .env: E2E_TEST_ADMIN_EMAIL / E2E_TEST_ADMIN_PASSWORD (an admin account),
  * and MIDTRANS_SERVER_KEY (sandbox) for the payment steps.
- * Shipping rates are mocked in the browser so RajaOngkir quota isn't used.
+ * Shipping uses the real quote API (RajaOngkir results are cached server-side).
  */
 
 const ADMIN_EMAIL = process.env.E2E_TEST_ADMIN_EMAIL || "";
@@ -32,7 +32,6 @@ const PRODUCT_SKU = `E2E-${RUN_ID}`;
 const PRODUCT_PRICE = 150_000;
 const PRODUCT_STOCK = 10;
 const COUPON_CODE = `E2E${RUN_ID}`;
-const SHIPPING_COST = 20_000;
 const BUYER_EMAIL = `e2e-buyer-${RUN_ID}@example.com`;
 const BUYER_PHONE = "081234567890";
 
@@ -144,24 +143,18 @@ test.describe.serial("E2E: admin setup → buyer checkout → payment → admin 
   });
 
   test("4. pembeli checkout dengan kupon, harga dihitung server", async ({ page }) => {
-    // Deterministic shipping rate (no RajaOngkir quota used)
-    await page.route("**/api/shipping/cost", (route) =>
-      route.fulfill({
-        json: {
-          provider: "rajaongkir",
-          rates: [
-            {
-              id: "jne-reg-e2e",
-              courier: "JNE",
-              courierName: "JNE",
-              name: "JNE REG",
-              cost: SHIPPING_COST,
-              estimatedDays: "2-3 hari",
-            },
-          ],
-        },
-      })
-    );
+    // Real quote: the browser sends cart lines, the server weighs them.
+    // RajaOngkir results are cached server-side, so quota use stays small.
+    let quotedCost = 0;
+    let quotedWeight = 0;
+    page.on("response", async (r) => {
+      if (!r.url().endsWith("/api/shipping/cost") || !r.ok()) return;
+      const q = await r.json().catch(() => null);
+      if (q?.rates?.length) {
+        quotedCost = q.rates[0].cost;
+        quotedWeight = q.weightGrams;
+      }
+    });
 
     await page.goto(`/products/${state.productSlug}`);
     await page.evaluate(() => localStorage.clear());
@@ -185,7 +178,7 @@ test.describe.serial("E2E: admin setup → buyer checkout → payment → admin 
     await page.getByRole("button", { name: "Pakai", exact: true }).click();
     await expect(page.getByText(COUPON_CODE).first()).toBeVisible();
 
-    await expect(page.getByText("JNE REG").first()).toBeVisible({ timeout: 15_000 });
+    await expect.poll(() => quotedCost, { timeout: 30_000 }).toBeGreaterThan(0);
 
     const orderResPromise = page.waitForResponse(
       (r) => r.url().endsWith("/api/orders") && r.request().method() === "POST"
@@ -208,7 +201,10 @@ test.describe.serial("E2E: admin setup → buyer checkout → payment → admin 
     expect(p.subtotal).toBe(PRODUCT_PRICE);
     expect(p.couponCode).toBe(COUPON_CODE);
     expect(p.couponDiscount).toBe(PRODUCT_PRICE * 0.1);
-    expect(p.shippingCost).toBe(SHIPPING_COST);
+    // Fee re-quoted by the server from the parcel weight = the rate shown at checkout
+    expect(p.weightGrams).toBe(quotedWeight);
+    expect(p.weightGrams).toBeGreaterThan(100); // product + packaging
+    expect(p.shippingCost).toBe(quotedCost);
     expect(p.totalAmount).toBe(p.subtotal - p.discountAmount + p.shippingCost);
     expect(orderJson.order.paymentStatus).toBe("PENDING");
     expect(orderJson.order.customerEmail).toBe(BUYER_EMAIL);
@@ -237,14 +233,21 @@ test.describe.serial("E2E: admin setup → buyer checkout → payment → admin 
   });
 
   test("5. proteksi server: harga palsu, data kontak, token pembayaran", async ({ request }) => {
+    const quoteRes = await request.post("/api/shipping/cost", {
+      data: { destinationCity: "Bandung", items: [{ productId: state.productId, quantity: 1 }] },
+    });
+    expect(quoteRes.ok()).toBeTruthy();
+    const rate = (await quoteRes.json()).rates[0];
+
     const base = {
       customerEmail: BUYER_EMAIL,
       customerName: "Tamper Test",
       customerPhone: BUYER_PHONE,
       shippingAddress: { recipient: "Tamper", street: "Jl. X", city: "Bandung", country: "Indonesia" },
-      shippingCost: SHIPPING_COST,
-      courier: "JNE",
-      courierService: "JNE REG",
+      shippingCost: 1,
+      shippingRateId: rate.id,
+      courier: rate.courier,
+      courierService: rate.name,
       items: [{ productId: state.productId, quantity: 1, unitPrice: 1, subtotal: 1 }],
       subtotal: 1,
       totalAmount: 1,
@@ -263,6 +266,14 @@ test.describe.serial("E2E: admin setup → buyer checkout → payment → admin 
     const t = await tampered.json();
     expect(t.pricing.subtotal).toBe(PRODUCT_PRICE);
     expect(t.order.items[0].unitPrice).toBe(PRODUCT_PRICE);
+    // Tampered shipping fee → ignored, server re-quotes from the parcel weight
+    expect(t.pricing.shippingCost).toBe(rate.cost);
+
+    // Unknown courier service → rejected (buyer must pick a quoted rate)
+    const badRate = await request.post("/api/orders", {
+      data: { ...base, orderNumber: `ZDC-R${RUN_ID}`, shippingRateId: "FAKE_FREE", courier: "X", courierService: "X" },
+    });
+    expect(badRate.status()).toBe(409);
 
     // Buyer can't mark their own order paid
     const fakePaid = await request.post("/api/orders", {

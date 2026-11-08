@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Image from "next/image";
+import { IMAGE_URL_HINT, isRenderableImageUrl } from "@/lib/image-url";
 import Link from "next/link";
 import {
   Plus,
@@ -251,6 +252,28 @@ export default function AdminBannersPage() {
       setFormError("Gambar Banner wajib diunggah atau masukkan URL gambar.");
       return;
     }
+    if (!isRenderableImageUrl(imageUrl)) {
+      setFormError(`URL gambar desktop tidak valid. ${IMAGE_URL_HINT}`);
+      return;
+    }
+    if (mobileImageUrl.trim() && !isRenderableImageUrl(mobileImageUrl)) {
+      setFormError(`URL gambar mobile tidak valid. ${IMAGE_URL_HINT}`);
+      return;
+    }
+    // Internal CTA links must point at a page that exists, otherwise the
+    // storefront hero sends shoppers to a 404.
+    const normalizedCta = normalizeLink(ctaLink, "");
+    if (normalizedCta.startsWith("/") && !normalizedCta.startsWith("//")) {
+      try {
+        const check = await fetch(normalizedCta, { method: "HEAD", cache: "no-store" });
+        if (check.status === 404) {
+          setFormError(`Link tujuan "${normalizedCta}" tidak ditemukan (404). Periksa slug kategori/halaman.`);
+          return;
+        }
+      } catch {
+        // Network hiccup: don't block saving on the existence check.
+      }
+    }
 
     setIsSubmitting(true);
     setFormError(null);
@@ -314,27 +337,30 @@ export default function AdminBannersPage() {
     if (direction === "DOWN" && idx === sameType.length - 1) return;
 
     const targetIdx = direction === "UP" ? idx - 1 : idx + 1;
-    const currentItem = sameType[idx];
-    const targetItem = sameType[targetIdx];
 
-    // Swap sortOrder
-    const currentOrder = currentItem.sortOrder;
-    const targetOrder = targetItem.sortOrder;
+    // Swap positions, then renumber 0..n-1. Swapping the two sortOrder values
+    // is a no-op when they are equal (e.g. both 0), which froze the order.
+    const reordered = [...sameType];
+    [reordered[idx], reordered[targetIdx]] = [reordered[targetIdx], reordered[idx]];
+    const newOrder = new Map(reordered.map((b, i) => [b.id, i]));
+    const changed = reordered.filter((b) => b.sortOrder !== newOrder.get(b.id));
 
     setBanners((prev) =>
-      prev.map((b) => {
-        if (b.id === currentItem.id) return { ...b, sortOrder: targetOrder };
-        if (b.id === targetItem.id) return { ...b, sortOrder: currentOrder };
-        return b;
-      })
+      prev.map((b) => (newOrder.has(b.id) ? { ...b, sortOrder: newOrder.get(b.id)! } : b))
     );
 
     // Sync to API
     try {
-      await Promise.all([
-        adminRequestJson(`/api/admin/banners/${currentItem.id}`, "PUT", { sortOrder: targetOrder }, "urutan banner"),
-        adminRequestJson(`/api/admin/banners/${targetItem.id}`, "PUT", { sortOrder: currentOrder }, "urutan banner"),
-      ]);
+      await Promise.all(
+        changed.map((b) =>
+          adminRequestJson(
+            `/api/admin/banners/${b.id}`,
+            "PUT",
+            { sortOrder: newOrder.get(b.id) },
+            "urutan banner"
+          )
+        )
+      );
       showToast("info", `Urutan banner "${banner.title}" berhasil dipindahkan.`);
     } catch (err) {
       showToast("error", errorMessage(err, "Gagal memindahkan urutan banner."));
@@ -590,6 +616,7 @@ export default function AdminBannersPage() {
                             checked={banner.isActive}
                             onCheckedChange={() => handleToggleActive(banner)}
                             className="scale-75 origin-right"
+                            aria-label={`Status aktif banner ${banner.title}`}
                           />
                         </div>
 
@@ -778,6 +805,7 @@ export default function AdminBannersPage() {
                           <Switch
                             checked={banner.isActive}
                             onCheckedChange={() => handleToggleActive(banner)}
+                            aria-label={`Status aktif banner ${banner.title}`}
                           />
                         </div>
 
@@ -937,7 +965,7 @@ export default function AdminBannersPage() {
                 </div>
 
                 {/* Image Preview */}
-                {imageUrl && (
+                {isRenderableImageUrl(imageUrl) && (
                   <div className="relative aspect-[16/9] w-full max-h-48 rounded-lg overflow-hidden border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-900">
                     <Image
                       src={imageUrl}
@@ -982,9 +1010,15 @@ export default function AdminBannersPage() {
                     placeholder="Atau masukkan URL gambar..."
                     value={imageUrl}
                     onChange={(e) => setImageUrl(e.target.value)}
+                    aria-invalid={!!imageUrl.trim() && !isRenderableImageUrl(imageUrl)}
                     className="h-9 text-xs font-mono"
                   />
                 </div>
+                {!!imageUrl.trim() && !isRenderableImageUrl(imageUrl) && (
+                  <p role="alert" className="text-[11px] text-red-600 dark:text-red-400">
+                    URL gambar belum valid. {IMAGE_URL_HINT}
+                  </p>
+                )}
                 <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
                   Rekomendasi rasio gambar desktop: <strong>16:9</strong> atau <strong>21:9</strong> resolusi tinggi (minimal 1920x1080px). Format JPG, PNG, atau WEBP (maks. 5MB).
                 </p>
@@ -1005,7 +1039,7 @@ export default function AdminBannersPage() {
                 </div>
 
                 {/* Mobile Image Preview */}
-                {mobileImageUrl && (
+                {isRenderableImageUrl(mobileImageUrl) && (
                   <div className="relative aspect-[4/5] sm:aspect-[16/9] w-36 max-h-44 mx-auto rounded-lg overflow-hidden border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-900">
                     <Image
                       src={mobileImageUrl}
@@ -1050,9 +1084,15 @@ export default function AdminBannersPage() {
                     placeholder="Atau URL gambar mobile..."
                     value={mobileImageUrl}
                     onChange={(e) => setMobileImageUrl(e.target.value)}
+                    aria-invalid={!!mobileImageUrl.trim() && !isRenderableImageUrl(mobileImageUrl)}
                     className="h-9 text-xs font-mono bg-white dark:bg-neutral-900"
                   />
                 </div>
+                {!!mobileImageUrl.trim() && !isRenderableImageUrl(mobileImageUrl) && (
+                  <p role="alert" className="text-[11px] text-red-600 dark:text-red-400">
+                    URL gambar mobile belum valid. {IMAGE_URL_HINT}
+                  </p>
+                )}
                 <p className="text-[11px] text-neutral-500 dark:text-neutral-400 leading-relaxed">
                   Rekomendasi rasio untuk HP: <strong>4:5</strong>, <strong>1:1</strong>, atau <strong>9:16</strong> (misal 1080x1350px atau 1080x1080px). Banner HP akan tampil penuh dan tinggi di layar smartphone tanpa mengecil, sementara pengunjung laptop/PC melihat banner desktop (dua aset gambar berbeda yang tersaji secara responsif).
                 </p>

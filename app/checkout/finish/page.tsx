@@ -23,16 +23,42 @@ function FinishContent() {
   const { clearCart } = useCart();
 
   const orderId = searchParams.get("order_id") || "";
-  const statusCode = searchParams.get("status_code") || "";
-  const transactionStatus = (searchParams.get("transaction_status") || "").toLowerCase();
 
-  // Only treat the payment as successful when Midtrans actually reported it
-  const isSuccess =
-    !!orderId &&
-    (transactionStatus === "settlement" ||
-      transactionStatus === "capture" ||
-      (!transactionStatus && statusCode === "200"));
-  const isPending = !!orderId && transactionStatus === "pending";
+  // The URL's transaction_status / status_code can be edited by anyone, so the
+  // result shown here always comes from the server (DB, refreshed from Midtrans).
+  const [serverStatus, setServerStatus] = React.useState<
+    "loading" | "paid" | "pending" | "failed" | "not_found"
+  >(orderId ? "loading" : "not_found");
+
+  React.useEffect(() => {
+    if (!orderId) {
+      setServerStatus("not_found");
+      return;
+    }
+    let cancelled = false;
+    setServerStatus("loading");
+    fetch(`/api/payment/finish-status?order_id=${encodeURIComponent(orderId)}`, {
+      cache: "no-store",
+    })
+      .then((res) => (res.ok ? res.json() : { status: "failed" }))
+      .then((data: { status?: string }) => {
+        if (cancelled) return;
+        const s = data.status;
+        setServerStatus(
+          s === "paid" || s === "pending" || s === "not_found" ? s : "failed"
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setServerStatus("failed");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [orderId]);
+
+  const isLoading = serverStatus === "loading";
+  const isSuccess = serverStatus === "paid";
+  const isPending = serverStatus === "pending";
 
   React.useEffect(() => {
     if (isSuccess) {
@@ -76,7 +102,14 @@ function FinishContent() {
         <div className="absolute bottom-10 right-1/4 w-72 h-72 rounded-full bg-[#dcf58d]/20 blur-3xl pointer-events-none" />
 
         <div className="w-full max-w-[620px] rounded-3xl border-2 border-[#396254]/15 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-7 sm:p-10 shadow-xl space-y-6 text-center relative z-10">
-          {isSuccess ? (
+          {isLoading ? (
+            <div role="status" aria-live="polite" className="py-10 space-y-3">
+              <Clock className="mx-auto h-10 w-10 text-[#396254] dark:text-[#dcf58d] animate-pulse" />
+              <p className="text-sm font-semibold text-neutral-600 dark:text-neutral-300">
+                Memeriksa status pembayaran...
+              </p>
+            </div>
+          ) : isSuccess ? (
             <>
               {/* Success Badge Icon */}
               <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-[#dcf58d] text-[#396254] shadow-md rotate-[-2deg] hover:rotate-0 transition-transform">

@@ -19,6 +19,7 @@ import {
 } from "@/lib/discount-engine";
 import { getCouponByCode, normalizeCouponCode } from "@/lib/coupon-store";
 import { evaluateCoupon } from "@/lib/coupon-engine";
+import { parcelWeightGrams, quoteDomesticShipping, type WeighedLine } from "@/lib/shipping-quote";
 
 /** Upper bound for a single order's shipping fee (Rp 10.000.000). */
 export const MAX_SHIPPING_COST = 10_000_000;
@@ -49,6 +50,8 @@ export interface OrderPricing {
   couponDiscount: number;
   discountAmount: number;
   shippingCost: number;
+  /** Parcel weight in grams (product weights from the database + packaging). */
+  weightGrams: number;
   totalAmount: number;
   courier: string;
   courierService: string;
@@ -116,13 +119,19 @@ export async function priceCheckoutOrder(body: Record<string, unknown>): Promise
     }
   }
 
-  // ---------- 2. Shipping (validated, not re-quoted) ----------
-  const shippingCost = Math.round(Number(body.shippingCost));
-  if (!Number.isFinite(shippingCost) || shippingCost <= 0 || shippingCost > MAX_SHIPPING_COST) {
-    throw new OrderPricingError("Ongkos kirim tidak valid. Silakan pilih ulang layanan pengiriman.");
+  // ---------- 2. Shipping selection (the fee itself is re-quoted in step 7) ----------
+  const address =
+    body.shippingAddress && typeof body.shippingAddress === "object"
+      ? (body.shippingAddress as Record<string, unknown>)
+      : {};
+  const destinationCity = cleanText(address.city, "", 120);
+  const destinationPostalCode = cleanText(address.postalCode, "", 10);
+  const shippingRateId = cleanText(body.shippingRateId, "", 80);
+  const clientCourier = cleanText(body.courier, "", 20);
+  const clientCourierService = cleanText(body.courierService, "", 120);
+  if (!destinationCity) {
+    throw new OrderPricingError("Kota pengiriman wajib diisi.");
   }
-  const courier = cleanText(body.courier, "JNE", 20);
-  const courierService = cleanText(body.courierService, "REG", 120);
 
   // ---------- 3. Load products & campaigns from the database ----------
   const productIds = Array.from(new Set(lines.map((l) => l.productId)));
@@ -141,6 +150,7 @@ export async function priceCheckoutOrder(body: Record<string, unknown>): Promise
   // ---------- 4. Price each line from the DB ----------
   const stockUse = new Map<string, { needed: number; available: number; name: string }>();
   const pricedItems: PricedOrderItem[] = [];
+  const weighedLines: WeighedLine[] = [];
   const discountInputs: CartItemForDiscount[] = [];
 
   for (const line of lines) {
@@ -199,6 +209,7 @@ export async function priceCheckoutOrder(body: Record<string, unknown>): Promise
       subtotal: money(unitPrice * line.quantity),
       isGift: false,
     });
+    weighedLines.push({ weightGrams: product.weightGrams, quantity: line.quantity });
     discountInputs.push({
       productId: product.id,
       priceNumber: unitPrice,
@@ -247,6 +258,7 @@ export async function priceCheckoutOrder(body: Record<string, unknown>): Promise
         subtotal: 0,
         isGift: true,
       });
+      weighedLines.push({ weightGrams: giftProduct.weightGrams, quantity: giftQty });
     } else {
       console.warn(
         "[OrderPricing] Gift product unavailable or out of stock, gift skipped:",
@@ -255,7 +267,28 @@ export async function priceCheckoutOrder(body: Record<string, unknown>): Promise
     }
   }
 
-  // ---------- 7. Coupon (validated server-side) ----------
+  // ---------- 7. Shipping fee, re-quoted from the real parcel weight ----------
+  const weightGrams = parcelWeightGrams(weighedLines);
+  const quote = await quoteDomesticShipping(destinationCity, destinationPostalCode, weightGrams);
+  const rate =
+    (shippingRateId && quote.rates.find((r) => r.id === shippingRateId)) ||
+    quote.rates.find(
+      (r) => sameText(r.courier, clientCourier) && sameText(r.name, clientCourierService)
+    );
+  if (!rate) {
+    throw new OrderPricingError(
+      "Layanan pengiriman yang dipilih sudah tidak tersedia. Silakan pilih ulang layanan pengiriman.",
+      409
+    );
+  }
+  const shippingCost = Math.round(rate.cost);
+  if (!Number.isFinite(shippingCost) || shippingCost <= 0 || shippingCost > MAX_SHIPPING_COST) {
+    throw new OrderPricingError("Ongkos kirim tidak valid. Silakan pilih ulang layanan pengiriman.");
+  }
+  const courier = rate.courier.slice(0, 20);
+  const courierService = rate.name.slice(0, 120);
+
+  // ---------- 8. Coupon (validated server-side) ----------
   const rawCouponCode = typeof body.couponCode === "string" ? body.couponCode : "";
   let couponCode: string | null = null;
   let couponDiscount = 0;
@@ -276,7 +309,7 @@ export async function priceCheckoutOrder(body: Record<string, unknown>): Promise
     }
   }
 
-  // ---------- 8. Totals ----------
+  // ---------- 9. Totals ----------
   const discountAmount = money(Math.min(subtotal, bundleDiscount + couponDiscount));
   const totalAmount = money(Math.max(0, subtotal - discountAmount) + shippingCost);
 
@@ -289,6 +322,7 @@ export async function priceCheckoutOrder(body: Record<string, unknown>): Promise
     couponDiscount,
     discountAmount,
     shippingCost,
+    weightGrams,
     totalAmount,
     courier,
     courierService,

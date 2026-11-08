@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useSession } from "next-auth/react";
 import {
   Users,
   UserPlus,
@@ -42,7 +43,20 @@ import { type AdminUserListItem } from "@/app/api/admin/users/route";
 
 const PRIMARY_ADMIN_EMAIL = "jorgifatwaambia@gmail.com";
 
+const isPrimaryAdminUser = (user: Pick<AdminUserListItem, "email">) =>
+  user.email.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase();
+
 export default function AdminUsersPage() {
+  const { data: session } = useSession();
+  const currentUserId = session?.user?.id;
+  // Primary admin and the signed-in admin cannot be demoted, deactivated or
+  // deleted (the API enforces the same rule and returns 403).
+  const isProtectedUser = React.useCallback(
+    (user: Pick<AdminUserListItem, "id" | "email">) =>
+      isPrimaryAdminUser(user) || (!!currentUserId && user.id === currentUserId),
+    [currentUserId]
+  );
+
   const [users, setUsers] = React.useState<AdminUserListItem[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -71,6 +85,7 @@ export default function AdminUsersPage() {
   // Selected Target
   const [editingUser, setEditingUser] = React.useState<AdminUserListItem | null>(null);
   const [deleteTarget, setDeleteTarget] = React.useState<AdminUserListItem | null>(null);
+  const editingLocked = !!editingUser && isProtectedUser(editingUser);
 
   // Form Fields
   const [name, setName] = React.useState("");
@@ -601,8 +616,8 @@ export default function AdminUsersPage() {
                 </TableRow>
               ) : (
                 filteredUsers.map((item, idx) => {
-                  const isPrimaryAdmin =
-                    item.email.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase();
+                  const isPrimaryAdmin = isPrimaryAdminUser(item);
+                  const isProtected = isProtectedUser(item);
 
                   return (
                     <TableRow key={item.id} className="hover:bg-neutral-50/60 dark:hover:bg-neutral-800/40">
@@ -666,8 +681,13 @@ export default function AdminUsersPage() {
                         <button
                           type="button"
                           onClick={() => handleToggleActive(item)}
-                          title="Klik untuk mengubah status aktif"
-                          className="flex items-center gap-1.5 group cursor-pointer"
+                          disabled={isProtected}
+                          title={
+                            isProtected
+                              ? "Status akun ini tidak dapat diubah"
+                              : "Klik untuk mengubah status aktif"
+                          }
+                          className="flex items-center gap-1.5 group cursor-pointer disabled:cursor-not-allowed"
                         >
                           {item.isActive ? (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
@@ -709,7 +729,7 @@ export default function AdminUsersPage() {
                             <Edit className="h-3.5 w-3.5" />
                           </Button>
 
-                          {!isPrimaryAdmin && (
+                          {!isProtected && (
                             <Button
                               type="button"
                               variant="ghost"
@@ -1000,7 +1020,8 @@ export default function AdminUsersPage() {
                 <button
                   type="button"
                   onClick={() => setRole("CUSTOMER")}
-                  className={`p-3 rounded-xl border text-xs font-semibold text-left transition-all ${
+                  disabled={editingLocked}
+                  className={`p-3 rounded-xl border text-xs font-semibold text-left transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                     role === "CUSTOMER"
                       ? "border-blue-500 bg-blue-50/50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300"
                       : "border-neutral-200 dark:border-neutral-800 text-neutral-600 hover:bg-neutral-50"
@@ -1041,12 +1062,18 @@ export default function AdminUsersPage() {
                 id="edit-active"
                 checked={isActive}
                 onChange={(e) => setIsActive(e.target.checked)}
-                className="h-4 w-4 rounded accent-[#396254]"
+                disabled={editingLocked}
+                className="h-4 w-4 rounded accent-[#396254] disabled:cursor-not-allowed"
               />
               <label htmlFor="edit-active" className="text-xs text-neutral-700 dark:text-neutral-300">
                 Akun berstatus aktif
               </label>
             </div>
+            {editingLocked && (
+              <p className="text-[11px] text-amber-700 dark:text-amber-400">
+                Role dan status akun ini dikunci: akun administrator utama atau akun yang sedang Anda pakai tidak dapat diturunkan atau dinonaktifkan.
+              </p>
+            )}
 
             <DialogFooter className="pt-3">
               <Button
@@ -1071,7 +1098,7 @@ export default function AdminUsersPage() {
 
       {/* DELETE CONFIRMATION DIALOG */}
       <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
-        <DialogContent className="sm:max-w-md rounded-2xl">
+        <DialogContent role="alertdialog" className="sm:max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-red-600 flex items-center gap-2">
               <AlertTriangle className="h-5 w-5" />

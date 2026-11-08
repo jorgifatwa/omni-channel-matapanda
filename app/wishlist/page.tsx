@@ -16,12 +16,10 @@ import AnnouncementBar from "@/components/AnnouncementBar";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useWishlist } from "@/context/WishlistContext";
-import { useCart } from "@/context/CartContext";
 import { Button } from "@/components/ui/button";
 
 export default function WishlistPage() {
   const { items, removeFromWishlist, clearWishlist, totalCount } = useWishlist();
-  const { addItem } = useCart();
 
   const [copied, setCopied] = React.useState(false);
 
@@ -31,36 +29,6 @@ export default function WishlistPage() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     }
-  };
-
-  const handleMoveToCart = (item: (typeof items)[0]) => {
-    addItem({
-      productId: item.id,
-      categoryId: item.categoryId ?? null,
-      name: item.name,
-      price: item.price,
-      priceNumber: item.priceNumber,
-      image: item.image,
-      size: "All Size",
-      color: "Standard",
-      quantity: 1,
-    });
-  };
-
-  const handleMoveAllToCart = () => {
-    items.forEach((item) => {
-      addItem({
-        productId: item.id,
-        categoryId: item.categoryId ?? null,
-        name: item.name,
-        price: item.price,
-        priceNumber: item.priceNumber,
-        image: item.image,
-        size: "All Size",
-        color: "Standard",
-        quantity: 1,
-      });
-    });
   };
 
   return (
@@ -118,14 +86,6 @@ export default function WishlistPage() {
                 <span>Hapus Semua</span>
               </Button>
 
-              <Button
-                size="sm"
-                onClick={handleMoveAllToCart}
-                className="text-xs font-black gap-2 rounded-full bg-[#396254] hover:bg-[#2c4e43] text-white shadow-md hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer px-5 py-2"
-              >
-                <ShoppingBag className="h-3.5 w-3.5" />
-                <span>Pindahkan Semua ke Bag</span>
-              </Button>
             </div>
           )}
         </div>
@@ -226,11 +186,13 @@ export default function WishlistPage() {
 
                   {/* Add to Bag Button */}
                   <Button
-                    onClick={() => handleMoveToCart(item)}
+                    asChild
                     className="w-full rounded-full text-xs font-black uppercase tracking-wider gap-2 bg-[#396254] hover:bg-[#2c4e43] text-white shadow-sm hover:-translate-y-0.5 active:scale-95 transition-all py-2.5 cursor-pointer"
                   >
-                    <ShoppingBag className="h-3.5 w-3.5" />
-                    <span>Add to Bag</span>
+                    <Link href={`/products/${item.slug || item.id}`}>
+                      <ShoppingBag className="h-3.5 w-3.5" />
+                      <span>Pilih Varian &amp; Add to Bag</span>
+                    </Link>
                   </Button>
                 </div>
               </div>

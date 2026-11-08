@@ -105,7 +105,7 @@ export default async function HomePage() {
           title="it'smatapanda Bags"
           bannerBg="#d5c6ff"
           bannerTextColor="text-[#396254]"
-          shopMoreHref="/categories/bags-totes"
+          shopMoreHref={rawBagProducts.length > 0 ? "/categories/bags-totes" : "/products"}
           shopMoreBg="bg-[#396254]"
           shopMoreTextColor="text-white"
           products={bagProducts}
@@ -117,7 +117,7 @@ export default async function HomePage() {
           title="All-Time Favourites"
           bannerBg="#d5c6ff"
           bannerTextColor="text-[#396254]"
-          shopMoreHref="/categories/shoulder-bags"
+          shopMoreHref={shoulderProducts.length > 0 ? "/categories/shoulder-bags" : "/products"}
           shopMoreBg="bg-[#396254]"
           shopMoreTextColor="text-white"
           products={favouriteProducts}

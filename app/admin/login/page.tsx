@@ -146,8 +146,8 @@ export default function AdminLoginPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <div className="relative">
+                    <div className="relative">
+                      <FormControl>
                         <Input
                           type={showPassword ? "text" : "password"}
                           placeholder="••••••••"
@@ -155,6 +155,7 @@ export default function AdminLoginPage() {
                           className="pr-10"
                           {...field}
                         />
+                      </FormControl>
                         <button
                           type="button"
                           onClick={() => setShowPassword((prev) => !prev)}
@@ -167,8 +168,7 @@ export default function AdminLoginPage() {
                             <Eye className="h-4 w-4" />
                           )}
                         </button>
-                      </div>
-                    </FormControl>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

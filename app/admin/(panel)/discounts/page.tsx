@@ -42,6 +42,17 @@ import {
 } from "@/lib/discount-types";
 import { adminFetchJson, adminRequestJson, errorMessage } from "@/lib/admin-request";
 
+
+/**
+ * Formats a Date for <input type="datetime-local"> in the admin's local time.
+ * toISOString() is UTC, which prefilled WIB admins 7 hours early, and every
+ * edit + save shifted the campaign another 7 hours back.
+ */
+function toLocalDateTimeInput(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 export default function AdminDiscountsPage() {
   const { products, categories } = useAdminStore();
 
@@ -135,8 +146,8 @@ export default function AdminDiscountsPage() {
 
     const now = new Date();
     const end = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
-    setStartDate(now.toISOString().slice(0, 16));
-    setEndDate(end.toISOString().slice(0, 16));
+    setStartDate(toLocalDateTimeInput(now));
+    setEndDate(toLocalDateTimeInput(end));
     setIsActive(true);
     setProductSearch("");
     setModalOpen(true);
@@ -162,8 +173,8 @@ export default function AdminDiscountsPage() {
     setTargetType(d.targetType);
     setSelectedCategoryIds(d.targetCategoryIds || []);
     setSelectedProductIds(d.targetProductIds || []);
-    setStartDate(d.startDate ? new Date(d.startDate).toISOString().slice(0, 16) : "");
-    setEndDate(d.endDate ? new Date(d.endDate).toISOString().slice(0, 16) : "");
+    setStartDate(d.startDate ? toLocalDateTimeInput(new Date(d.startDate)) : "");
+    setEndDate(d.endDate ? toLocalDateTimeInput(new Date(d.endDate)) : "");
     setIsActive(d.isActive);
     setProductSearch("");
     setModalOpen(true);
@@ -636,6 +647,7 @@ export default function AdminDiscountsPage() {
                           <Switch
                             checked={d.isActive}
                             onCheckedChange={() => handleToggleActive(d.id, d.isActive)}
+                            aria-label={`Status aktif kampanye ${d.name}`}
                             className="scale-75"
                           />
                         </div>
@@ -1300,7 +1312,7 @@ export default function AdminDiscountsPage() {
                   {isActive ? "Promo aktif dan akan langsung berlaku di website" : "Promo disimpan sebagai draft (tidak aktif)"}
                 </span>
               </div>
-              <Switch checked={isActive} onCheckedChange={setIsActive} />
+              <Switch checked={isActive} onCheckedChange={setIsActive} aria-label="Kampanye aktif" />
             </div>
 
             {formError && (

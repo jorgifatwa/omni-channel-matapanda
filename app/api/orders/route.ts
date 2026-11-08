@@ -16,8 +16,8 @@ import { TOO_MANY_MESSAGE, clientIp, rateLimit } from "@/lib/rate-limit";
  * - Prices are tamper-proof: unit prices, subtotal, discounts (catalog
  *   campaigns, Paket Diskon, Paket Hadiah, coupon) and the total are
  *   recomputed from the database by {@link priceCheckoutOrder}. Client-sent
- *   amounts are ignored; only the selected shipping fee is accepted after a
- *   sanity check.
+ *   amounts are ignored; the shipping fee is re-quoted from the parcel weight
+ *   (product weights in the database) for the courier service the buyer chose.
  * - A coupon use is claimed atomically (respecting its usage limit) when the
  *   order is saved, and given back if saving fails.
  */
@@ -102,6 +102,7 @@ export async function POST(request: Request) {
     couponCode: pricing.couponCode || null,
     subtotal: pricing.subtotal,
     shippingCost: pricing.shippingCost,
+    weightGrams: pricing.weightGrams,
     discountAmount: pricing.discountAmount,
     totalAmount: pricing.totalAmount,
     courier: pricing.courier,
@@ -171,6 +172,9 @@ export async function POST(request: Request) {
         couponDiscount: pricing.couponDiscount,
         discountAmount: pricing.discountAmount,
         shippingCost: pricing.shippingCost,
+        weightGrams: pricing.weightGrams,
+        courier: pricing.courier,
+        courierService: pricing.courierService,
         totalAmount: pricing.totalAmount,
       },
     },

@@ -133,6 +133,8 @@ export async function persistOrder(order: AdminOrder): Promise<void> {
 export type CheckoutOrderPayload = Omit<AdminOrder, "items"> & {
   /** Coupon code the customer applied; the server re-validates it. */
   couponCode?: string | null;
+  /** Id of the chosen shipping rate (e.g. "JNE_REG"); the server re-quotes its fee. */
+  shippingRateId?: string | null;
   items: (AdminOrderItem & { isGift?: boolean })[];
 };
 
@@ -144,6 +146,9 @@ export type CheckoutOrderPricing = {
   couponDiscount: number;
   discountAmount: number;
   shippingCost: number;
+  weightGrams?: number;
+  courier?: string;
+  courierService?: string;
   totalAmount: number;
 };
 
@@ -203,6 +208,9 @@ export async function createCheckoutOrder(
       items,
       subtotal: data.pricing.subtotal,
       shippingCost: data.pricing.shippingCost,
+      weightGrams: data.pricing.weightGrams,
+      courier: data.pricing.courier || order.courier,
+      courierService: data.pricing.courierService || order.courierService,
       discountAmount: data.pricing.discountAmount,
       totalAmount: data.pricing.totalAmount,
     } as AdminOrder,

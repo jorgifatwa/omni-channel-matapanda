@@ -483,7 +483,7 @@ export default function ProductCard({
       </button>
 
       {/* Signature Green "New" Badge below button (Only shown when showNewBadge is true) */}
-      {showNewBadge && (
+      {showNewBadge && product.isNewArrival && (
         <div className="mt-2.5 flex items-center justify-start">
           <span className="inline-flex items-center justify-center bg-[#ED96D7] text-white text-[10px] sm:text-[11px] font-semibold h-6 px-3.5 rounded-full shadow-sm leading-none">
             New

@@ -76,7 +76,7 @@ export const TERMS_SECTIONS: TermsSection[] = [
     title: "How to contact us",
     content: [
       "Jika Anda memiliki pertanyaan, saran, keluhan, atau memerlukan klarifikasi lebih lanjut mengenai Syarat & Ketentuan Layanan maupun Kebijakan Privasi kami, silakan hubungi tim kami melalui:",
-      "• WhatsApp Official: +62 812-3456-7890 (Senin – Minggu, 09.00 – 21.00 WIB)\n• Email Layanan Pelanggan: hello@itsmatapanda.com\n• Alamat Kantor & Studio Kreatif: it'smatapanda Design Studio, Jakarta Selatan, DKI Jakarta, Indonesia.",
+      "• Email Layanan Pelanggan: hello@itsmatapanda.com (Senin – Minggu, 09.00 – 21.00 WIB)\n• Alamat Studio: it'smatapanda Studio, Kiara Condong, Bandung, Jawa Barat, Indonesia.",
     ],
   },
 ];

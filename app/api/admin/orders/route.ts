@@ -80,6 +80,7 @@ export async function GET() {
         },
         subtotal: Number(o.subtotal),
         shippingCost: Number(o.shippingCost),
+        weightGrams: o.shipment?.weightGrams ?? undefined,
         discountAmount: Number(o.discountAmount),
         couponCode: o.couponCode ?? null,
         totalAmount: Number(o.totalAmount),
@@ -130,6 +131,7 @@ export async function POST(request: Request) {
       shippingAddress,
       subtotal,
       shippingCost,
+      weightGrams,
       discountAmount,
       totalAmount,
       paymentMethod,
@@ -258,6 +260,9 @@ export async function POST(request: Request) {
               trackingNumber: trackingNumber && trackingNumber !== "-" ? trackingNumber : null,
               status: (shipmentStatus as ShipmentStatus) || ShipmentStatus.PENDING,
               shippingCost: Number(shippingCost || 0),
+              ...(Number.isInteger(Number(weightGrams)) && Number(weightGrams) > 0
+                ? { weightGrams: Number(weightGrams) }
+                : {}),
               destinationCity: shippingAddress?.city || "-",
               destinationCountry: "Indonesia",
               trackingHistory: Array.isArray(trackingHistory) ? trackingHistory : [],

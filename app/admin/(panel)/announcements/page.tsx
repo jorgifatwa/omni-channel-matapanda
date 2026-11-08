@@ -141,22 +141,28 @@ export default function AdminAnnouncementsPage() {
   const handleQuickTargetChange = (targetValue: string) => {
     if (!targetValue) return;
 
+    // The manual link input is disabled; the quick target is the only way to
+    // choose the destination, so it must set the link it advertises.
     if (targetValue.startsWith("cat:")) {
       const catSlug = targetValue.replace("cat:", "");
       const cat = categoriesList.find((c) => c.slug === catSlug);
+      setLink(`/categories/${catSlug}`);
       if (!text) {
         setText(`JELAJAHI KOLEKSI TAS ${cat?.name.toUpperCase() || ""} TERBARU`);
       }
     } else if (targetValue === "page:new-arrivals") {
+      setLink("/new-arrivals");
       if (!text) setText("NEW ARRIVALS: TEMUKAN KOLEKSI TAS TERBARU MINGGU INI");
     } else if (targetValue === "page:register") {
+      setLink("/account/register");
       setBadge("CLUB EXCLUSIVE");
       if (!text) setText("RP100K OFF YOUR FIRST ORDER WHEN YOU JOIN THE IT'SMATAPANDA CLUB*");
     } else if (targetValue === "page:contact") {
+      setLink("/contact");
       setBadge("INFO");
       if (!text) setText("BUTUH BANTUAN? HUBUNGI CUSTOMER SERVICE RESMI KAMI");
     } else if (targetValue === "page:home") {
-      // No link set
+      setLink("/");
     }
   };
 
@@ -241,25 +247,38 @@ export default function AdminAnnouncementsPage() {
   };
 
   // Move Order Up / Down
-  const handleMoveOrder = async (index: number, direction: "up" | "down") => {
-    const targetIndex = direction === "up" ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= announcements.length) return;
+  // `visibleIndex` is the row's position in the filtered/searched list, so the
+  // swap partner must be the adjacent *visible* row, not the adjacent row in
+  // the full list (which may be hidden by the current filter).
+  const handleMoveOrder = async (visibleIndex: number, direction: "up" | "down") => {
+    const moved = filteredAnnouncements[visibleIndex];
+    const neighbour =
+      filteredAnnouncements[direction === "up" ? visibleIndex - 1 : visibleIndex + 1];
+    if (!moved || !neighbour) return;
+
+    const fromIndex = announcements.findIndex((a) => a.id === moved.id);
+    const toIndex = announcements.findIndex((a) => a.id === neighbour.id);
+    if (fromIndex < 0 || toIndex < 0) return;
 
     const newList = [...announcements];
-    const [moved] = newList.splice(index, 1);
-    newList.splice(targetIndex, 0, moved);
+    newList[fromIndex] = neighbour;
+    newList[toIndex] = moved;
 
     // Reassign sortOrder sequentially
     const reorderedList = newList.map((item, idx) => ({
       ...item,
       sortOrder: idx,
     }));
+    const previousOrder = new Map(announcements.map((a) => [a.id, a.sortOrder]));
+    const changed = reorderedList.filter(
+      (item) => previousOrder.get(item.id) !== item.sortOrder
+    );
 
     setAnnouncements(reorderedList);
 
     try {
       await Promise.all(
-        reorderedList.map((item) =>
+        changed.map((item) =>
           adminRequestJson(
             `/api/admin/announcements/${item.id}`,
             "PUT",
@@ -599,7 +618,7 @@ export default function AdminAnnouncementsPage() {
                     <Switch
                       checked={item.isActive}
                       onCheckedChange={() => handleToggleActive(item)}
-                      aria-label="Toggle announcement status"
+                      aria-label={`Status aktif announcement: ${item.text}`}
                     />
                   </div>
 
@@ -728,7 +747,7 @@ export default function AdminAnnouncementsPage() {
                 className="text-xs font-mono bg-neutral-100 dark:bg-neutral-900 text-neutral-400 dark:text-neutral-500 cursor-not-allowed border-dashed select-none"
               />
               <p className="text-[11px] text-neutral-400 dark:text-neutral-500">
-                Kolom link URL tujuan saat ini dinonaktifkan.
+                Diisi otomatis dari pilihan halaman / kategori di atas.
               </p>
             </div>
 

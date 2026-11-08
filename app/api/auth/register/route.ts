@@ -27,7 +27,7 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!password || password.length < 6) {
+    if (!password || password.length < 6 || !password.trim()) {
       return NextResponse.json(
         { error: "Password minimal 6 karakter" },
         { status: 400 }

@@ -364,6 +364,12 @@ export default function AdminProductsPage() {
       ),
     },
     {
+      // Backs the Brand filter and brand search (the filter referenced a
+      // column that didn't exist, logging "Column with id 'brandName' does not exist").
+      accessorKey: "brandName",
+      header: "Brand",
+    },
+    {
       accessorKey: "categoryName",
       header: "Category",
     },

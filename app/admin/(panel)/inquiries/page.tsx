@@ -66,9 +66,9 @@ export default function AdminInquiriesPage() {
     setInquiries((prev) =>
       prev.map((item) => (item.id === id ? { ...item, isRead: nextStatus } : item))
     );
-    if (selectedInquiry?.id === id) {
-      setSelectedInquiry((prev) => (prev ? { ...prev, isRead: nextStatus } : null));
-    }
+    // Functional update keyed by id: when called right after opening the
+    // dialog, `selectedInquiry` in this closure is still the previous value.
+    setSelectedInquiry((prev) => (prev && prev.id === id ? { ...prev, isRead: nextStatus } : prev));
 
     try {
       await adminRequestJson("/api/contact", "PATCH", { id, isRead: nextStatus }, "status pesan");

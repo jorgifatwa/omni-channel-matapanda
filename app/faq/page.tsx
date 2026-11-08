@@ -6,7 +6,6 @@ import {
   Search,
   Plus,
   Minus,
-  MessageCircle,
   Mail,
   Truck,
   Sparkles,
@@ -368,15 +367,6 @@ export default function FaqPage() {
             </div>
 
             <div className="md:col-span-5 flex flex-col sm:flex-row md:flex-col gap-3">
-              <a
-                href="https://wa.me/6281234567890?text=Halo%20it'smatapanda,%20saya%20ingin%20bertanya%20seputar%20produk%20tas"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-full bg-[#dcf58d] text-[#396254] font-black text-xs hover:bg-[#cbef6f] hover:scale-105 active:scale-95 transition-all shadow-sm"
-              >
-                <MessageCircle className="h-4 w-4" />
-                <span>WhatsApp Support</span>
-              </a>
 
               <Link
                 href="/contact"

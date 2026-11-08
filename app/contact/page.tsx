@@ -5,6 +5,7 @@ import { Loader2, CheckCircle2, AlertCircle, Mail, MessageCircle, FileEdit, Truc
 import AnnouncementBar from "@/components/AnnouncementBar";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { CUSTOMER_CARE_HOURS, RETURN_WINDOW_TEXT, STORE_EMAIL } from "@/lib/store-info";
 
 export default function ContactPage() {
   const [name, setName] = React.useState("");
@@ -19,6 +20,8 @@ export default function ContactPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    // Clear a previous success so a later failed send never shows both boxes.
+    setSubmitted(false);
 
     try {
       const res = await fetch("/api/contact", {
@@ -32,7 +35,8 @@ export default function ContactPage() {
         }),
       });
 
-      const data = await res.json();
+      // A non-JSON error page (e.g. HTML 500) is a server error, not a network one.
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
 
       if (!res.ok) {
         setError(data.error || "Gagal mengirim pesan. Silakan coba lagi.");
@@ -97,11 +101,14 @@ export default function ContactPage() {
               </div>
               <h3 className="text-sm font-black text-[#396254] dark:text-white">Chat &amp; Support</h3>
               <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                Senin - Jumat (09:00 - 18:00 WIB)
+                {CUSTOMER_CARE_HOURS}
               </p>
-              <span className="text-xs font-bold text-[#396254] dark:text-[#dcf58d]">
-                +62 812-3456-7890
-              </span>
+              <a
+                href={`mailto:${STORE_EMAIL}`}
+                className="text-xs font-bold text-[#396254] dark:text-[#dcf58d] hover:underline"
+              >
+                {STORE_EMAIL}
+              </a>
             </div>
           </div>
 
@@ -257,7 +264,7 @@ export default function ContactPage() {
                   <span>Kebijakan Retur &amp; Penukaran</span>
                 </h3>
                 <p className="text-xs text-neutral-600 dark:text-neutral-300 leading-relaxed">
-                  Jika terdapat cacat produksi pada barang yang Anda terima, penukaran dapat diajukan maksimal 3 hari sejak paket diterima. Hubungi kami beserta bukti foto/video unboxing.
+                  Jika terdapat cacat produksi pada barang yang Anda terima, penukaran dapat diajukan maksimal {RETURN_WINDOW_TEXT} sejak paket diterima. Hubungi kami beserta bukti foto/video unboxing.
                 </p>
               </div>
 

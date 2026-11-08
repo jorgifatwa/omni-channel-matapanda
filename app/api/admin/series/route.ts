@@ -54,10 +54,17 @@ export async function POST(request: Request) {
       : slugify(cleanName);
 
     try {
-      const created = await prisma.productSeries.upsert({
-        where: { slug: cleanSlug },
-        update: { name: cleanName },
-        create: {
+      // Create only: an upsert silently renamed an existing series that
+      // happened to share the slug.
+      const existing = await prisma.productSeries.findUnique({ where: { slug: cleanSlug } });
+      if (existing) {
+        return NextResponse.json(
+          { error: `Slug "${cleanSlug}" sudah dipakai series "${existing.name}". Gunakan slug lain.` },
+          { status: 409 }
+        );
+      }
+      const created = await prisma.productSeries.create({
+        data: {
           name: cleanName,
           slug: cleanSlug,
         },

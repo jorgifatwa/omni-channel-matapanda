@@ -268,12 +268,20 @@ function TrackingContent() {
 
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="px-3.5 py-1.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-black shadow-xs">
-                  {result.payment.status === "SETTLEMENT" || result.payment.status === "PAID"
+                  {result.status === "CANCELLED"
+                    ? "DIBATALKAN"
+                    : result.payment.status === "SETTLEMENT" || result.payment.status === "PAID"
                     ? "LUNAS"
+                    : ["EXPIRE", "CANCEL", "DENY"].includes(result.payment.status)
+                    ? "PEMBAYARAN GAGAL / KEDALUWARSA"
+                    : result.payment.status === "REFUND"
+                    ? "DIKEMBALIKAN"
                     : "MENUNGGU PEMBAYARAN"}
                 </span>
                 <span className="px-3.5 py-1.5 rounded-full bg-[#d5c6ff] text-[#396254] text-xs font-black shadow-xs">
-                  {result.shipment.status === "IN_TRANSIT"
+                  {result.status === "CANCELLED"
+                    ? "TIDAK DIKIRIM"
+                    : result.shipment.status === "IN_TRANSIT"
                     ? "DALAM PENGIRIMAN"
                     : result.shipment.status === "DELIVERED"
                     ? "TERKIRIM"
@@ -491,6 +499,12 @@ function TrackingContent() {
                     <span>Subtotal</span>
                     <span>Rp {result.subtotal.toLocaleString("id-ID")}</span>
                   </div>
+                  {result.discountAmount > 0 && (
+                    <div className="flex justify-between text-emerald-700">
+                      <span>Diskon</span>
+                      <span>-Rp {result.discountAmount.toLocaleString("id-ID")}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span>Ongkos Kirim ({result.shipment.courier})</span>
                     <span>Rp {result.shippingCost.toLocaleString("id-ID")}</span>

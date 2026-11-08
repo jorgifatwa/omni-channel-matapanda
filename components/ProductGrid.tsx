@@ -186,8 +186,15 @@ export default function ProductGrid({
   };
 
   // Pagination calculation
-  const effectiveItemsPerPage = showCampaignTiles && currentPage === 1 ? itemsPerPage - 2 : itemsPerPage;
-  const totalPages = Math.max(1, Math.ceil(sortedProducts.length / effectiveItemsPerPage));
+  // Page 1 gives up 2 slots to the campaign tiles, so later pages start right
+  // after page 1's last product. The page size used to change per page, which
+  // skipped products 17–18 and made totalPages shrink when leaving page 1.
+  const firstPageSize = showCampaignTiles ? itemsPerPage - 2 : itemsPerPage;
+  const effectiveItemsPerPage = currentPage === 1 ? firstPageSize : itemsPerPage;
+  const totalPages =
+    sortedProducts.length <= firstPageSize
+      ? 1
+      : 1 + Math.ceil((sortedProducts.length - firstPageSize) / itemsPerPage);
 
   // Reset to page 1 if filters reduce total pages
   React.useEffect(() => {
@@ -196,7 +203,7 @@ export default function ProductGrid({
     }
   }, [currentPage, totalPages]);
 
-  const startIndex = (currentPage - 1) * effectiveItemsPerPage;
+  const startIndex = currentPage === 1 ? 0 : firstPageSize + (currentPage - 2) * itemsPerPage;
   const currentProducts = sortedProducts.slice(startIndex, startIndex + effectiveItemsPerPage);
 
   const handlePageChange = (newPage: number) => {

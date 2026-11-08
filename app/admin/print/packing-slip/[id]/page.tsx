@@ -8,6 +8,7 @@ import { generatePackingSlipPDF } from "@/lib/shipping-label-pdf";
 import { formatIDR } from "@/lib/products";
 import { Printer, Download, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { STORE_ADDRESS } from "@/lib/store-info";
 
 export default function StandalonePackingSlipPage() {
   const params = useParams();
@@ -91,7 +92,7 @@ export default function StandalonePackingSlipPage() {
                 SURAT JALAN &amp; PACKING SLIP GUDANG
               </p>
               <p className="text-[11px] text-neutral-500 mt-1">
-                Jl. Senopati No. 42, Kebayoran Baru, Jakarta Selatan 12190
+                {STORE_ADDRESS}
               </p>
             </div>
             <div className="text-right">

@@ -14,6 +14,7 @@ import type { AdminOrder } from "@/lib/admin-data";
 import { generatePackingSlipPDF } from "@/lib/shipping-label-pdf";
 import { formatIDR } from "@/lib/products";
 import Link from "next/link";
+import { STORE_ADDRESS } from "@/lib/store-info";
 
 interface PackingSlipModalProps {
   order: AdminOrder | null;
@@ -93,7 +94,7 @@ export function PackingSlipModal({
                   SURAT JALAN &amp; PACKING SLIP GUDANG
                 </p>
                 <p className="text-[11px] text-neutral-500 mt-1">
-                  Jl. Senopati No. 42, Kebayoran Baru, Jakarta Selatan 12190
+                  {STORE_ADDRESS}
                 </p>
               </div>
               <div className="text-right">

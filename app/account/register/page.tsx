@@ -6,11 +6,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
 import { Loader2, ArrowRight, User, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 
 function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/account/orders";
+  const callbackUrl = safeRedirectPath(searchParams.get("callbackUrl"), "/account/orders");
 
   const { status } = useSession();
   const [name, setName] = React.useState("");

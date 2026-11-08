@@ -98,6 +98,8 @@ export type AdminOrder = {
   };
   subtotal: number;
   shippingCost: number;
+  /** Parcel weight in grams saved on the shipment (products + packaging). */
+  weightGrams?: number;
   discountAmount: number;
   /** Voucher code used at checkout, if any */
   couponCode?: string | null;

@@ -571,6 +571,7 @@ export default function AdminCouponsPage() {
                           <Switch
                             checked={coupon.isActive}
                             onCheckedChange={() => handleToggleStatus(coupon.id, coupon.isActive)}
+                            aria-label={`Status aktif kupon ${coupon.code}`}
                             className="data-[state=checked]:bg-emerald-600"
                           />
                           <span
@@ -837,6 +838,7 @@ export default function AdminCouponsPage() {
               <Switch
                 checked={isActive}
                 onCheckedChange={setIsActive}
+                aria-label="Kupon aktif"
                 className="data-[state=checked]:bg-emerald-600"
               />
             </div>
@@ -874,7 +876,7 @@ export default function AdminCouponsPage() {
 
       {/* Delete Confirmation Modal */}
       <Dialog open={Boolean(deleteConfirmId)} onOpenChange={() => setDeleteConfirmId(null)}>
-        <DialogContent className="max-w-sm">
+        <DialogContent role="alertdialog" className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-red-600 flex items-center gap-2">
               <Trash2 className="h-4 w-4" />

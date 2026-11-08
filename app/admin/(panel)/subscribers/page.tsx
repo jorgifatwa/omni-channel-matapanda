@@ -104,19 +104,22 @@ export default function AdminSubscribersPage() {
       return;
     }
 
+    // Quote every field and double embedded quotes (RFC 4180), and download via
+    // a Blob: encodeURI on a data: URI truncated the file at any "#".
+    const csvField = (value: string | number) => `"${String(value).replace(/"/g, '""')}"`;
     const headers = ["No", "ID", "Email", "Tanggal Berlangganan (ISO)", "Tanggal Format"];
     const rows = subscribers.map((s, idx) => {
       const dateFormatted = new Date(s.createdAt).toLocaleString("id-ID", {
         dateStyle: "medium",
         timeStyle: "short",
       });
-      return [idx + 1, s.id, `"${s.email}"`, `"${s.createdAt}"`, `"${dateFormatted}"`].join(
-        ","
-      );
+      return [idx + 1, s.id, s.email, s.createdAt, dateFormatted].map(csvField).join(",");
     });
 
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows].join("\n");
-    const encodedUri = encodeURI(csvContent);
+    const csvContent = [headers.map(csvField).join(","), ...rows].join("\r\n");
+    const encodedUri = URL.createObjectURL(
+      new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8" })
+    );
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
     link.setAttribute(
@@ -126,6 +129,7 @@ export default function AdminSubscribersPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(encodedUri), 0);
 
     showToast("success", "File CSV subscriber berhasil diunduh.");
   };

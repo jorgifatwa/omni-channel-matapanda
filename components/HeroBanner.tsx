@@ -198,7 +198,7 @@ export default function HeroBanner({ banners = [] }: HeroBannerProps) {
       >
         {activeCategories.map((cat, idx) => (
           <div
-            key={cat.label}
+            key={cat.id}
             className="relative h-full w-full flex-shrink-0 bg-neutral-900"
             aria-hidden={idx !== currentIndex}
           >
@@ -324,7 +324,7 @@ export default function HeroBanner({ banners = [] }: HeroBannerProps) {
             const isActive = idx === currentIndex;
             return (
               <button
-                key={cat.label}
+                key={cat.id}
                 type="button"
                 onClick={() => setCurrentIndex(idx)}
                 aria-label={`Go to slide ${idx + 1} (${cat.label})`}

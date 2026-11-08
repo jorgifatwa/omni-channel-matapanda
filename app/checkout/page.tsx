@@ -211,7 +211,17 @@ export default function CheckoutPage() {
   const [isLoadingShipping, setIsLoadingShipping] = React.useState(false);
   const [shippingProvider, setShippingProvider] = React.useState<string>("");
 
-  // Debounced auto-fetch shipping costs when province, city or postal code changes
+  // Cart lines used to weigh the parcel on the server; a string so the effect
+  // only re-runs when products or quantities actually change.
+  const shippingLinesKey = React.useMemo(
+    () =>
+      JSON.stringify(
+        checkoutItems.map((it) => ({ productId: it.productId, quantity: it.quantity }))
+      ),
+    [checkoutItems]
+  );
+
+  // Debounced auto-fetch shipping costs when the address or the cart contents change
   React.useEffect(() => {
     let isCancelled = false;
 
@@ -232,7 +242,8 @@ export default function CheckoutPage() {
             destinationProvince: province,
             destinationCity: city,
             destinationPostalCode: postalCode,
-            weightGrams: 500,
+            // Weight is computed on the server from the product weights.
+            items: JSON.parse(shippingLinesKey),
           }),
         });
 
@@ -246,9 +257,17 @@ export default function CheckoutPage() {
             );
             setShippingProvider(data.provider || "");
           }
+        } else if (!isCancelled) {
+          // A failed re-quote must not leave the previous city's rates payable.
+          setShippingRates([]);
+          setSelectedRate(null);
         }
       } catch (err) {
         console.error("Failed to calculate shipping:", err);
+        if (!isCancelled) {
+          setShippingRates([]);
+          setSelectedRate(null);
+        }
       } finally {
         if (!isCancelled) {
           setIsLoadingShipping(false);
@@ -261,7 +280,7 @@ export default function CheckoutPage() {
       isCancelled = true;
       clearTimeout(timer);
     };
-  }, [province, city, postalCode]);
+  }, [province, city, postalCode, shippingLinesKey]);
 
   const shippingCost = selectedRate ? selectedRate.cost : 0;
   const grandTotal = Math.max(0, checkoutSubtotal - totalDiscount) + shippingCost;
@@ -286,6 +305,7 @@ export default function CheckoutPage() {
     const newOrder: CheckoutOrderPayload = {
       id: `ord-${Date.now()}`,
       couponCode: appliedCoupon?.code || null,
+      shippingRateId: selectedRate?.id || null,
       orderNumber,
       customerId: `cust-${Date.now()}`,
       customerName: `${firstName} ${lastName}`.trim() || "Customer it's matapanda",
@@ -294,7 +314,7 @@ export default function CheckoutPage() {
       shippingAddress: {
         recipient: `${firstName} ${lastName}`.trim() || "Customer it's matapanda",
         phone: phone.trim(),
-        street: address.trim(),
+        street: [address.trim(), apartment.trim()].filter(Boolean).join(", "),
         city: city.trim(),
         province: province.trim(),
         postalCode: postalCode.trim(),
@@ -674,7 +694,7 @@ export default function CheckoutPage() {
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="Email address (e.g. panda@itsmatapanda.com)"
+                      placeholder="Email address (e.g. panda@itsmatapanda.com)" aria-label="Email address"
                       className="w-full h-13 py-3.5 px-4 pr-11 rounded-2xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-base text-neutral-900 dark:text-white placeholder:text-neutral-400 focus:outline-none focus:border-[#396254] focus:ring-2 focus:ring-[#d5c6ff]/50 transition-all shadow-sm"
                     />
                     <CircleHelp className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
@@ -710,15 +730,15 @@ export default function CheckoutPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                       <input
                         type="text"
-                        placeholder="Nama depan"
+                        required
+                        placeholder="Nama depan" aria-label="Nama depan"
                         value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
                         className="w-full h-13 py-3.5 px-4 rounded-2xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-base text-neutral-900 dark:text-white placeholder:text-neutral-400 focus:outline-none focus:border-[#396254] focus:ring-2 focus:ring-[#d5c6ff]/50 shadow-sm"
                       />
                       <input
                         type="text"
-                        required
-                        placeholder="Nama belakang"
+                        placeholder="Nama belakang (opsional)" aria-label="Nama belakang (opsional)"
                         value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
                         className="w-full h-13 py-3.5 px-4 rounded-2xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-base text-neutral-900 dark:text-white placeholder:text-neutral-400 focus:outline-none focus:border-[#396254] focus:ring-2 focus:ring-[#d5c6ff]/50 shadow-sm"
@@ -729,7 +749,7 @@ export default function CheckoutPage() {
                     <input
                       type="text"
                       required
-                      placeholder="Alamat jalan lengkap (misal: Jl. Senopati No. 64)"
+                      placeholder="Alamat jalan lengkap (misal: Jl. Senopati No. 64)" aria-label="Alamat jalan lengkap"
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
                       className="w-full h-13 py-3.5 px-4 rounded-2xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-base text-neutral-900 dark:text-white placeholder:text-neutral-400 focus:outline-none focus:border-[#396254] focus:ring-2 focus:ring-[#d5c6ff]/50 shadow-sm"
@@ -738,7 +758,7 @@ export default function CheckoutPage() {
                     {/* Apartment, suite, etc. */}
                     <input
                       type="text"
-                      placeholder="Apartemen, suite, lantai, no. unit (opsional)"
+                      placeholder="Apartemen, suite, lantai, no. unit (opsional)" aria-label="Apartemen, suite, lantai, no. unit (opsional)"
                       value={apartment}
                       onChange={(e) => setApartment(e.target.value)}
                       className="w-full h-13 py-3.5 px-4 rounded-2xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-base text-neutral-900 dark:text-white placeholder:text-neutral-400 focus:outline-none focus:border-[#396254] focus:ring-2 focus:ring-[#d5c6ff]/50 shadow-sm"
@@ -749,7 +769,7 @@ export default function CheckoutPage() {
                       <input
                         type="text"
                         required
-                        placeholder="Kota Tujuan / Kabupaten (misal: Jakarta Selatan, Bandung, Surabaya)"
+                        placeholder="Kota Tujuan / Kabupaten (misal: Jakarta Selatan, Bandung, Surabaya)" aria-label="Kota Tujuan / Kabupaten"
                         value={city}
                         onChange={(e) => setCity(e.target.value)}
                         className="w-full h-13 py-3.5 px-4 rounded-2xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-base text-neutral-900 dark:text-white placeholder:text-neutral-400 focus:outline-none focus:border-[#396254] focus:ring-2 focus:ring-[#d5c6ff]/50 shadow-sm"
@@ -787,7 +807,7 @@ export default function CheckoutPage() {
                       <input
                         type="text"
                         required
-                        placeholder="Kode pos"
+                        placeholder="Kode pos" aria-label="Kode pos"
                         value={postalCode}
                         onChange={(e) => setPostalCode(e.target.value)}
                         className="w-full h-14 px-4 rounded-2xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-base text-neutral-900 dark:text-white placeholder:text-neutral-400 focus:outline-none focus:border-[#396254] focus:ring-2 focus:ring-[#d5c6ff]/50 shadow-sm"
@@ -799,7 +819,7 @@ export default function CheckoutPage() {
                       <input
                         type="tel"
                         required
-                        placeholder="Nomor Handphone / WhatsApp"
+                        placeholder="Nomor Handphone / WhatsApp" aria-label="Nomor Handphone / WhatsApp"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                         className="w-full h-13 py-3.5 px-4 pr-11 rounded-2xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-base text-neutral-900 dark:text-white placeholder:text-neutral-400 focus:outline-none focus:border-[#396254] focus:ring-2 focus:ring-[#d5c6ff]/50 shadow-sm"
@@ -1101,7 +1121,7 @@ export default function CheckoutPage() {
                         handleApplyCheckoutCoupon();
                       }
                     }}
-                    placeholder="Kode kupon (misal: MATAPANDA10)"
+                    placeholder="Kode kupon (misal: MATAPANDA10)" aria-label="Kode kupon"
                     className="flex-1 h-12 px-4 rounded-2xl border-2 border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-sm text-neutral-900 dark:text-white placeholder:text-neutral-400 focus:outline-none focus:border-[#396254] focus:ring-2 focus:ring-[#d5c6ff]/50 uppercase font-mono tracking-wider shadow-sm"
                   />
                   <button

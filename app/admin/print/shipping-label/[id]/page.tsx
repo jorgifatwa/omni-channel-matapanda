@@ -4,10 +4,11 @@ import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAdminStore } from "@/context/AdminStoreContext";
 import { type AdminOrder } from "@/lib/admin-data";
-import { generateShippingLabelPDF } from "@/lib/shipping-label-pdf";
+import { courierLabel, formatParcelWeight, generateShippingLabelPDF, shippingLabelPaymentBadge, labelTrackingNumber } from "@/lib/shipping-label-pdf";
 import { BarcodeSvg } from "@/components/admin/BarcodeSvg";
 import { Printer, Download, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { STORE_ADDRESS, STORE_PHONE } from "@/lib/store-info";
 
 export default function StandaloneShippingLabelPage() {
   const params = useParams();
@@ -42,7 +43,7 @@ export default function StandaloneShippingLabelPage() {
   }
 
   const totalQty = order.items.reduce((acc, it) => acc + it.quantity, 0);
-  const trackingNumber = order.trackingNumber || `MP-${order.orderNumber}`;
+  const trackingNumber = labelTrackingNumber(order);
 
   return (
     <div className="min-h-screen bg-neutral-100 print:bg-white text-black font-sans py-4 sm:py-8">
@@ -91,11 +92,11 @@ export default function StandaloneShippingLabelPage() {
                 it&apos;s matapanda
               </h2>
               <p className="text-[10px] text-neutral-600 font-medium mt-0.5">
-                Official Store Jakarta
+                Official Store Bandung
               </p>
             </div>
             <div className="bg-black text-white px-3 py-1 text-xs font-black tracking-wider uppercase">
-              {order.courier} - {order.courierService || "REG"}
+              {courierLabel(order)}
             </div>
           </div>
 
@@ -113,7 +114,7 @@ export default function StandaloneShippingLabelPage() {
               <p className="text-neutral-600 text-[10px]">Tgl: {order.createdAt}</p>
             </div>
             <div className="border border-black px-2 py-0.5 font-bold text-[10px] bg-neutral-100">
-              NON-COD (LUNAS)
+              {shippingLabelPaymentBadge(order.paymentStatus)}
             </div>
           </div>
 
@@ -142,11 +143,11 @@ export default function StandaloneShippingLabelPage() {
             <span className="text-[9px] font-bold text-neutral-600 uppercase tracking-wider block">
               Pengirim (Sender):
             </span>
-            <p className="font-bold text-black">it&apos;s matapanda Jakarta (Official)</p>
+            <p className="font-bold text-black">it&apos;s matapanda Bandung (Official)</p>
             <p className="text-neutral-700">
-              Jl. Senopati No. 42, Kebayoran Baru, Jakarta Selatan 12190
+              {STORE_ADDRESS}
             </p>
-            <p className="text-neutral-700 font-mono">Telp: +62 812-9876-5432</p>
+            <p className="text-neutral-700 font-mono">Telp: {STORE_PHONE}</p>
           </div>
 
           {/* 6. Item List Summary */}
@@ -169,7 +170,7 @@ export default function StandaloneShippingLabelPage() {
             </ul>
             <div className="mt-2 pt-1 border-t border-dashed border-neutral-300 flex justify-between font-bold text-[10px]">
               <span>Total Kuantitas: {totalQty} pcs</span>
-              <span>Est. Berat: ~{(totalQty * 0.4).toFixed(1)} kg</span>
+              <span>Berat: {formatParcelWeight(order)}</span>
             </div>
           </div>
 

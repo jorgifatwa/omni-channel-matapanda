@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: TOO_MANY_MESSAGE }, { status: 429 });
   }
   const { token, password } = (await request.json().catch(() => ({}))) as { token?: string; password?: string };
-  if (typeof password !== "string" || password.length < 6 || password.length > 200) {
+  if (typeof password !== "string" || password.length < 6 || password.length > 200 || !password.trim()) {
     return NextResponse.json({ error: "Password minimal 6 karakter." }, { status: 400 });
   }
   const data = typeof token === "string" ? readPasswordToken(token) : null;

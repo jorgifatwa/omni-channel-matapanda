@@ -9,7 +9,7 @@ import { SHIPPING_RATES_DATA } from "@/lib/shipping-data";
 export const metadata: Metadata = {
   title: "Shipping & Delivery – it'smatapanda",
   description:
-    "Informasi ongkos kirim, gratis ongkir, estimasi waktu pengiriman, dan kebijakan kurir it'smatapanda.",
+    "Informasi ongkos kirim, estimasi waktu pengiriman, dan kebijakan kurir it'smatapanda.",
 };
 
 export default function ShippingPage() {

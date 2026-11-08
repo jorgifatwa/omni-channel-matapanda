@@ -79,11 +79,13 @@ export function DataTable<TData, TValue>({
       enableSorting: false,
       enableHiding: false,
       cell: ({ row, table }) => {
-        const pageIndex = table.getState().pagination.pageIndex;
-        const pageSize = table.getState().pagination.pageSize;
+        // Number by visible position (after sort/filter/paging), not by the
+        // row's index in the original data array.
+        const { pageIndex, pageSize } = table.getState().pagination;
+        const position = table.getRowModel().rows.findIndex((r) => r.id === row.id);
         return (
           <span className="font-medium text-neutral-600 dark:text-neutral-400">
-            {pageIndex * pageSize + row.index + 1}
+            {pageIndex * pageSize + position + 1}
           </span>
         );
       },
@@ -184,7 +186,11 @@ export function DataTable<TData, TValue>({
                     onClick={() => column.toggleVisibility(!visible)}
                     className="text-xs capitalize flex items-center justify-between cursor-pointer"
                   >
-                    <span>{column.id}</span>
+                    <span>
+                      {typeof column.columnDef.header === "string"
+                        ? column.columnDef.header
+                        : column.id}
+                    </span>
                     {visible && <Check className="h-3.5 w-3.5" />}
                   </DropdownMenuItem>
                 );
@@ -305,6 +311,7 @@ export function DataTable<TData, TValue>({
               className="h-8 w-8"
               onClick={() => table.previousPage()}
               disabled={!table.getCanPreviousPage()}
+              aria-label="Halaman sebelumnya"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -314,6 +321,7 @@ export function DataTable<TData, TValue>({
               className="h-8 w-8"
               onClick={() => table.nextPage()}
               disabled={!table.getCanNextPage()}
+              aria-label="Halaman berikutnya"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>

@@ -20,6 +20,7 @@ import { useWishlist } from "@/context/WishlistContext";
 import CompareSeriesSection from "@/components/CompareSeriesSection";
 import YouMayAlsoLike from "@/components/YouMayAlsoLike";
 import RecentlyViewed from "@/components/RecentlyViewed";
+import { RETURN_WINDOW_TEXT } from "@/lib/store-info";
 
 interface ProductDetailViewProps {
   product: StorefrontProduct;
@@ -779,7 +780,7 @@ export default function ProductDetailView({
                         Kebijakan Pengembalian 7 Hari
                       </p>
                       <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-0.5">
-                        Produk dapat ditukar atau dikembalikan dalam waktu 7 hari kerja sejak barang diterima dengan kondisi tag utuh dan belum dipakai.
+                        Produk dapat ditukar atau dikembalikan dalam waktu {RETURN_WINDOW_TEXT} sejak barang diterima dengan kondisi tag utuh dan belum dipakai.
                       </p>
                     </div>
                   </div>

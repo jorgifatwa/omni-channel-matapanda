@@ -25,7 +25,11 @@ export async function GET() {
     const formatted: AdminCustomer[] = dbCustomers.map((u) => {
       const primaryAddress = u.addresses[0];
       const totalOrders = u.orders.length;
-      const totalSpent = u.orders.reduce((sum, ord) => sum + Number(ord.totalAmount), 0);
+      // Only money actually received counts as spend: settled payments on
+      // orders that weren't cancelled (pending/expired/cancelled are excluded).
+      const totalSpent = u.orders
+        .filter((ord) => ord.status !== "CANCELLED" && ord.payment?.status === "SETTLEMENT")
+        .reduce((sum, ord) => sum + Number(ord.totalAmount), 0);
 
       return {
         id: u.id,

@@ -597,6 +597,7 @@ export default function AdminFaqsPage() {
                     <Switch
                       checked={item.isActive}
                       onCheckedChange={() => handleToggleActive(item.id, item.isActive)}
+                      aria-label={`Status aktif FAQ: ${item.question}`}
                     />
                   </div>
 
@@ -740,7 +741,7 @@ export default function AdminFaqsPage() {
                   <span className="text-xs font-medium">
                     {isActive ? "Aktif (Tampil)" : "Non-aktif (Draft)"}
                   </span>
-                  <Switch checked={isActive} onCheckedChange={setIsActive} />
+                  <Switch checked={isActive} onCheckedChange={setIsActive} aria-label="FAQ aktif" />
                 </div>
               </div>
             </div>
