@@ -650,7 +650,7 @@ export default function AdminCouponsPage() {
 
             {/* Kode Kupon */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-neutral-700">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                 Kode Kupon (Harus Unik) *
               </Label>
               <div className="relative">
@@ -671,7 +671,7 @@ export default function AdminCouponsPage() {
 
             {/* Nama Kupon / Influencer */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-neutral-700">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                 Nama Kampanye / Influencer *
               </Label>
               <Input
@@ -685,7 +685,7 @@ export default function AdminCouponsPage() {
 
             {/* Deskripsi */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-neutral-700">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
                 Catatan / Deskripsi (Opsional)
               </Label>
               <Input

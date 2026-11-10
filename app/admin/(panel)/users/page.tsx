@@ -856,7 +856,7 @@ export default function AdminUsersPage() {
                   className={`p-3 rounded-xl border text-xs font-semibold text-left transition-all ${
                     role === "CUSTOMER"
                       ? "border-blue-500 bg-blue-50/50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300"
-                      : "border-neutral-200 dark:border-neutral-800 text-neutral-600 hover:bg-neutral-50"
+                      : "border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800"
                   }`}
                 >
                   <div className="flex items-center gap-1.5 mb-1">
@@ -874,7 +874,7 @@ export default function AdminUsersPage() {
                   className={`p-3 rounded-xl border text-xs font-semibold text-left transition-all ${
                     role === "ADMIN"
                       ? "border-purple-500 bg-purple-50/50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300"
-                      : "border-neutral-200 dark:border-neutral-800 text-neutral-600 hover:bg-neutral-50"
+                      : "border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800"
                   }`}
                 >
                   <div className="flex items-center gap-1.5 mb-1">
@@ -1024,7 +1024,7 @@ export default function AdminUsersPage() {
                   className={`p-3 rounded-xl border text-xs font-semibold text-left transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                     role === "CUSTOMER"
                       ? "border-blue-500 bg-blue-50/50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300"
-                      : "border-neutral-200 dark:border-neutral-800 text-neutral-600 hover:bg-neutral-50"
+                      : "border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800"
                   }`}
                 >
                   <div className="flex items-center gap-1.5 mb-1">
@@ -1042,7 +1042,7 @@ export default function AdminUsersPage() {
                   className={`p-3 rounded-xl border text-xs font-semibold text-left transition-all ${
                     role === "ADMIN"
                       ? "border-purple-500 bg-purple-50/50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300"
-                      : "border-neutral-200 dark:border-neutral-800 text-neutral-600 hover:bg-neutral-50"
+                      : "border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800"
                   }`}
                 >
                   <div className="flex items-center gap-1.5 mb-1">

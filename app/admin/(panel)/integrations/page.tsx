@@ -193,8 +193,8 @@ function IntegrationsContent() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <Plug className="h-6 w-6 text-neutral-600" />
-            <h1 className="text-2xl font-bold text-neutral-900">Integrasi Marketplace</h1>
+            <Plug className="h-6 w-6 text-neutral-600 dark:text-neutral-400" />
+            <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">Integrasi Marketplace</h1>
           </div>
           <p className="text-sm text-neutral-500 ml-9">
             Kelola koneksi toko marketplace serta sinkronisasi katalog produk dan stok inventori.
